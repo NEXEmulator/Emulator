@@ -25,6 +25,9 @@ local FileFamily={readfile=1,writefile=1,isfile=1,isfolder=1,listfiles=1,makefol
 if not isfile("settings.json") then
 writefile("settings.json",JsonEncode(HttpService,settings))
 end
+if not isfolder(behave) then
+makefolder(behave)
+end
 local Identity={setidentity=1}
 local extraf={}
 genv.GetObjects=index(game,"GetObjects")
