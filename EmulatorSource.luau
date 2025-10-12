@@ -15,7 +15,7 @@ local SettingsExist=isfile("settings.json")
 local s,settingst=pcall(function()
 return JsonDecode(HttpService,readfile("settings.json"))
 end)
-local settings=SettingsExist and s and settingst or {CapabilityMax=2,HTTPEnabled=false,FilesEnabled=false,ExternalFPerms={}}
+local settings=SettingsExist and s and settingst or {CapabilityMax=8,HTTPEnabled=true,FilesEnabled=true,ExternalFPerms={}}
 local NotAllowed={getgenv=1}
 local HttpFamily={request=1}
 local rootid=JsonDecode(HttpService,
