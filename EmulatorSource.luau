@@ -20,7 +20,8 @@ local NotAllowed={getgenv=1}
 local HttpFamily={request=1}
 local rootid=JsonDecode(HttpService,
 request({Url=`https://develop.roblox.com/v1/universes/{GameId}`,Method="GET"}).Body).rootPlaceId
-local behave=`games/{rootid}/{GetProductInfo(MarketplaceService,rootid).Name}`
+local behave=`games/{rootid}/`
+writefile(`{behave}{GetProductInfo(MarketplaceService,rootid).Name}`,"True")
 local FileFamily={readfile=1,writefile=1,isfile=1,isfolder=1,listfiles=1,makefolder=1,delfolder=1,delfile=1,appendfile=1,loadfile=1,getcustomasset=1}
 if not isfile("settings.json") then
 writefile("settings.json",JsonEncode(HttpService,settings))
