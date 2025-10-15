@@ -35,6 +35,11 @@ local Identity={setidentity=1}
 local extraf={}
 genv.GetObjects=index(game,"GetObjects")
 renv={}
+local InsertService=index(game,"InsertService")
+local LLA=index(InsertService,"LoadLocalAsset")
+renv.LoadLocalAsset=function(x)
+LLA(InsertService,x)
+end
 renv.EXTRAFILEPERMS=extraf
 renv.Settings=table.clone(settings)
 renv.StopNEX=function()NEXEnabled=false end
@@ -44,11 +49,11 @@ if not NotAllowed[i] then
 if Identity[i] then
 renv[i]=function(x)
 if NEXEnabled then
-  if settings.CapabilityMax>=x then
-    return v(x)
-  else
-    print("CAPABILITY PERMISSIONS DENIED")
-  end
+if settings.CapabilityMax>=x then
+  return v(x)
+else
+  print("CAPABILITY PERMISSIONS DENIED")
+end
 end
 end
 elseif FileFamily[i] then
@@ -87,15 +92,15 @@ end
 end
 for _,v in reg do
 if type(v)=="thread" then
-   local env=getfenv(info(v,1,'f'))
-   if env then
-      for i,v in next,renv do
-        env[i]=v
-      end
-      env.NEX_Loaded=true
-      if settings.DebugMode then
-        print(`NEX LOADED IN {env.script}`)
-      end
+ local env=getfenv(info(v,1,'f'))
+ if env then
+    for i,v in next,renv do
+      env[i]=v
+    end
+    env.NEX_Loaded=true
+    if settings.DebugMode then
+      print(`NEX LOADED IN {env.script}`)
     end
   end
+end
 end
