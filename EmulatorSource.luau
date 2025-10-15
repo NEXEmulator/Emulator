@@ -1,5 +1,9 @@
+--!native
+--!nolint
+--!nocheck
+--!optimize 3
 local info,genv,index=debug.info,loadstring(request({Url="https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/AllowedFunctions.luau",Method="GET"}).Body)()
-xpcall(function()game[nil]()end,function()index=info(2,'f')end)
+xpcall(function()workspace[nil]()end,function()index=info(2,'f')end)
 if not isfolder("GameData") then
 makefolder("GameData")
 end
