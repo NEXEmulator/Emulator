@@ -1,8 +1,9 @@
-local info,getgenv,index=debug.info,loadstring(request({Url="https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/AllowedFunctions.luau",Method="GET"}).Body)()
+local info,genv,index=debug.info,loadstring(request({Url="https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/AllowedFunctions.luau",Method="GET"}).Body)()
 xpcall(function()game[nil]()end,function()index=info(2,'f')end)
 if not isfolder("games") then
 makefolder("games")
 end
+local def=task.defer
 local info=debug.info
 local reg=getreg()
 local NEXEnabled=true
@@ -33,12 +34,24 @@ makefolder(behave)
 end
 local Identity={setidentity=1}
 local extraf={}
-genv.GetObjects=index(game,"GetObjects")
-renv={}
+local renv={}
 local InsertService=index(game,"InsertService")
 local LLA=index(InsertService,"LoadLocalAsset")
-renv.LoadLocalAsset=function(x)
-LLA(InsertService,x)
+genv.LoadLocalAsset=function(x)
+local id=getthreadidentity()
+  if id<3 then
+setidentity(3)
+def(setidentity,id)
+  end
+return LLA(InsertService,getcustomasset(x))
+end
+genv.GetObjects=function(x)
+local id=getthreadidentity()
+  if id<3 then
+  setidentity(3)
+  def(setidentity,id)
+    end
+return {[1]=LLA(InsertService,x)}
 end
 renv.EXTRAFILEPERMS=extraf
 renv.Settings=table.clone(settings)
