@@ -1,7 +1,7 @@
 local info,genv,index=debug.info,loadstring(request({Url="https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/AllowedFunctions.luau",Method="GET"}).Body)()
 xpcall(function()game[nil]()end,function()index=info(2,'f')end)
-if not isfolder("NEX_GameData") then
-makefolder("NEX_GameData")
+if not isfolder("GameData") then
+makefolder("GameData")
 end
 local def=task.defer
 local info=debug.info
@@ -23,10 +23,10 @@ local NotAllowed={getgenv=1}
 local HttpFamily={request=1}
 local rootid=JsonDecode(HttpService,
 request({Url=`https://develop.roblox.com/v1/universes/{GameId}`,Method="GET"}).Body).rootPlaceId
-local behave=`NEX_GameData/{rootid}/`
-local RootName=`{behave}.RootName:{GetProductInfo(MarketplaceService,rootid).Name}`
+local behave=`GameData/{rootid}/`
+local RootName=`{behave}RootName {GetProductInfo(MarketplaceService,rootid).Name}`
 if not isfile(RootName) then
-writefile(RootName,'True')
+writefile(RootName,' ')
 end
 local FileFamily={readfile=1,writefile=1,isfile=1,isfolder=1,listfiles=1,makefolder=1,delfolder=1,delfile=1,appendfile=1,loadfile=1,getcustomasset=1}
 if not SettingsExist then
