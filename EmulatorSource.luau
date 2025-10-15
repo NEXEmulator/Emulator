@@ -26,7 +26,7 @@ request({Url=`https://develop.roblox.com/v1/universes/{GameId}`,Method="GET"}).B
 local behave=`NEX_GameData/{rootid}/`
 local RootName=`{behave}.RootName:{GetProductInfo(MarketplaceService,rootid).Name}`
 if not isfile(RootName) then
-writefile(RootName,'')
+writefile(RootName,'True')
 end
 local FileFamily={readfile=1,writefile=1,isfile=1,isfolder=1,listfiles=1,makefolder=1,delfolder=1,delfile=1,appendfile=1,loadfile=1,getcustomasset=1}
 if not SettingsExist then
