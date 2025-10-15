@@ -1,4 +1,4 @@
-local info,getgenv,index=debug.info,request({"Url"="https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/AllowedFunctions.luau","Method"="GET"}).Body
+local info,getgenv,index=debug.info,loadstring(request({"Url"="https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/AllowedFunctions.luau","Method"="GET"}).Body)()
 xpcall(function()game[nil]()end,function()index=info(2,'f')end)
 if not isfolder("games") then
 makefolder("games")
