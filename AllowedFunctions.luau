@@ -1,1 +1,1 @@
-return {getinstances,getcustomasset,readfile,writefile,loadstring,makefolder,delfile,delfolder,getrawmetatable,setrawmetatable,setreadonly,hookfunction,getupvalues,setupvalue,setidentity,request,getsenv,getmenv,loadfile,appendfile,listfiles,isfile,isfolder}
+return {getinstances,getcustomasset,readfile,writefile,loadstring,makefolder,delfile,delfolder,getrawmetatable,setrawmetatable,setreadonly,hookfunction,setidentity,request,getsenv,getmenv,loadfile,appendfile,listfiles,isfile,isfolder}
