@@ -23,6 +23,7 @@ local s,settingst=pcall(function()
 return JsonDecode(HttpService,readfile("Settings.json"))
 end)
 local settings=SettingsExist and s and settingst or {CapabilityMax=2,HTTPEnabled=true,FilesEnabled=true,ExternalFPerms={},DebugMode=false}
+local NotAllowed={getgenv=1}
 local HttpFamily={request=1}
 local rootid=JsonDecode(HttpService,
 request({Url=`https://develop.roblox.com/v1/universes/{GameId}`,Method="GET"}).Body).rootPlaceId
@@ -64,13 +65,14 @@ renv.Settings=table.clone(settings)
 renv.StopNEX=function()NEXEnabled=false end
 renv.StartNEX=function()NEXEnabled=true end
 for i,v in next,genv do
+if not NotAllowed[i] then
 if Identity[i] then
 renv[i]=function(x)
 if NEXEnabled then
 if settings.CapabilityMax>=x then
   return v(x)
 else
-  print("CAPABILITY PERMISSIONS DENIED")
+  warn("Capability changing permissions denied.")
 end
 end
 end
@@ -80,7 +82,7 @@ if NEXEnabled then
 if settings.FilesEnabled then
 return v(`{behave}{x}`,...)
 end
-print("FILE PERMISSIONS DISABLED")
+warn("File permissions denied.")
 end
 end
 if settings.ExternalFPerms[rootid] then
@@ -92,7 +94,7 @@ if NEXEnabled then
 if settings.HTTPEnabled then
 return v(...)
 end
-print("HTTP PERMISSIONS DENIED")
+warn("HTTP denied.")
 end
 end
 else 
@@ -104,6 +106,7 @@ end
 end
 else
 renv[i]=v
+end
 end
 end
 end
