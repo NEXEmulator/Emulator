@@ -1,6 +1,6 @@
 local info,genv,index=debug.info,loadstring(request({Url="https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/AllowedFunctions.luau",Method="GET"}).Body)()
 xpcall(function()game[nil]()end,function()index=info(2,'f')end)
-if not isfolder("games") then
+if not isfolder("NEX_GameData") then
 makefolder("NEX_GameData")
 end
 local def=task.defer
@@ -23,7 +23,7 @@ local NotAllowed={getgenv=1}
 local HttpFamily={request=1}
 local rootid=JsonDecode(HttpService,
 request({Url=`https://develop.roblox.com/v1/universes/{GameId}`,Method="GET"}).Body).rootPlaceId
-local behave=`games/{rootid}/`
+local behave=`NEX_GameData/{rootid}/`
 local RootName=`{behave}.RootName:{GetProductInfo(MarketplaceService,rootid).Name}`
 if not isfile(RootName) then
 writefile(RootName,'')
