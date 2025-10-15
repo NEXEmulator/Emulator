@@ -23,7 +23,6 @@ local s,settingst=pcall(function()
 return JsonDecode(HttpService,readfile("Settings.json"))
 end)
 local settings=SettingsExist and s and settingst or {CapabilityMax=2,HTTPEnabled=true,FilesEnabled=true,ExternalFPerms={},DebugMode=false}
-local NotAllowed={getgenv=1}
 local HttpFamily={request=1}
 local rootid=JsonDecode(HttpService,
 request({Url=`https://develop.roblox.com/v1/universes/{GameId}`,Method="GET"}).Body).rootPlaceId
@@ -65,7 +64,6 @@ renv.Settings=table.clone(settings)
 renv.StopNEX=function()NEXEnabled=false end
 renv.StartNEX=function()NEXEnabled=true end
 for i,v in next,genv do
-if not NotAllowed[i] then
 if Identity[i] then
 renv[i]=function(x)
 if NEXEnabled then
@@ -106,7 +104,6 @@ end
 end
 else
 renv[i]=v
-end
 end
 end
 end
