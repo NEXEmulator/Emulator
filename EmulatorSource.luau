@@ -1,7 +1,7 @@
 local info,genv,index=debug.info,loadstring(request({Url="https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/AllowedFunctions.luau",Method="GET"}).Body)()
 xpcall(function()game[nil]()end,function()index=info(2,'f')end)
 if not isfolder("games") then
-makefolder("games")
+makefolder("NEX_GameData")
 end
 local def=task.defer
 local info=debug.info
@@ -14,9 +14,9 @@ local MarketplaceService=GetService(game,"MarketplaceService")
 local GetProductInfo=index(MarketplaceService,"GetProductInfo")
 local JsonDecode=index(HttpService,"JSONDecode")
 local JsonEncode=index(HttpService,"JSONEncode")
-local SettingsExist=isfile("settings.json")
+local SettingsExist=isfile("Settings.json")
 local s,settingst=pcall(function()
-return JsonDecode(HttpService,readfile("settings.json"))
+return JsonDecode(HttpService,readfile("Settings.json"))
 end)
 local settings=SettingsExist and s and settingst or {CapabilityMax=2,HTTPEnabled=true,FilesEnabled=true,ExternalFPerms={},DebugMode=false}
 local NotAllowed={getgenv=1}
@@ -24,10 +24,13 @@ local HttpFamily={request=1}
 local rootid=JsonDecode(HttpService,
 request({Url=`https://develop.roblox.com/v1/universes/{GameId}`,Method="GET"}).Body).rootPlaceId
 local behave=`games/{rootid}/`
-writefile(`{behave}{GetProductInfo(MarketplaceService,rootid).Name}`,"True")
+local RootName=`{behave}.RootName:{GetProductInfo(MarketplaceService,rootid).Name}`
+if not isfile(RootName) then
+writefile(RootName,'')
+end
 local FileFamily={readfile=1,writefile=1,isfile=1,isfolder=1,listfiles=1,makefolder=1,delfolder=1,delfile=1,appendfile=1,loadfile=1,getcustomasset=1}
-if not isfile("settings.json") then
-writefile("settings.json",JsonEncode(HttpService,settings))
+if not SettingsExist then
+writefile("Settings.json",JsonEncode(HttpService,settings))
 end
 if not isfolder(behave) then
 makefolder(behave)
