@@ -22,7 +22,7 @@ local SettingsExist=isfile("Settings.json")
 local s,settingst=pcall(function()
 return JsonDecode(HttpService,readfile("Settings.json"))
 end)
-local settings=SettingsExist and s and settingst or {CapabilityMax=2,HTTPEnabled=true,FilesEnabled=true,ExternalFPerms={},DebugMode=false}
+local settings=SettingsExist and s and settingst or {CapabilityMax=2,HTTPEnabled=true,FilesEnabled=true,ExternalFilePerms={},DebugMode=false}
 local NotAllowed={getgenv=1}
 local HttpFamily={request=1}
 local rootid=JsonDecode(HttpService,
@@ -85,7 +85,7 @@ end
 warn("File permissions denied.")
 end
 end
-if settings.ExternalFPerms[rootid] then
+if settings.ExternalFilePerms[rootid] then
 extraf[i]=v
 end
 elseif HttpFamily[i] then
