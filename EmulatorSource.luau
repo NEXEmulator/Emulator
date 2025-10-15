@@ -42,7 +42,7 @@ end
 local Identity={setidentity=1}
 local extraf={}
 local renv={}
-local InsertService=index(game,"InsertService")
+local InsertService=GetService(game,"InsertService")
 local LLA=index(InsertService,"LoadLocalAsset")
 genv.LoadLocalAsset=function(x)
 local id=getthreadidentity()
