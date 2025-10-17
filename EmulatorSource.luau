@@ -44,10 +44,11 @@ local extraf={}
 local renv={}
 local InsertService=GetService(game,"InsertService")
 local LLA=index(InsertService,"LoadLocalAsset")
+local oldset=setidentity
 genv.LoadLocalAsset=function(x)
 local id=getthreadidentity()
   if id<3 then
-setidentity(3)
+oldset(3)
 def(setidentity,id)
   end
 return LLA(InsertService,getcustomasset(x))
@@ -55,7 +56,7 @@ end
 genv.GetObjects=function(x)
 local id=getthreadidentity()
   if id<3 then
-  setidentity(3)
+  oldset(3)
   def(setidentity,id)
     end
 return {[1]=LLA(InsertService,x)}
