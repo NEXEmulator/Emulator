@@ -32,7 +32,7 @@ local RootName=`{behave}RootName {GetProductInfo(MarketplaceService,rootid).Name
 if not isfile(RootName) then
 writefile(RootName,' ')
 end
-local FileFamily={readfile=1,writefile=1,isfile=1,isfolder=1,listfiles=1,makefolder=1,delfolder=1,delfile=1,appendfile=1,loadfile=1,getcustomasset=1}
+local FileFamily={getfilename=1,readfile=1,writefile=1,isfile=1,isfolder=1,listfiles=1,makefolder=1,delfolder=1,delfile=1,appendfile=1,loadfile=1,getcustomasset=1}
 if not SettingsExist then
 writefile("Settings.json",JsonEncode(HttpService,settings))
 end
@@ -59,6 +59,23 @@ local id=getthreadidentity()
   def(setidentity,id)
     end
 return {[1]=LLA(InsertService,x)}
+end
+local exstr="hi"
+local find,sub=exstr.find,exstr.sub
+genv.getfilename=function(x,removedot)
+    local slash,name=find(x,"/[^/]*$")
+    if slash then
+        name=sub(x,slash+1)
+    else
+        name=x
+  end
+    if removedot then
+        local dot=find(name,"%.")
+        if dot then
+            return sub(name,1,dot-1)
+        end
+    end
+    return name
 end
 renv.EXTRAFILEPERMS=extraf
 renv.Settings=table.clone(settings)
