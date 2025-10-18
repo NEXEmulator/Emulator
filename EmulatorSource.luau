@@ -7,6 +7,7 @@ xpcall(function()workspace[nil]()end,function()index=info(2,'f')end)
 if not isfolder("GameData") then
 makefolder("GameData")
 end
+local tclone=table.clone
 local def=task.defer
 local info=debug.info
 local reg=getreg()
@@ -39,7 +40,7 @@ end
 if not isfolder(behave) then
 makefolder(behave)
 end
-local Identity={setidentity=1}
+local Identity={setidentity=1,getthreadidentity=1}
 local extraf={}
 local renv={}
 local InsertService=GetService(game,"InsertService")
@@ -53,14 +54,16 @@ def(oldset,id)
 end
 return LLA(InsertService,getcustomasset(x))
 end
+local oldti=getthreadidentity
 genv.InsertAsset=function(x)
-local id=getthreadidentity()
+local id=oldti()
 if id<3 then
 oldset(3)
 def(oldset,id)
 end
 return LLA(InsertService,x)
 end
+local debugm=settings.DebugMode
 local exstr="hi"
 local find,sub=exstr.find,exstr.sub
 genv.getfilename=function(x,removedot)
@@ -79,7 +82,7 @@ end
 return name
 end
 renv.EXTRAFILEPERMS=extraf
-renv.Settings=table.clone(settings)
+renv.Settings=tclone(settings)
 local protectedfunctions={}
 for _,v in genv do
 protectedfunctions[v]=v
@@ -89,9 +92,9 @@ protectedfunctions[v]=v
 end
 local oldhook=hookfunction
 genv.hookfunction=function(x,y)
-protectedfunctions[task.defer]=task.defer
+protectedfunctions[def]=def
 if protectedfunctions[x] then
-warn("Cannot hook protected functions. Reason: some functions could be hooked to gain access to unrestricted functions like oldset.")
+warn("Cannot hook protected functions. Reason: some functions could be hooked to gain access to unrestricted functions, an early found example is with task.defer, which gave you access to oldset.")
     else
     return oldhook(x,y)
     end
@@ -150,7 +153,7 @@ for i,v in next,renv do
   env[i]=v
 end
 env.NEX_Loaded=true
-if settings.DebugMode then
+if debugm then
   print(`NEX LOADED IN {env.script}`)
 end
 end
