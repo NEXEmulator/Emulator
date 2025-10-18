@@ -8,7 +8,7 @@ if not isfolder("GameData") then
 makefolder("GameData")
 end
 local tclone=table.clone
-local def=task.defer
+local def=clonefunction(task.defer)
 local info=debug.info
 local reg=getreg()
 local NEXEnabled=true
@@ -83,22 +83,6 @@ return name
 end
 renv.EXTRAFILEPERMS=extraf
 renv.Settings=tclone(settings)
-local protectedfunctions={}
-for _,v in genv do
-protectedfunctions[v]=v
-end
-for _,v in renv do
-protectedfunctions[v]=v
-end
-local oldhook=hookfunction
-genv.hookfunction=function(x,y)
-protectedfunctions[def]=def
-if protectedfunctions[x] then
-warn("Cannot hook protected functions. Reason: some functions could be hooked to gain access to unrestricted functions, an early found example is with task.defer, which gave you access to oldset.")
-    else
-    return oldhook(x,y)
-    end
-end
 for i,v in next,genv do
 if not NotAllowed[i] then
 if Identity[i] then
