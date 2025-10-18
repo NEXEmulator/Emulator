@@ -11,7 +11,6 @@ local tclone=table.clone
 local def=clonefunction(task.defer)
 local info=debug.info
 local reg=getreg()
-local NEXEnabled=true
 local GameId=index(game,"GameId")
 local GetService=index(game,"GetService")
 local HttpService=GetService(game,"HttpService")
@@ -69,63 +68,53 @@ local find,sub=exstr.find,exstr.sub
 genv.getfilename=function(x,removedot)
 local slash,name=find(x,"/[^/]*$")
 if slash then
-    name=sub(x,slash+1)
+name=sub(x,slash+1)
 else
-    name=x
+name=x
 end
 if removedot then
-    local dot=find(name,"%.")
-    if dot then
-        return sub(name,1,dot-1)
-    end
+local dot=find(name,"%.")
+if dot then
+    return sub(name,1,dot-1)
+end
 end
 return name
 end
+local HttpEnabled=settings.HTTPEnabled
+local FilesEnabled=settings.FilesEnabled
+local CapabilityMax=settings.CapabilityMax
+local ExternalFilePerms=settings.ExternalFilePerms[rootid]
 renv.EXTRAFILEPERMS=extraf
 renv.Settings=tclone(settings)
 for i,v in next,genv do
 if not NotAllowed[i] then
 if Identity[i] then
 renv[i]=function(x)
-if NEXEnabled then
-if settings.CapabilityMax>=x then
+if CapabilityMax>=x then
 return v(x)
 else
 warn("Capability changing permissions denied.")
 end
 end
-end
 elseif FileFamily[i] then
 renv[i]=function(x,...)
-if NEXEnabled then
-if settings.FilesEnabled then
+if FilesEnabled then
 return v(`{behave}{x}`,...)
 end
 warn("File permissions denied.")
 end
-end
-if settings.ExternalFilePerms[rootid] then
+if ExternalFilePerms then
 extraf[i]=v
 end
 elseif HttpFamily[i] then
 renv[i]=function(...)
-if NEXEnabled then
-if settings.HTTPEnabled then
+if HttpEnabled then
 return v(...)
 end
 warn("HTTP denied.")
 end
-end
 else 
-if type(v)=="function" then
-renv[i]=function(...)
-if NEXEnabled then
-return v(...)
-end
-end
-else
 renv[i]=v
-end
 end
 end
 end
@@ -134,11 +123,11 @@ if type(v)=="thread" then
 local env=getfenv(info(v,1,'f'))
 if env then
 for i,v in next,renv do
-  env[i]=v
+env[i]=v
 end
 env.NEX_Loaded=true
 if debugm then
-  print(`NEX LOADED IN {env.script}`)
+print(`NEX LOADED IN {env.script}`)
 end
 end
 end
