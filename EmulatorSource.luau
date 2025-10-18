@@ -47,50 +47,64 @@ local LLA=index(InsertService,"LoadLocalAsset")
 local oldset=setidentity
 genv.LoadLocalAsset=function(x)
 local id=getthreadidentity()
-  if id<3 then
+if id<3 then
 oldset(3)
 def(oldset,id)
-  end
+end
 return LLA(InsertService,getcustomasset(x))
 end
-genv.GetObjects=function(x)
+genv.InsertAsset=function(x)
 local id=getthreadidentity()
-  if id<3 then
-  oldset(3)
-  def(oldset,id)
-    end
-return {[1]=LLA(InsertService,x)}
+if id<3 then
+oldset(3)
+def(oldset,id)
+end
+return LLA(InsertService,x)
 end
 local exstr="hi"
 local find,sub=exstr.find,exstr.sub
 genv.getfilename=function(x,removedot)
-    local slash,name=find(x,"/[^/]*$")
-    if slash then
-        name=sub(x,slash+1)
-    else
-        name=x
-  end
-    if removedot then
-        local dot=find(name,"%.")
-        if dot then
-            return sub(name,1,dot-1)
-        end
+local slash,name=find(x,"/[^/]*$")
+if slash then
+    name=sub(x,slash+1)
+else
+    name=x
+end
+if removedot then
+    local dot=find(name,"%.")
+    if dot then
+        return sub(name,1,dot-1)
     end
-    return name
+end
+return name
 end
 renv.EXTRAFILEPERMS=extraf
 renv.Settings=table.clone(settings)
-renv.StopNEX=function()NEXEnabled=false end
-renv.StartNEX=function()NEXEnabled=true end
+local protectedfunctions={}
+for _,v in genv do
+protectedfunctions[v]=v
+end
+for _,v in renv do
+protectedfunctions[v]=v
+end
+local oldhook=hookfunction
+genv.hookfunction=function(x,y)
+protectedfunctions[task.defer]=task.defer
+if protectedfunctions[x] then
+warn("Cannot hook protected functions. Reason: some functions could be hooked to gain access to unrestricted functions like oldset.")
+    else
+    return oldhook(x,y)
+    end
+end
 for i,v in next,genv do
 if not NotAllowed[i] then
 if Identity[i] then
 renv[i]=function(x)
 if NEXEnabled then
 if settings.CapabilityMax>=x then
-  return v(x)
+return v(x)
 else
-  warn("Capability changing permissions denied.")
+warn("Capability changing permissions denied.")
 end
 end
 end
@@ -130,15 +144,15 @@ end
 end
 for _,v in reg do
 if type(v)=="thread" then
- local env=getfenv(info(v,1,'f'))
- if env then
-    for i,v in next,renv do
-      env[i]=v
-    end
-    env.NEX_Loaded=true
-    if settings.DebugMode then
-      print(`NEX LOADED IN {env.script}`)
-    end
-  end
+local env=getfenv(info(v,1,'f'))
+if env then
+for i,v in next,renv do
+  env[i]=v
+end
+env.NEX_Loaded=true
+if settings.DebugMode then
+  print(`NEX LOADED IN {env.script}`)
+end
+end
 end
 end
