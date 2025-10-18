@@ -49,7 +49,7 @@ genv.LoadLocalAsset=function(x)
 local id=getthreadidentity()
   if id<3 then
 oldset(3)
-def(setidentity,id)
+def(oldset,id)
   end
 return LLA(InsertService,getcustomasset(x))
 end
@@ -57,7 +57,7 @@ genv.GetObjects=function(x)
 local id=getthreadidentity()
   if id<3 then
   oldset(3)
-  def(setidentity,id)
+  def(oldset,id)
     end
 return {[1]=LLA(InsertService,x)}
 end
