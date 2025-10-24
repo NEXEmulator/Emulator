@@ -23,7 +23,12 @@ local SettingsExist=isfile("Settings.json")
 local s,settingst=pcall(function()
 return JsonDecode(HttpService,readfile("Settings.json"))
 end)
-local settings=SettingsExist and s and settingst or {CapabilityMax=2,HTTPEnabled=true,FilesEnabled=true,ExternalFilePerms={},DebugMode=false}
+local settings=SettingsExist and s and settingst or {EmulateOnGameIsLoaded=true,CapabilityMax=2,HTTPEnabled=true,FilesEnabled=true,ExternalFilePerms={},DebugMode=false}
+local tw=task.wait
+local IsLoaded=index(game,"IsLoaded")
+if settings.EmulateOnGameIsLoaded then
+repeat tw() until IsLoaded(game)
+end
 local NotAllowed={getgenv=1}
 local HttpFamily={request=1}
 local rootid=JsonDecode(HttpService,
