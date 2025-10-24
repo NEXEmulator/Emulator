@@ -8,7 +8,8 @@ if not isfolder("GameData") then
 makefolder("GameData")
 end
 local tclone=table.clone
-local def=clonefunction(task.defer)
+local cdef=clonefunction(task.defer)
+local def=function(x,...) return cdef(function(...)return x(...)end,...)end
 local info=debug.info
 local reg=getreg()
 local GameId=index(game,"GameId")
@@ -45,15 +46,15 @@ local renv={}
 local InsertService=GetService(game,"InsertService")
 local LLA=index(InsertService,"LoadLocalAsset")
 local oldset=setidentity
+local oldti=getthreadidentity
 genv.LoadLocalAsset=function(x)
-local id=getthreadidentity()
+local id=oldti()
 if id<3 then
 oldset(3)
 def(oldset,id)
 end
 return LLA(InsertService,getcustomasset(x))
 end
-local oldti=getthreadidentity
 genv.InsertAsset=function(x)
 local id=oldti()
 if id<3 then
@@ -90,7 +91,7 @@ for i,v in next,genv do
 if not NotAllowed[i] then
 if Identity[i] then
 renv[i]=function(x)
-if CapabilityMax>=x then
+if CapabilityMax>=(x or 0) then
 return v(x)
 else
 warn("Capability changing permissions denied.")
@@ -121,7 +122,7 @@ end
 for _,v in reg do
 if type(v)=="thread" then
 local env=getfenv(info(v,1,'f'))
-if env then
+if env  then
 for i,v in next,renv do
 env[i]=v
 end
