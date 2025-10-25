@@ -35,8 +35,10 @@ local rootid=JsonDecode(HttpService,
 request({Url=`https://develop.roblox.com/v1/universes/{GameId}`,Method="GET"}).Body).rootPlaceId
 local behave=`GameData/{rootid}/`
 local RootName=`{behave}RootName {GetProductInfo(MarketplaceService,rootid).Name}`
-if not isfile(RootName) then
+local rnexists=`{behave}.rootname`
+if not isfile(rnexists) then
 writefile(RootName,' ')
+writefile(rnexists,' ')
 end
 local FileFamily={getfilename=1,readfile=1,writefile=1,isfile=1,isfolder=1,listfiles=1,makefolder=1,delfolder=1,delfile=1,appendfile=1,loadfile=1,getcustomasset=1}
 if not SettingsExist then
