@@ -7,6 +7,7 @@ xpcall(function()workspace[nil]()end,function()index=info(2,'f')end)
 if not isfolder("GameData") then
 makefolder("GameData")
 end
+local rwarn=clonefunction(warn)
 local tclone=table.clone
 local cdef=clonefunction(task.defer)
 local def=function(x,...) return cdef(function(...)return x(...)end,...)end
@@ -72,7 +73,7 @@ return LLA(InsertService,x)
 end
 local debugm=settings.DebugMode
 local exstr="hi"
-local find,sub=exstr.find,exstr.sub
+local find,sub=clonefunction(exstr.find),clonefunction(exstr.sub)
 genv.getfilename=function(x,removedot)
 local slash,name=find(x,"/[^/]*$")
 if slash then
@@ -101,7 +102,7 @@ renv[i]=function(x)
 if CapabilityMax>=(x or 0) then
 return v(x)
 else
-warn("Capability changing permissions denied.")
+rwarn("Capability changing permissions denied.")
 end
 end
 elseif FileFamily[i] then
@@ -109,7 +110,7 @@ renv[i]=function(x,...)
 if FilesEnabled then
 return v(`{behave}{x}`,...)
 end
-warn("File permissions denied.")
+rwarn("File permissions denied.")
 end
 if ExternalFilePerms then
 extraf[i]=v
@@ -119,7 +120,7 @@ renv[i]=function(...)
 if HttpEnabled then
 return v(...)
 end
-warn("HTTP denied.")
+rwarn("HTTP denied.")
 end
 else 
 renv[i]=v
@@ -135,7 +136,7 @@ env[i]=v
 end
 env.NEX_Loaded=true
 if debugm then
-print(`NEX LOADED IN {env.script}`)
+rwarn(`NEX LOADED IN {env.script}`)
 end
 end
 end
