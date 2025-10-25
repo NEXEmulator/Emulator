@@ -7,6 +7,7 @@ xpcall(function()workspace[nil]()end,function()index=info(2,'f')end)
 if not isfolder("GameData") then
 makefolder("GameData")
 end
+local gca=clonefunction(getcustomasset)
 local rwarn=clonefunction(warn)
 local tclone=table.clone
 local cdef=clonefunction(task.defer)
@@ -52,7 +53,7 @@ local Identity={setidentity=1,getthreadidentity=1}
 local extraf={}
 local renv={}
 local InsertService=GetService(game,"InsertService")
-local LLA=index(InsertService,"LoadLocalAsset")
+local LLA=clonefunction(index(InsertService,"LoadLocalAsset"))
 local oldset=setidentity
 local oldti=getthreadidentity
 genv.LoadLocalAsset=function(x)
@@ -61,7 +62,7 @@ if id<3 then
 oldset(3)
 def(oldset,id)
 end
-return LLA(InsertService,getcustomasset(x))
+return LLA(InsertService,gca(x))
 end
 genv.InsertAsset=function(x)
 local id=oldti()
@@ -93,7 +94,7 @@ local HttpEnabled=settings.HTTPEnabled
 local FilesEnabled=settings.FilesEnabled
 local CapabilityMax=settings.CapabilityMax
 local ExternalFilePerms=settings.ExternalFilePerms[rootid]
-renv.EXTRAFILEPERMS=extraf
+renv.EXTRAFILEPERMS=ExternalFilePerms
 renv.Settings=tclone(settings)
 for i,v in next,genv do
 if not NotAllowed[i] then
