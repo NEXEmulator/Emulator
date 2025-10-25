@@ -7,7 +7,7 @@ xpcall(function()workspace[nil]()end,function()index=info(2,'f')end)
 if not isfolder("GameData") then
 makefolder("GameData")
 end
-local gca=clonefunction(getcustomasset)
+local rgca=clonefunction(getcustomasset)
 local rwarn=clonefunction(warn)
 local tclone=table.clone
 local cdef=clonefunction(task.defer)
@@ -36,6 +36,7 @@ local HttpFamily={request=1}
 local rootid=JsonDecode(HttpService,
 request({Url=`https://develop.roblox.com/v1/universes/{GameId}`,Method="GET"}).Body).rootPlaceId
 local behave=`GameData/{rootid}/`
+local gca=function(x) return rgca(`{behave}{x}`) end
 local RootName=`{behave}RootName {GetProductInfo(MarketplaceService,rootid).Name}`
 local rnexists=`{behave}.rootname`
 if not isfile(rnexists) then
@@ -99,30 +100,30 @@ renv.Settings=tclone(settings)
 for i,v in next,genv do
 if not NotAllowed[i] then
 if Identity[i] then
-renv[i]=function(x)
+renv[i]=newcclosure(function(x)
 if CapabilityMax>=(x or 0) then
 return v(x)
 else
 rwarn("Capability changing permissions denied.")
 end
-end
+end)
 elseif FileFamily[i] then
-renv[i]=function(x,...)
+renv[i]=newcclosure(function(x,...)
 if FilesEnabled then
 return v(`{behave}{x}`,...)
 end
 rwarn("File permissions denied.")
-end
+end)
 if ExternalFilePerms then
 extraf[i]=v
 end
 elseif HttpFamily[i] then
-renv[i]=function(...)
+renv[i]=newcclosure(function(...)
 if HttpEnabled then
 return v(...)
 end
 rwarn("HTTP denied.")
-end
+end)
 else 
 renv[i]=v
 end
