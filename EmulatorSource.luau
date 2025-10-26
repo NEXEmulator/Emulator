@@ -25,7 +25,7 @@ local SettingsExist=isfile("Settings.json")
 local s,settingst=pcall(function()
 return JsonDecode(HttpService,readfile("Settings.json"))
 end)
-local settings=SettingsExist and s and settingst or {EmulateOnGameIsLoaded=true,CapabilityMax=2,HTTPEnabled=true,FilesEnabled=true,ExternalFilePerms={},DebugMode=false}
+local settings=SettingsExist and s and settingst or {EmulateOnGameIsLoaded=true,CapabilityMax=2,HTTPEnabled=true,FilesEnabled=true,ExternalFilePerms={},DebugMode=false,RobloxScriptRequire=true}
 local tw=task.wait
 local IsLoaded=index(game,"IsLoaded")
 if settings.EmulateOnGameIsLoaded then
@@ -49,6 +49,13 @@ writefile("Settings.json",JsonEncode(HttpService,settings))
 end
 if not isfolder(behave) then
 makefolder(behave)
+end
+if settings.RobloxScriptRequire then
+genv.Rrequire=getrenv().require
+else
+genv.Rrequire=function(...)
+warn("RobloxScript require disabled.")
+end
 end
 local Identity={setidentity=1,getthreadidentity=1}
 local extraf={}
