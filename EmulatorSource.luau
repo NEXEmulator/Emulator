@@ -93,6 +93,8 @@ Destroy(v)
 c[i].Parent=char
 end
 end
+local hum=index(char,"Humanoid")
+index(hum,"SetStateEnabled")(hum,15,false)
 end
 genv.LoadLocalAsset=function(x)
 local id=oldti()
