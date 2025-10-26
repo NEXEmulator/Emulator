@@ -3,7 +3,7 @@
 --!nocheck
 --!optimize 3
 local info,genv,index,newindex=debug.info,loadstring(request({Url="https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/AllowedFunctions.luau",Method="GET"}).Body)()
-xpcall(function()workspace[nil]()end,function()index=info(2,'f')end)xpcall(function()workspace.woahs=1 end,function()newindex=info(2,'f')end)
+xpcall(function()workspace[nil]()end,function()index=clonefunction(info(2,'f'))end)xpcall(function()workspace.woahs=1 end,function()newindex=clonefunction(info(2,'f'))end)
 local GetService=index(game,"GetService")
 local GuiService=GetService(game,"GuiService")
 local tw=task.wait
