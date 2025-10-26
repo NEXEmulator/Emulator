@@ -2,8 +2,18 @@
 --!nolint
 --!nocheck
 --!optimize 3
-local info,genv,index=debug.info,loadstring(request({Url="https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/AllowedFunctions.luau",Method="GET"}).Body)()
-xpcall(function()workspace[nil]()end,function()index=info(2,'f')end)
+local info,genv,index,newindex=debug.info,loadstring(request({Url="https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/AllowedFunctions.luau",Method="GET"}).Body)()
+xpcall(function()workspace[nil]()end,function()index=info(2,'f')end)xpcall(function()workspace.woahs=1 end,function()newindex=info(2,'f')end)
+local GetService=index(game,"GetService")
+local GuiService=GetService(game,"GuiService")
+local tw=task.wait
+local FindFirstChild=index(game,"FindFirstChild")
+local NetworkClient=GetService(game,"NetworkClient")
+local GetChildren=index(game,"GetChildren")
+local Clone=index(game,"Clone")
+local IsA=index(game,"IsA")
+local ClientReplicator=FindFirstChild(NetworkClient,"ClientReplicator")
+local Destroy=index(game,"Destroy")
 if not isfolder("GameData") then
 makefolder("GameData")
 end
@@ -15,7 +25,6 @@ local def=function(x,...) return cdef(function(...)return x(...)end,...)end
 local info=debug.info
 local reg=getreg()
 local GameId=index(game,"GameId")
-local GetService=index(game,"GetService")
 local HttpService=GetService(game,"HttpService")
 local MarketplaceService=GetService(game,"MarketplaceService")
 local GetProductInfo=index(MarketplaceService,"GetProductInfo")
@@ -26,7 +35,6 @@ local s,settingst=pcall(function()
 return JsonDecode(HttpService,readfile("Settings.json"))
 end)
 local settings=SettingsExist and s and settingst or {EmulateOnGameIsLoaded=true,CapabilityMax=2,HTTPEnabled=true,FilesEnabled=true,ExternalFilePerms={},DebugMode=false,RobloxScriptRequire=true}
-local tw=task.wait
 local IsLoaded=index(game,"IsLoaded")
 if settings.EmulateOnGameIsLoaded then
 repeat tw() until IsLoaded(game)
@@ -62,8 +70,30 @@ local extraf={}
 local renv={}
 local InsertService=GetService(game,"InsertService")
 local LLA=clonefunction(index(InsertService,"LoadLocalAsset"))
+local Players=GetService(game,"Players")
+local ClearError=index(GuiService,"ClearError")
 local oldset=setidentity
 local oldti=getthreadidentity
+genv.DisconnectGame=function()
+local id=oldti()
+if id<3 then
+oldset(3)
+def(oldset,id)
+end
+local LP=index(Players,"LocalPlayer")
+index(LP,"Kick")(LP)
+ClearError(GuiService)
+repeat tw() until index(ClientReplicator,"Parent")==nil
+local char=index(LP,"Character")
+newindex(char,"Archivable",true)
+local c=GetChildren(Clone(char))
+for i,v in GetChildren(char) do --didnt use next because it's already an integer placement, not a dict
+if IsA(v,"BasePart") or index(v,"ClassName")=="Accessory" then
+Destroy(v)
+c[i].Parent=char
+end
+end
+end
 genv.LoadLocalAsset=function(x)
 local id=oldti()
 if id<3 then
@@ -93,7 +123,7 @@ end
 if removedot then
 local dot=find(name,"%.")
 if dot then
-    return sub(name,1,dot-1)
+return sub(name,1,dot-1)
 end
 end
 return name
