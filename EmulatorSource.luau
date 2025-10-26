@@ -74,7 +74,7 @@ local Players=GetService(game,"Players")
 local ClearError=index(GuiService,"ClearError")
 local oldset=setidentity
 local oldti=getthreadidentity
-genv.DisconnectGame=function()
+genv.DisconnectFromServer=function()
 local id=oldti()
 if id<3 then
 oldset(3)
