@@ -61,8 +61,8 @@ end
 if settings.RobloxScriptRequire then
 genv.Rrequire=getrenv().require
 else
-genv.Rrequire=function(...)
-warn("RobloxScript require disabled.")
+genv.RobloxScriptRequire=function(...)
+warn("RobloxScriptRequire disabled.")
 end
 end
 local Identity={setidentity=1,getthreadidentity=1}
@@ -88,7 +88,7 @@ local char=index(LP,"Character")
 newindex(char,"Archivable",true)
 local c=GetChildren(Clone(char))
 for i,v in GetChildren(char) do --didnt use next because it's already an integer placement, not a dict
-if IsA(v,"BasePart") or index(v,"ClassName")=="Accessory" then
+if IsA(v,"BasePart") or index(v,"ClassName")=="Accessory" then --I wanted to use if not v:IsA"LuaSourceContainer" but it didnt let me walk for some reason
 Destroy(v)
 c[i].Parent=char
 end
