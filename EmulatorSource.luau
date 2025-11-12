@@ -200,4 +200,4 @@ env.NEX_Loaded=true
 end
 end
 end
-cclose(currentthread)
+cdef(function()cclose(currentthread)end)
