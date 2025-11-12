@@ -3,7 +3,7 @@
 --!nocheck
 --!optimize 3
 local game,workspace=cloneref(game),cloneref(workspace) --this is not to stop detection from weaktables, this is just so replications to the Instance metatable dont replicate to these instances for better security, I might be just paranoid, but better safe than sorry.
-local, the clonefunction spam is for better security against hookfunction info,genv,index,newindex=debug.info,loadstring(request({Url="https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/AllowedFunctions.luau",Method="GET"}).Body)()
+local cclose,info,genv,index,newindex=coroutine.close,debug.info,loadstring(request({Url="https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/AllowedFunctions.luau",Method="GET"}).Body)()
 xpcall(function()workspace[nil]()end,function()index=clonefunction(info(2,'f'))end)xpcall(function()workspace.woahs=1 end,function()newindex=clonefunction(info(2,'f'))end)
 local GetService=index(game,"GetService")
 local GuiService=cloneref(GetService(game,"GuiService"))
@@ -20,6 +20,7 @@ makefolder("GameData")
 end
 local rgca=clonefunction(getcustomasset)
 local rwarn=clonefunction(warn)
+local rtype=clonefunction(type)
 local tclone=clonefunction(table.clone)
 local cdef=clonefunction(task.defer)
 local def=function(x,...) return cdef(function(...)return x(...)end,...)end
@@ -68,7 +69,6 @@ rwarn("RobloxScriptRequire disabled.")
 end
 end
 local Identity={setidentity=1,getthreadidentity=1}
-local extraf={}
 local renv={}
 local InsertService=cloneref(GetService(game,"InsertService"))
 local LLA=clonefunction(index(InsertService,"LoadLocalAsset"))
@@ -78,6 +78,16 @@ local oldset=setidentity
 local oldti=getthreadidentity
 local LP=cloneref(index(Players,"LocalPlayer"))
 local Kick=index(LP,"Kick")
+local function GetCurrentThread()
+local ThreadIdentifier=info(0,'f')
+for _,v in reg do
+if rtype(v)=="thread" and info(v,0,'f')==ThreadIdentifier then
+return v
+end
+end
+end
+local currentthread=GetCurrentThread()
+genv.GetCurrentThread=GetCurrentThread
 genv.DisconnectFromServer=function()
 local id=oldti()
 if id<3 then
@@ -136,7 +146,7 @@ end
 local HttpEnabled=settings.HTTPEnabled
 local FilesEnabled=settings.FilesEnabled
 local CapabilityMax=settings.CapabilityMax
-local ExternalFilePerms=settings.ExternalFilePerms[rootid]
+local ExternalFilePerms=(settings.ExternalFilePerms[rootid] and true or false)
 renv.EXTRAFILEPERMS=ExternalFilePerms
 renv.Settings=tclone(settings)
 for i,v in next,genv do
@@ -150,14 +160,15 @@ rwarn("Capability changing permissions denied.")
 end
 end)
 elseif FileFamily[i] then
-renv[i]=newcclosure(function(x,...)
-if FilesEnabled then
-return v(`{behave}{x}`,...)
-end
-rwarn("File permissions denied.")
-end)
 if ExternalFilePerms then
-extraf[i]=v
+renv[i]=clonefunction(v)
+    else
+      renv[i]=newcclosure(function(x,...)
+      if FilesEnabled then
+      return v(`{behave}{x}`,...)
+      end
+      rwarn("File permissions denied.")
+      end)
 end
 elseif HttpFamily[i] then
 renv[i]=newcclosure(function(...)
@@ -172,16 +183,21 @@ end
 end
 end
 for _,v in reg do
-if type(v)=="thread" then
+if rtype(v)=="thread" and v~=currentthread then
 local env=getfenv(info(v,1,'f'))
-if env  then
+if env and env.Protected_Environment then
+if debugm then
+rwarn(`{env.script} IS PROTECTED`)
+                                end
+                        else
 for i,v in next,renv do
 env[i]=v
 end
 env.NEX_Loaded=true
-if debugm then
-rwarn(`NEX LOADED IN {env.script}`)
+                                if debugm then
+                                rwarn(`NEX LOADED IN {env.script}`)
+                                end
 end
 end
 end
-end
+cclose(currentthread)
