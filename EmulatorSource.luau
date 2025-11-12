@@ -2,34 +2,35 @@
 --!nolint
 --!nocheck
 --!optimize 3
-local info,genv,index,newindex=debug.info,loadstring(request({Url="https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/AllowedFunctions.luau",Method="GET"}).Body)()
+local game,workspace=cloneref(game),cloneref(workspace) --this is not to stop detection from weaktables, this is just so replications to the Instance metatable dont replicate to these instances for better security, I might be just paranoid, but better safe than sorry.
+local, the clonefunction spam is for better security against hookfunction info,genv,index,newindex=debug.info,loadstring(request({Url="https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/AllowedFunctions.luau",Method="GET"}).Body)()
 xpcall(function()workspace[nil]()end,function()index=clonefunction(info(2,'f'))end)xpcall(function()workspace.woahs=1 end,function()newindex=clonefunction(info(2,'f'))end)
 local GetService=index(game,"GetService")
-local GuiService=GetService(game,"GuiService")
+local GuiService=cloneref(GetService(game,"GuiService"))
 local tw=task.wait
-local FindFirstChild=index(game,"FindFirstChild")
-local NetworkClient=GetService(game,"NetworkClient")
-local GetChildren=index(game,"GetChildren")
-local Clone=index(game,"Clone")
-local IsA=index(game,"IsA")
-local ClientReplicator=FindFirstChild(NetworkClient,"ClientReplicator")
-local Destroy=index(game,"Destroy")
+local FindFirstChild=clonefunction(index(workspace,"FindFirstChild"))
+local NetworkClient=cloneref(GetService(game,"NetworkClient"))
+local GetChildren=clonefunction(index(workspace,"GetChildren"))
+local Clone=clonefunction(index(workspace,"Clone"))
+local IsA=clonefunction(index(workspace,"IsA"))
+local ClientReplicator=cloneref(FindFirstChild(NetworkClient,"ClientReplicator"))
+local Destroy=clonefunction(index(game,"Destroy"))
 if not isfolder("GameData") then
 makefolder("GameData")
 end
 local rgca=clonefunction(getcustomasset)
 local rwarn=clonefunction(warn)
-local tclone=table.clone
+local tclone=clonefunction(table.clone)
 local cdef=clonefunction(task.defer)
 local def=function(x,...) return cdef(function(...)return x(...)end,...)end
 local info=debug.info
 local reg=getreg()
 local GameId=index(game,"GameId")
-local HttpService=GetService(game,"HttpService")
-local MarketplaceService=GetService(game,"MarketplaceService")
-local GetProductInfo=index(MarketplaceService,"GetProductInfo")
-local JsonDecode=index(HttpService,"JSONDecode")
-local JsonEncode=index(HttpService,"JSONEncode")
+local HttpService=cloneref(GetService(game,"HttpService"))
+local MarketplaceService=cloneref(GetService(game,"MarketplaceService"))
+local GetProductInfo=clonefunction(index(MarketplaceService,"GetProductInfo"))
+local JsonDecode=clonefunction(index(HttpService,"JSONDecode"))
+local JsonEncode=clonefunction(index(HttpService,"JSONEncode"))
 local SettingsExist=isfile("Settings.json")
 local s,settingst=pcall(function()
 return JsonDecode(HttpService,readfile("Settings.json"))
@@ -46,6 +47,7 @@ request({Url=`https://develop.roblox.com/v1/universes/{GameId}`,Method="GET"}).B
 local behave=`GameData/{rootid}/`
 local gca=function(x) return rgca(`{behave}{x}`) end
 local RootName=`{behave}RootName {GetProductInfo(MarketplaceService,rootid).Name}`
+local SetStateEnabled=clonefunction(Instance.new"Humanoid".SetStateEnabled)
 local rnexists=`{behave}.rootname`
 if not isfile(rnexists) then
 writefile(RootName,' ')
@@ -62,39 +64,40 @@ if settings.RobloxScriptRequire then
 genv.Rrequire=getrenv().require
 else
 genv.RobloxScriptRequire=function(...)
-warn("RobloxScriptRequire disabled.")
+rwarn("RobloxScriptRequire disabled.")
 end
 end
 local Identity={setidentity=1,getthreadidentity=1}
 local extraf={}
 local renv={}
-local InsertService=GetService(game,"InsertService")
+local InsertService=cloneref(GetService(game,"InsertService"))
 local LLA=clonefunction(index(InsertService,"LoadLocalAsset"))
-local Players=GetService(game,"Players")
-local ClearError=index(GuiService,"ClearError")
+local Players=cloneref(GetService(game,"Players"))
+local ClearError=clonefunction(index(GuiService,"ClearError"))
 local oldset=setidentity
 local oldti=getthreadidentity
+local LP=cloneref(index(Players,"LocalPlayer"))
+local Kick=index(LP,"Kick")
 genv.DisconnectFromServer=function()
 local id=oldti()
 if id<3 then
 oldset(3)
 def(oldset,id)
 end
-local LP=index(Players,"LocalPlayer")
-index(LP,"Kick")(LP)
+Kick(LP)
 ClearError(GuiService)
 repeat tw() until index(ClientReplicator,"Parent")==nil
-local char=index(LP,"Character")
+local char=cloneref(index(LP,"Character"))
 newindex(char,"Archivable",true)
 local c=GetChildren(Clone(char))
 for i,v in GetChildren(char) do --didnt use next because it's already an integer placement, not a dict
 if IsA(v,"BasePart") or index(v,"ClassName")=="Accessory" then --I wanted to use if not v:IsA"LuaSourceContainer" but it didnt let me walk for some reason
 Destroy(v)
-c[i].Parent=char
+newindex(c[i],"Parent",char)
 end
 end
-local hum=index(char,"Humanoid")
-index(hum,"SetStateEnabled")(hum,15,false)
+local hum=cloneref(index(char,"Humanoid"))
+SetStateEnabled(hum,15,false)
 end
 genv.LoadLocalAsset=function(x)
 local id=oldti()
@@ -164,7 +167,7 @@ end
 rwarn("HTTP denied.")
 end)
 else 
-renv[i]=v
+renv[i]=clonefunction(v)
 end
 end
 end
