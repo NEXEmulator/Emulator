@@ -3,10 +3,36 @@
 --!nocheck
 --!optimize 3
 local game,workspace=cloneref(game),cloneref(workspace) --this is not to stop detection from weaktables, this is just so replications to the Instance metatable dont replicate to these instances for better security, I might be just paranoid, but better safe than sorry.
-local cclose,info,genv,index,newindex=coroutine.close,debug.info,loadstring(request({Url="https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/AllowedFunctions.luau",Method="GET"}).Body)()
+local function NEXRequire(x)
+return request({Url=`https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/{x}`,Method="GET"}).Body
+end
+local function ImportToFolder(x,y)
+for i,v in next,y do
+if not isfile(`{x}/{i}`) then
+writefile(`{x}/{i}`,NEXRequire(v))
+                end
+        end
+end
+if not isfolder(".icons") then
+makefolder(".icons")
+ImportToFolder(".icons",{
+["NEX.png"]="Icons/NEX.png",
+[".nomedia"]="Icons/.nomedia"
+})
+end
+local NEXIcon=getcustomasset(".icons/NEX.png")
+local cclose,info,genv,index,newindex=coroutine.close,debug.info,loadstring(NEXRequire("AllowedFunctions.luau"))()
 xpcall(function()workspace[nil]()end,function()index=clonefunction(info(2,'f'))end)xpcall(function()workspace.woahs=1 end,function()newindex=clonefunction(info(2,'f'))end)
 local GetService=index(game,"GetService")
 local GuiService=cloneref(GetService(game,"GuiService"))
+local ot=os.clock
+local t=ot()
+local SendNotification=index(GuiService,"SendNotification")
+SendNotification(GuiService,{
+Icon=NEXIcon,
+Title="NEX Emulator",
+Text="NEX Emulation starting..."
+})
 local tw=task.wait
 local FindFirstChild=clonefunction(index(workspace,"FindFirstChild"))
 local NetworkClient=cloneref(GetService(game,"NetworkClient"))
@@ -162,13 +188,13 @@ end)
 elseif FileFamily[i] then
 if ExternalFilePerms then
 renv[i]=clonefunction(v)
-    else
-      renv[i]=newcclosure(function(x,...)
-      if FilesEnabled then
-      return v(`{behave}{x}`,...)
-      end
-      rwarn("File permissions denied.")
-      end)
+else
+renv[i]=newcclosure(function(x,...)
+if FilesEnabled then
+return v(`{behave}{x}`,...)
+end
+rwarn("File permissions denied.")
+end)
 end
 elseif HttpFamily[i] then
 renv[i]=newcclosure(function(...)
@@ -188,16 +214,21 @@ local env=getfenv(info(v,1,'f'))
 if env and env.Protected_Environment then
 if debugm then
 rwarn(`{env.script} IS PROTECTED`)
-                                end
-                        else
+                        end
+                else
 for i,v in next,renv do
 env[i]=v
 end
 env.NEX_Loaded=true
-                                if debugm then
-                                rwarn(`NEX LOADED IN {env.script}`)
-                                end
+                        if debugm then
+                        rwarn(`NEX LOADED IN {env.script}`)
+                        end
 end
 end
 end
+SendNotification(GuiService,{
+Icon=NEXIcon,
+Title="NEX Emulator",
+Text=`NEX Emulation finished in {ot()-t}`
+})
 cdef(function()cclose(currentthread)end)
