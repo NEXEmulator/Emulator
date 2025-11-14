@@ -74,7 +74,10 @@ local SettingsExist=isfile(`{SettingsPrefix}Settings.json`)
 local s,settingst=pcall(function()
 return JsonDecode(HttpService,readfile(`{SettingsPrefix}Settings.json`))
 end)
-local settings=SettingsExist and s and settingst or {EmulateOnGameIsLoaded=true,CapabilityMax=2,HTTPEnabled=true,FilesEnabled=true,ExternalFilePerms=false,DebugMode=false,RobloxScriptRequire=true}
+if not isfile("StarterSettings.json") then
+writefile("StarterSettings.json",JsonEncode(HttpService,{EmulateOnGameIsLoaded=true,CapabilityMax=2,HTTPEnabled=true,FilesEnabled=true,ExternalFilePerms=false,DebugMode=false,RobloxScriptRequire=true}))
+end
+local settings=SettingsExist and s and settingst or JsonDecode(HttpService,readfile("StarterSettings.json"))
 if not SettingsExist then
 writefile(`{SettingsPrefix}Settings.json`,JsonEncode(HttpService,settings))
 end
