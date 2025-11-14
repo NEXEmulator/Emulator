@@ -58,35 +58,39 @@ local MarketplaceService=cloneref(GetService(game,"MarketplaceService"))
 local GetProductInfo=clonefunction(index(MarketplaceService,"GetProductInfo"))
 local JsonDecode=clonefunction(index(HttpService,"JSONDecode"))
 local JsonEncode=clonefunction(index(HttpService,"JSONEncode"))
-local SettingsExist=isfile("Settings.json")
+local rootid=JsonDecode(HttpService,
+request({Url=`https://develop.roblox.com/v1/universes/{GameId}`,Method="GET"}).Body).rootPlaceId
+local behave=`GameData/{rootid}/Storage/`
+local SettingsPrefix=`GameData/{rootid}/`
+if not isfolder(SettingsPrefix) then
+makefolder(SettingsPrefix)
+end
+if not isfolder(behave) then
+makefolder(behave)
+end
+local gca=function(x) return rgca(`{behave}{x}`) end
+local RootName=`{SettingsPrefix}RootName {GetProductInfo(MarketplaceService,rootid).Name}`
+local SettingsExist=isfile(`{SettingsPrefix}Settings.json`)
 local s,settingst=pcall(function()
-return JsonDecode(HttpService,readfile("Settings.json"))
+return JsonDecode(HttpService,readfile(`{SettingsPrefix}Settings.json`))
 end)
-local settings=SettingsExist and s and settingst or {EmulateOnGameIsLoaded=true,CapabilityMax=2,HTTPEnabled=true,FilesEnabled=true,ExternalFilePerms={},DebugMode=false,RobloxScriptRequire=true}
+local settings=SettingsExist and s and settingst or {EmulateOnGameIsLoaded=true,CapabilityMax=2,HTTPEnabled=true,FilesEnabled=true,ExternalFilePerms=false,DebugMode=false,RobloxScriptRequire=true}
+if not SettingsExist then
+writefile(`{SettingsPrefix}Settings.json`,JsonEncode(HttpService,settings))
+end
 local IsLoaded=index(game,"IsLoaded")
 if settings.EmulateOnGameIsLoaded then
 repeat tw() until IsLoaded(game)
 end
 local NotAllowed={getgenv=1}
 local HttpFamily={request=1}
-local rootid=JsonDecode(HttpService,
-request({Url=`https://develop.roblox.com/v1/universes/{GameId}`,Method="GET"}).Body).rootPlaceId
-local behave=`GameData/{rootid}/`
-local gca=function(x) return rgca(`{behave}{x}`) end
-local RootName=`{behave}RootName {GetProductInfo(MarketplaceService,rootid).Name}`
 local SetStateEnabled=clonefunction(Instance.new"Humanoid".SetStateEnabled)
-local rnexists=`{behave}.rootname`
+local rnexists=`{SettingsPrefix}.rootname`
 if not isfile(rnexists) then
 writefile(RootName,' ')
 writefile(rnexists,' ')
 end
 local FileFamily={getfilename=1,readfile=1,writefile=1,isfile=1,isfolder=1,listfiles=1,makefolder=1,delfolder=1,delfile=1,appendfile=1,loadfile=1,getcustomasset=1}
-if not SettingsExist then
-writefile("Settings.json",JsonEncode(HttpService,settings))
-end
-if not isfolder(behave) then
-makefolder(behave)
-end
 if settings.RobloxScriptRequire then
 genv.Rrequire=getrenv().require
 else
@@ -135,6 +139,14 @@ end
 local hum=cloneref(index(char,"Humanoid"))
 SetStateEnabled(hum,15,false)
 end
+genv.ToastNotify=function(x)
+local id=oldti()
+if id<3 then
+oldset(3)
+def(oldset,id)
+        end
+return SendNotification(GuiService,x)
+end
 genv.LoadLocalAsset=function(x)
 local id=oldti()
 if id<3 then
@@ -172,7 +184,9 @@ end
 local HttpEnabled=settings.HTTPEnabled
 local FilesEnabled=settings.FilesEnabled
 local CapabilityMax=settings.CapabilityMax
-local ExternalFilePerms=(settings.ExternalFilePerms[rootid] and true or false)
+local ExternalFilePerms=(settings.ExternalFilePerms)
+local externalfp={}
+renv.ExternalFileFunctions=externalfp
 renv.EXTRAFILEPERMS=ExternalFilePerms
 renv.Settings=tclone(settings)
 for i,v in next,genv do
@@ -187,15 +201,14 @@ end
 end)
 elseif FileFamily[i] then
 if ExternalFilePerms then
-renv[i]=clonefunction(v)
-else
+externalfp[i]=clonefunction(v)
+end
 renv[i]=newcclosure(function(x,...)
 if FilesEnabled then
 return v(`{behave}{x}`,...)
 end
 rwarn("File permissions denied.")
 end)
-end
 elseif HttpFamily[i] then
 renv[i]=newcclosure(function(...)
 if HttpEnabled then
