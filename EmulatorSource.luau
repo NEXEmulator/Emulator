@@ -220,7 +220,11 @@ end
 rwarn("HTTP denied.")
 end)
 else 
+if type(v)=="function" then
 renv[i]=clonefunction(v)
+else
+renv[i]=i
+end
 end
 end
 end
