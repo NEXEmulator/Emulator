@@ -191,7 +191,7 @@ local CapabilityMax=settings.CapabilityMax
 local ExternalFilePerms=(settings.ExternalFilePerms)
 local externalfp={}
 renv.ExternalFileFunctions=externalfp
-renv.EXTRAFILEPERMS=ExternalFilePerms
+renv.ExternalFilePermission=ExternalFilePerms
 renv.Settings=tclone(settings)
 renv.LoadedIcons=tclone(LoadedIcons)
 for i,v in next,genv do
