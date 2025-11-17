@@ -94,7 +94,6 @@ if not isfile(rnexists) then
 writefile(RootName,' ')
 writefile(rnexists,' ')
 end
-local FileFamily={getfilename=1,readfile=1,writefile=1,isfile=1,isfolder=1,listfiles=1,makefolder=1,delfolder=1,delfile=1,appendfile=1,loadfile=1,getcustomasset=1}
 if settings.RobloxScriptRequire then
 genv.Rrequire=getrenv().require
 else
@@ -167,6 +166,7 @@ def(oldset,id)
 end
 return LLA(InsertService,x)
 end
+local FileFamily={getfilename=1,readfile=1,writefile=1,isfile=1,isfolder=1,listfiles=1,makefolder=1,delfolder=1,delfile=1,appendfile=1,loadfile=1,getcustomasset=1,LoadLocalAsset=1}
 local debugm=settings.DebugMode
 local exstr="hi"
 local find,sub=clonefunction(exstr.find),clonefunction(exstr.sub)
@@ -188,10 +188,8 @@ end
 local HttpEnabled=settings.HTTPEnabled
 local FilesEnabled=settings.FilesEnabled
 local CapabilityMax=settings.CapabilityMax
-local ExternalFilePerms=(settings.ExternalFilePerms)
 local externalfp={}
 renv.ExternalFileFunctions=externalfp
-renv.ExternalFilePermission=ExternalFilePerms
 renv.Settings=tclone(settings)
 renv.LoadedIcons=tclone(LoadedIcons)
 for i,v in next,genv do
