@@ -5,6 +5,8 @@ NEX Emulation has been tested for any vulnerabilities and is completely safe. It
 [Offical NEX Emulation Showcase game](https://www.roblox.com/games/118581430500436/NEX-Emulation-Tests)
 
 Credits:
-Secment (secment) - Main Developer (Coded the entirety NEX Emulation)\n
-Realm (v00ccx) - Site & Application developer (Created the documentation site aswell as the external applications)\n
+Secment (secment) - Main Developer (Coded the entirety NEX Emulation)
+
+Realm (v00ccx) - Site & Application developer (Created the documentation site aswell as the external applications)
+
 Mugfin (moofin_man) - Offical NEX Emulation Showcase game's creator
