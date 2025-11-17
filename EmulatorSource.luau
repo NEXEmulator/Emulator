@@ -193,7 +193,7 @@ local externalfp={}
 renv.ExternalFileFunctions=externalfp
 renv.EXTRAFILEPERMS=ExternalFilePerms
 renv.Settings=tclone(settings)
-renv.LoadedIcons=LoadedIcons
+renv.LoadedIcons=tclone(LoadedIcons)
 for i,v in next,genv do
 if not NotAllowed[i] then
 if Identity[i] then
