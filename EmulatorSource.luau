@@ -150,13 +150,18 @@ def(oldset,id)
         end
 return SendNotification(GuiService,x)
 end
+local HttpEnabled=settings.HTTPEnabled
+local FilesEnabled=settings.FilesEnabled
 genv.LoadLocalAsset=function(x)
+if FilesEnabled then
 local id=oldti()
 if id<3 then
 oldset(3)
 def(oldset,id)
 end
 return LLA(InsertService,gca(x))
+end
+rwarn("File permissions denied.")
 end
 genv.InsertAsset=function(x)
 local id=oldti()
@@ -166,7 +171,7 @@ def(oldset,id)
 end
 return LLA(InsertService,x)
 end
-local FileFamily={getfilename=1,readfile=1,writefile=1,isfile=1,isfolder=1,listfiles=1,makefolder=1,delfolder=1,delfile=1,appendfile=1,loadfile=1,getcustomasset=1,LoadLocalAsset=1}
+local FileFamily={getfilename=1,readfile=1,writefile=1,isfile=1,isfolder=1,listfiles=1,makefolder=1,delfolder=1,delfile=1,appendfile=1,loadfile=1,getcustomasset=1}
 local debugm=settings.DebugMode
 local exstr="hi"
 local find,sub=clonefunction(exstr.find),clonefunction(exstr.sub)
@@ -185,8 +190,6 @@ end
 end
 return name
 end
-local HttpEnabled=settings.HTTPEnabled
-local FilesEnabled=settings.FilesEnabled
 local CapabilityMax=settings.CapabilityMax
 local externalfp={}
 local ExternalFilePerms=settings.ExternalFilePerms
