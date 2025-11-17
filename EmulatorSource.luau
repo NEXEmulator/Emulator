@@ -189,6 +189,7 @@ local HttpEnabled=settings.HTTPEnabled
 local FilesEnabled=settings.FilesEnabled
 local CapabilityMax=settings.CapabilityMax
 local externalfp={}
+local ExternalFilePerms=settings.ExternalFilePerms
 renv.ExternalFileFunctions=externalfp
 renv.Settings=tclone(settings)
 renv.LoadedIcons=tclone(LoadedIcons)
