@@ -21,6 +21,7 @@ ImportToFolder(".icons",{
 })
 end
 local NEXIcon=getcustomasset(".icons/NEX.png")
+local LoadedIcons={NEX=NEXIcon}
 local cclose,info,genv,index,newindex=coroutine.close,debug.info,loadstring(NEXRequire("AllowedFunctions.luau"))()
 xpcall(function()workspace[nil]()end,function()index=clonefunction(info(2,'f'))end)xpcall(function()workspace.woahs=1 end,function()newindex=clonefunction(info(2,'f'))end)
 local GetService=index(game,"GetService")
@@ -192,6 +193,7 @@ local externalfp={}
 renv.ExternalFileFunctions=externalfp
 renv.EXTRAFILEPERMS=ExternalFilePerms
 renv.Settings=tclone(settings)
+renv.LoadedIcons=LoadedIcons
 for i,v in next,genv do
 if not NotAllowed[i] then
 if Identity[i] then
