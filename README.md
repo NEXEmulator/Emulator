@@ -13,8 +13,9 @@ NEX Emulation has been tested for vulnerabilities and is completely safe. It can
 
 ## Showcase Game
 
-Check out one of the featured NEX Emulation games here: [NEX Emulation Tests](https://www.roblox.com/games/118581430500436/NEX-Emulation-Tests)
-[![Showcase Video](https://img.youtube.com/vi/5YomurggXIw?si=1R3ihEeXSgDsUbCZ/maxresdefault.jpg)](https://youtu.be/5YomurggXIw?si=1R3ihEeXSgDsUbCZ)
+Check out one of the featured NEX Emulation games here:
+- [NEX Emulation Tests](https://www.roblox.com/games/118581430500436/NEX-Emulation-Tests)
+- [![Showcase Video](https://img.youtube.com/vi/5YomurggXIw/hqdefault.jpg)](https://youtu.be/5YomurggXIw?si=1R3ihEeXSgDsUbCZ)
 ## Credits
 
 - **Secment (secment)** - Main Developer (Coded the entirety of NEX Emulation)
