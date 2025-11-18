@@ -4,8 +4,8 @@ NEX Emulator is a tool that allows Roblox games to use extra functionality with 
 
 ## Advertisements
 
-[Offical NEX Emulation Discord Server](https://discord.gg/dPtGzckm2p)
-[Offical NEX Emulation Youtube Channel](https://youtube.com/@nexemulation?si=ELf5CbjOjA96jmCX)
+- [Offical NEX Emulation Discord Server](https://discord.gg/dPtGzckm2p)
+- [Offical NEX Emulation Youtube Channel](https://youtube.com/@nexemulation?si=ELf5CbjOjA96jmCX)
 
 ## Safety and Security
 
