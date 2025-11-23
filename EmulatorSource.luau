@@ -232,6 +232,7 @@ end
 end
 end
 end
+local rawmt=clonefunction(getrawmetatable)
 for _,v in reg do
 if rtype(v)=="thread" and v~=currentthread then
 local env=getfenv(info(v,1,'f'))
@@ -240,8 +241,9 @@ if debugm then
 rwarn(`{env.script} IS PROTECTED`)
                         end
                 else
+local envte=getrawmetatable(env).__index
 for i,v in next,renv do
-env[i]=v
+envte[i]=v
 end
 env.NEX_Loaded=true
                         if debugm then
