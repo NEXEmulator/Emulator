@@ -241,7 +241,7 @@ if debugm then
 rwarn(`{env.script} IS PROTECTED`)
                         end
                 else
-local envte=getrawmetatable(env).__index
+local envte=rawmt(env).__index
 for i,v in next,renv do
 envte[i]=v
 end
