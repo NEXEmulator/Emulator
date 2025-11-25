@@ -232,18 +232,28 @@ end
 end
 end
 end
-local rawmt=clonefunction(getrawmetatable)
+local getf=clonefunction(getfenv)
+local cc,cr=coroutine.create,coroutine.resume
 for _,v in reg do
 if rtype(v)=="thread" and v~=currentthread then
-local env=getfenv(info(v,1,'f'))
+local threadf=info(v,1,'f')
+local env=getf(threadf)
 if env and env.Protected_Environment then
 if debugm then
 rwarn(`{env.script} IS PROTECTED`)
                         end
                 else
-local envte=rawmt(env).__index
+if env.ExternalThread then
+local newfunc=clonefunction(threadf)
+cclose(v)
+tw()
+cr(cc(newfunc))
+if debugm then
+rwarn(`{env.script} is EXTERNAL`)
+end
+end
 for i,v in next,renv do
-envte[i]=v
+env[i]=v
 end
 env.NEX_Loaded=true
                         if debugm then
