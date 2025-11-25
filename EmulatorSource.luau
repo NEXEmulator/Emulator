@@ -234,12 +234,22 @@ end
 end
 local getf=clonefunction(getfenv)
 local cc,cr=coroutine.create,coroutine.resume
+local rawmt=clonefunction(getrawmetatable)
 for _,v in reg do
 if rtype(v)=="thread" and v~=currentthread then
 local threadf=info(v,1,'f')
 local env=getf(threadf)
+local envm=rawmt(env)
+local envmi=envm.__index
+local indr=rawmt(envmi)
+if indr then
+indr.__metatable=nil
+local newind=tclone(envmi)
+envm.__index=newind
+end
+local envte=newind or env
 if env and env.Protected_Environment then
-if debugm then
+if debugm or env.ForceDebuggedEnvironment then
 rwarn(`{env.script} IS PROTECTED`)
                         end
                 else
@@ -253,10 +263,10 @@ rwarn(`{env.script} is EXTERNAL`)
 end
 end
 for i,v in next,renv do
-env[i]=v
+envte[i]=v
 end
-env.NEX_Loaded=true
-                        if debugm then
+envte.NEX_Loaded=true
+                        if debugm or env.ForceDebuggedEnvironment then
                         rwarn(`NEX LOADED IN {env.script}`)
                         end
 end
