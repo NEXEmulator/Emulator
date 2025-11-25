@@ -243,9 +243,11 @@ local envm=rawmt(env)
 local envmi=envm.__index
 local indr=rawmt(envmi)
 if indr then
+local oindrmt=indr.__metatable
 indr.__metatable=nil
 local newind=tclone(envmi)
 envm.__index=newind
+indr.__metatable=oindrmt
 end
 local envte=newind or env
 if env and env.Protected_Environment then
