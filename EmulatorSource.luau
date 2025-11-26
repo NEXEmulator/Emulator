@@ -312,6 +312,9 @@ Instance=Instance,
 }
 }
 }
+setmetatable(nexenv,{
+__metatable="The metatable is locked."
+})
 local function nex(x)
 rawmt(x).__index=nexenv
 end
