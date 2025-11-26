@@ -94,8 +94,11 @@ if not isfile(rnexists) then
 writefile(RootName,' ')
 writefile(rnexists,' ')
 end
+local grenv=getrenv()
+local rrequire=grenv.require
+local foundationimage=rrequire(index(index(index(index(index(index(index(index(index(game,"CorePackages"),"Packages"),"_Index"),"Foundation"),"Foundation"),"Components"),"Image"),"ImageSet"),"isFoundationImage"))
 if settings.RobloxScriptRequire then
-genv.Rrequire=getrenv().require
+genv.Rrequire=rrequire
 else
 genv.RobloxScriptRequire=function(...)
 rwarn("RobloxScriptRequire disabled.")
@@ -148,6 +151,8 @@ if id<3 then
 oldset(3)
 def(oldset,id)
         end
+local ticon=x.Icon
+x.Icon=(foundationimage(ticon) and nil) or ticon
 return SendNotification(GuiService,x)
 end
 local HttpEnabled=settings.HTTPEnabled
@@ -232,9 +237,86 @@ end
 end
 end
 end
+local function obsolete(x)
+local n=cloneref(x)
+setrawmetatable(n,{})
+return n
+end
+local rawmt=clonefunction(getrawmetatable)
+local nexenv={
+task=task,
+__index=index,
+__newindex=newindex,
+std={
+NEXFunctions={},
+call={protected=pcall,extended_protected=xpcall},
+coutw=warn,
+throw=error,
+dicti=next,
+cout=print,
+tick=os.clock,
+sleep=task.wait,
+task=task,
+os=os,
+math=math,
+functiondebug={
+info=debug.info,
+getenvironment=getfenv,
+},
+luadebug={
+lua_registry=getreg()
+},
+table=table,
+types={
+luatype=type,
+luautype=typeof
+},
+tabledebug={
+__len=rawlen,
+__index=rawget,
+__newindex=rawset,
+__metatable={rawgetmetatable=rawmt,rawsetmetatable=clonefunction(setrawmetatable)},
+setmetatable=setmetatable,
+__equal=rawequal,
+getmetatable=getmetatable,
+},
+string=string,
+convert={
+tonunber=tonumber,
+tostring=tostring,
+    },
+globals={
+globalenvironment=_G,
+sharedenvironment=shared,
+},
+random=Random,
+threads=coroutine,
+luaL_dostring=loadstring,
+RobloxObjects={
+Game=obsolete(Game),
+Color3=Color3,
+Enum=Enum,
+Path2DControlPoint=Path2DControlPoint,
+PhysicalProperties=PhysicalProperties,
+OverlapParams=OverlapParams,
+Vector3=Vector3,
+Vector2=Vector2,
+RotationCurveKey=RotationCurveKey,
+RaycastParams=RaycastParams,
+TweenInfo=TweenInfo,
+CFrame=CFrame,
+UDim2=UDim2,
+Font=Font,
+UDim=UDim,
+Instance=Instance,
+}
+}
+}
+local function nex(x)
+rawmt(x).__index=nexenv
+end
 local getf=clonefunction(getfenv)
 local cc,cr=coroutine.create,coroutine.resume
-local rawmt=clonefunction(getrawmetatable)
 for _,v in reg do
 if rtype(v)=="thread" and v~=currentthread then
 local threadf=info(v,1,'f')
@@ -250,11 +332,17 @@ envm.__index=newind
 indr.__metatable=oindrmt
 end
 local envte=newind or env
+local envtenex=envte
 if env and env.Protected_Environment then
 if debugm or env.ForceDebuggedEnvironment then
 rwarn(`{env.script} IS PROTECTED`)
                         end
                 else
+if env.NEXLuau then
+nex(env)
+envte=nexenv.std.NEXFunctions
+envtenex=nexenv
+                        end
 if env.ExternalThread then
 local newfunc=clonefunction(threadf)
 cclose(v)
@@ -267,7 +355,7 @@ end
 for i,v in next,renv do
 envte[i]=v
 end
-envte.NEX_Loaded=true
+envtenex.NEX_Loaded=true
                         if debugm or env.ForceDebuggedEnvironment then
                         rwarn(`NEX LOADED IN {env.script}`)
                         end
