@@ -157,6 +157,69 @@ return SendNotification(GuiService,x)
 end
 local HttpEnabled=settings.HTTPEnabled
 local FilesEnabled=settings.FilesEnabled
+local ExternalFilePerms=settings.ExternalFilePerms
+local gitpattern="^https://github.com/([^/]+)/([^/]+)(.*)$"
+local apipattern="https://api.github.com/repos/%s/%s/contents/%s"
+local apiwpattern="https://api.github.com/repos/%s/%s/contents/"
+local match=string.match
+local function convertgit(x)
+    local owner,repo,folder=match(x,gitpattern)
+    if owner and repo then
+        if folder and folder ~= "" then
+            folder = folder:gsub("^/", "")
+            return string.format(apipattern, owner, repo, folder),repo
+        else
+            return string.format(apiwpattern, owner, repo),repo
+        end
+    else
+        return nil
+    end
+end
+local req=clonefunction(request)
+local wf=clonefunction(writefile)
+local mf=clonefunction(makefolder)
+local isf=clonefunction(isfile)
+local function getgit(x)
+local url,repo=convertgit(x)
+local tab=JsonDecode(HttpService,req({Url=url,Method="GET"}).Body)
+    local newtable={}
+    for _,v in tab do
+        newtable[v.name]={
+            path=v.path,
+            url=v.html_url,
+            rawurl=v.download_url,
+            type=v.type,
+            self=v.url
+        }
+    end
+    return newtable,repo
+end
+genv.git={
+getgit=newcclosure(getgit),
+clone=newcclosure(function(x)
+            if FilesEnabled then
+    local tab,repo=getgit(x)
+    local rep=`{behave}{repo}/`
+    mf(rep)
+                local function check(i,v)
+                    if v.type=="file" then
+                        wf(`{rep}{v.path}`,req({Url=v.rawurl,Method='GET'}).Body)
+                    else
+                    mf(`{rep}{v.path}`)
+                    local newtab=getgit(`{x}/{v.path}`)
+                    for i,v in next,newtab do
+                            check(i,v)
+                        end
+                    end
+                end
+   for i,v in next,tab do
+    check(i,v)
+end
+            else
+                rwarn("File permissions denied.")
+            end
+        end)
+}
 genv.LoadLocalAsset=function(x)
 if FilesEnabled then
 local id=oldti()
@@ -197,7 +260,6 @@ return name
 end
 local CapabilityMax=settings.CapabilityMax
 local externalfp={}
-local ExternalFilePerms=settings.ExternalFilePerms
 renv.ExternalFileFunctions=externalfp
 renv.Settings=tclone(settings)
 renv.LoadedIcons=tclone(LoadedIcons)
@@ -232,7 +294,7 @@ else
 if type(v)=="function" then
 renv[i]=clonefunction(v)
 else
-renv[i]=i
+renv[i]=tclone(v)
 end
 end
 end
