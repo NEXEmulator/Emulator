@@ -20,7 +20,7 @@ ImportToFolder(".icons",{
 [".nomedia"]="Icons/.nomedia"
 })
 end
-local version=NEXRequire("Icons/_VERSION"):gsub("\n",'')
+local version="1.0.4"
 local NEXIcon=getcustomasset(".icons/NEX.png")
 local LoadedIcons={NEX=NEXIcon}
 local cclose,info,genv,index,newindex=coroutine.close,debug.info,loadstring(NEXRequire("AllowedFunctions.luau"))()
