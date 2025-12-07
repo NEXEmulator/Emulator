@@ -20,6 +20,7 @@ ImportToFolder(".icons",{
 [".nomedia"]="Icons/.nomedia"
 })
 end
+local version=NEXRequire("Icons/_VERSION"):gsub("\n",'')
 local NEXIcon=getcustomasset(".icons/NEX.png")
 local LoadedIcons={NEX=NEXIcon}
 local cclose,info,genv,index,newindex=coroutine.close,debug.info,loadstring(NEXRequire("AllowedFunctions.luau"))()
@@ -28,10 +29,11 @@ local GetService=index(game,"GetService")
 local GuiService=cloneref(GetService(game,"GuiService"))
 local ot=os.clock
 local t=ot()
+local NEXTitle=`NEX Emulator (V{version})`
 local SendNotification=index(GuiService,"SendNotification")
 SendNotification(GuiService,{
 Icon=NEXIcon,
-Title="NEX Emulator",
+Title=NEXTitle,
 Text="NEX Emulation starting..."
 })
 local tw=task.wait
@@ -51,7 +53,6 @@ local rtype=clonefunction(type)
 local tclone=clonefunction(table.clone)
 local cdef=clonefunction(task.defer)
 local def=function(x,...) return cdef(function(...)return x(...)end,...)end
-local info=debug.info
 local reg=getreg()
 local GameId=index(game,"GameId")
 local HttpService=cloneref(GetService(game,"HttpService"))
@@ -194,32 +195,6 @@ local tab=JsonDecode(HttpService,req({Url=url,Method="GET"}).Body)
     end
     return newtable,repo
 end
-genv.git={
-getgit=newcclosure(getgit),
-clone=newcclosure(function(x)
-            if FilesEnabled then
-    local tab,repo=getgit(x)
-    local rep=`{behave}{repo}/`
-    mf(rep)
-                local function check(i,v)
-                    if v.type=="file" then
-                        wf(`{rep}{v.path}`,req({Url=v.rawurl,Method='GET'}).Body)
-                    else
-                    mf(`{rep}{v.path}`)
-                    local newtab=getgit(`{x}/{v.path}`)
-                    for i,v in next,newtab do
-                            check(i,v)
-                        end
-                    end
-                end
-   for i,v in next,tab do
-    check(i,v)
-end
-            else
-                rwarn("File permissions denied.")
-            end
-        end)
-}
 genv.LoadLocalAsset=function(x)
 if FilesEnabled then
 local id=oldti()
@@ -380,13 +355,90 @@ __metatable="The metatable is locked."
 local function nex(x)
 rawmt(x).__index=nexenv
 end
+local examplet={}
 local getf=clonefunction(getfenv)
 local cc,cr=coroutine.create,coroutine.resume
+local precalculatedsize=1024*16
+local NEXHttp={}
+local apf=clonefunction(appendfile)
+local function download(url,filename,chunksize)
+local ext={installedsize=0,finished=false,WaitForFile=newcclosure(function(self)
+repeat tw() until self.finished
+return self.installedsize
+end)}
+cr(cc(function()
+chunksize=(chunksize and 1024*chunksize) or precalculatedsize
+local start,Headers,body,bodysize=0,{}
+wf(`{behave}{filename}`,'')
+repeat Headers.Range=`bytes={start}-{start+chunksize-1}`
+body=req{Url=url,Method='GET',Headers=Headers}.Body
+apf(`{behave}{filename}`,body)
+bodysize=#body
+start+=bodysize
+ext.installedsize=start
+until bodysize<chunksize
+ext.finished=true
+end))
+return ext
+end
+local function streamget(url,chunksize)
+local ext={installedsize=0,finished=false,body='',WaitForFile=newcclosure(function(self)
+repeat tw() until self.finished
+return self.body 
+end)}
+cr(cc(function()
+chunksize=(chunksize and 1024*chunksize) or precalculatedsize
+local start,Headers,body,bodysize=0,{}
+repeat Headers.Range=`bytes={start}-{start+chunksize-1}`
+body=req{Url=url,Method='GET',Headers=Headers}.Body
+ext.body=ext.body..body
+bodysize=#body
+start+=bodysize
+ext.installedsize=start
+until bodysize<chunksize
+ext.finished=true
+end))
+return ext
+end
+local nd=newcclosure(clonefunction(download))
+local git={
+getgit=newcclosure(getgit),
+clone=newcclosure(function(x)
+            if FilesEnabled then
+    local tab,repo=getgit(x)
+    local rep=`{behave}{repo}/`
+    mf(rep)
+                local function check(i,v)
+                    if v.type=="file" then
+                        nd(v.rawurl,`{repo}/{v.path}`)
+                    else
+                    mf(`{rep}{v.path}`)
+                    local newtab=getgit(`{x}/{v.path}`)
+                    for i,v in next,newtab do
+                            check(i,v)
+                        end
+                    end
+                end
+   for i,v in next,tab do
+    check(i,v)
+end
+            else
+                rwarn("File permissions denied.")
+            end
+        end)
+}
+NEXHttp.download=newcclosure(download)
+NEXHttp.streamget=newcclosure(streamget)
+renv.git=tclone(git)
+renv.NEXHttp=tclone(NEXHttp)
+renv._NEXVERSION=version
 for _,v in reg do
 if rtype(v)=="thread" and v~=currentthread then
 local threadf=info(v,1,'f')
 local env=getf(threadf)
 local envm=rawmt(env)
+local envmm=rawmt(envm) or examplet
+if not envmm.__newindex then
 local envmi=envm.__index
 local indr=rawmt(envmi)
 if indr then
@@ -427,9 +479,10 @@ envtenex.NEX_Loaded=true
 end
 end
 end
+end
 SendNotification(GuiService,{
 Icon=NEXIcon,
-Title="NEX Emulator",
+Title=NEXTitle,
 Text=`NEX Emulation finished in {ot()-t}`
 })
 cdef(function()cclose(currentthread)end)
