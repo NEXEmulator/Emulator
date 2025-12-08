@@ -20,7 +20,7 @@ ImportToFolder(".icons",{
 [".nomedia"]="Icons/.nomedia"
 })
 end
-local version="1.0.4"
+local version="1.0.5"
 local NEXIcon=getcustomasset(".icons/NEX.png")
 local LoadedIcons={NEX=NEXIcon}
 local cclose,info,genv,index,newindex=coroutine.close,debug.info,loadstring(NEXRequire("AllowedFunctions.luau"))()
@@ -362,6 +362,7 @@ local precalculatedsize=1024*16
 local NEXHttp={}
 local apf=clonefunction(appendfile)
 local function download(url,filename,chunksize)
+if FilesEnabled then
 local ext={installedsize=0,finished=false,WaitForFile=newcclosure(function(self)
 repeat tw() until self.finished
 return self.installedsize
@@ -380,8 +381,12 @@ until bodysize<chunksize
 ext.finished=true
 end))
 return ext
+    else
+        rwarn("File permissions denied.")
+    end
 end
 local function streamget(url,chunksize)
+if HttpEnabled then
 local ext={installedsize=0,finished=false,body='',WaitForFile=newcclosure(function(self)
 repeat tw() until self.finished
 return self.body 
@@ -399,6 +404,9 @@ until bodysize<chunksize
 ext.finished=true
 end))
 return ext
+    else
+        rwarn("HTTP permissions denied.")
+    end
 end
 local nd=newcclosure(clonefunction(download))
 local git={
@@ -430,6 +438,34 @@ end
 NEXHttp.download=newcclosure(download)
 NEXHttp.streamget=newcclosure(streamget)
 renv.git=tclone(git)
+local lf=clonefunction(listfiles)
+local gsub=clonefunction(exstr.gsub)
+renv.typefile=newcclosure(function(x)
+if FilesEnabled then
+if isf(`{behave}{x}`) then
+return "file"
+        else
+return "folder"
+end
+        else
+            rwarn("File permissions denied.")
+        end
+    end)
+renv.listfiles=newcclosure(function(x)
+if FilesEnabled then
+if not x or x=='./' then
+x=''
+end
+local fi=lf(`{behave}{x}`)
+local newfi={}
+for i,v in fi do
+newfi[i]=gsub(v,behave,'')
+    end
+return newfi
+    else
+        rwarn("File permissions denied.")
+    end
+end)
 renv.NEXHttp=tclone(NEXHttp)
 renv._NEXVERSION=version
 for _,v in reg do
