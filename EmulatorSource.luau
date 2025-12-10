@@ -20,7 +20,7 @@ ImportToFolder(".icons",{
 [".nomedia"]="Icons/.nomedia"
 })
 end
-local version="1.0.5"
+local version="1.0.6"
 local NEXIcon=getcustomasset(".icons/NEX.png")
 local LoadedIcons={NEX=NEXIcon}
 local cclose,info,genv,index,newindex=coroutine.close,debug.info,loadstring(NEXRequire("AllowedFunctions.luau"))()
@@ -451,6 +451,126 @@ end
             rwarn("File permissions denied.")
         end
     end)
+local split=clonefunction(exstr.split)
+local rf=clonefunction(readfile)
+local tc=clonefunction(table.concat)
+local function writeline(path,line,content) 
+    local lines = {}
+    for i,v in split(rf(`{behave}{path}`),'\n') do
+    lines[i]=v
+    end
+    if not lines[line] then
+    for i=1,line do
+    lines[i]=lines[i] or ''
+    end
+    end
+    lines[line]=content
+wf(`{behave}{path}`,tc(lines, "\n"))
+end
+local function readline(path,line)
+if FilesEnabled then
+    local lines = {}
+    for i,v in split(rf(`{behave}{path}`),'\n') do
+    lines[i]=v
+    end
+    return lines[line]
+    end
+warn("File permissions denied.")
+end
+local globalread=newcclosure(function(self)
+    return rf(`{behave}{self.Path}`)
+  end)
+local globalwrite=newcclosure(function(self,x)
+  return wf(`{behave}{self.Path}`,x)
+end)
+local wl,rl=clonefunction(writeline),clonefunction(readline)
+local globalwriteline=newcclosure(function(self,x,y)
+  return wl(self.Path,x,y)
+end)
+local globalreadline=newcclosure(function(self,x)
+  return rl(self.Path,x)
+end)
+local function checksexy(x,t)
+  for _,v in lf(`{behave}{x}`) do
+  t[#t+1]=v
+  if typefile(v)=="folder" then
+  check(v)
+            end
+end
+end
+local globalgd=newcclosure(function(self)
+local t={}
+checksexy(`{behave}{self.Path}`,t)
+return t
+  end)
+local df,dfo=clonefunction(delfile),clonefunction(delfolder)
+local globaldestroy=newcclosure(function(self)
+if self.Type=="file" then
+            df(`{behave}{self.Path}`)
+    else
+            dfo(`{behave}{self.Path}`)
+    end
+  end)
+local globalgc=newcclosure(function(self) 
+  return lf(`{behave}{self.Path}`)
+  end)
+local function OpenFile(x)
+local FileData={
+Path=x,
+Destroy=globaldestroy,
+Name=getfilename(x),
+Type=typefile(x),
+GetChildren=newcclosure(function(self)
+return {}
+    end),
+GetDescendants=newcclosure(function(self)
+      return {}
+    end)
+}
+if FileData.Type=="file" then
+  FileData.Read=globalread
+  FileData.Write=globalwrite
+  FileData.ReplaceLine=globalwriteline
+  FileData.ReadLine=globalreadline
+  elseif FileData.Type=="folder" then
+FileData.GetChildren=globalgc
+FileData.GetDescendants=globalgd
+  end
+local bc=clonefunction(buffer.create)
+local rawsmt=clonefunction(rawsetmetatable)
+local metatable={
+__namecall=function(x,...)
+local method=getnamecallmethod()
+local methf=x[method]
+if not methf then
+                error("Attempted to call a non-existent method!")
+            else
+return methf(x,...)
+            end
+        end,
+__type="File",
+__tostring=function() return FileData.Name end,
+__index=FileData,
+__newindex=function(l,y,z)
+if y=="Path" then
+l:Destroy()
+wf(`{behave}{z}`,FileData:Read())
+elseif y=="Name" then
+l:Destroy()
+writefile(`{x:gsub(FileData.Name)}{z}`,FileData:Read())
+      else
+error(`Cannot modify the {y} property of File.`)
+      end
+    end,
+__metatable="The metatable is locked."
+}
+local Holder=bc(0)
+rawsmt(Holder,metatable)
+return Holder
+end
+renv.OpenFile=newcclosure(OpenFile)
+renv.readline=newcclosure(readline)
+renv.writeline=newcclosure(writeline)
 renv.listfiles=newcclosure(function(x)
 if FilesEnabled then
 if not x or x=='./' then
