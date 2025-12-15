@@ -10,8 +10,8 @@ local function ImportToFolder(x,y)
 for i,v in next,y do
 if not isfile(`{x}/{i}`) then
 writefile(`{x}/{i}`,NEXRequire(v))
-                end
-        end
+              end
+      end
 end
 if not isfolder(".icons") then
 makefolder(".icons")
@@ -20,12 +20,13 @@ ImportToFolder(".icons",{
 [".nomedia"]="Icons/.nomedia"
 })
 end
-local version="1.0.6"
+local version="1.0.7"
 local NEXIcon=getcustomasset(".icons/NEX.png")
 local LoadedIcons={NEX=NEXIcon}
 local cclose,info,genv,index,newindex=coroutine.close,debug.info,loadstring(NEXRequire("AllowedFunctions.luau"))()
 xpcall(function()workspace[nil]()end,function()index=clonefunction(info(2,'f'))end)xpcall(function()workspace.woahs=1 end,function()newindex=clonefunction(info(2,'f'))end)
 local GetService=index(game,"GetService")
+local err=clonefunction(error)
 local GuiService=cloneref(GetService(game,"GuiService"))
 local ot=os.clock
 local t=ot()
@@ -151,7 +152,7 @@ local id=oldti()
 if id<3 then
 oldset(3)
 def(oldset,id)
-        end
+      end
 local ticon=x.Icon
 x.Icon=(foundationimage(ticon) and nil) or ticon
 return SendNotification(GuiService,x)
@@ -164,17 +165,17 @@ local apipattern="https://api.github.com/repos/%s/%s/contents/%s"
 local apiwpattern="https://api.github.com/repos/%s/%s/contents/"
 local match=string.match
 local function convertgit(x)
-    local owner,repo,folder=match(x,gitpattern)
-    if owner and repo then
-        if folder and folder ~= "" then
-            folder = folder:gsub("^/", "")
-            return string.format(apipattern, owner, repo, folder),repo
-        else
-            return string.format(apiwpattern, owner, repo),repo
-        end
-    else
-        return nil
-    end
+  local owner,repo,folder=match(x,gitpattern)
+  if owner and repo then
+      if folder and folder ~= "" then
+          folder = folder:gsub("^/", "")
+          return string.format(apipattern, owner, repo, folder),repo
+      else
+          return string.format(apiwpattern, owner, repo),repo
+      end
+  else
+      return nil
+  end
 end
 local req=clonefunction(request)
 local wf=clonefunction(writefile)
@@ -183,17 +184,17 @@ local isf=clonefunction(isfile)
 local function getgit(x)
 local url,repo=convertgit(x)
 local tab=JsonDecode(HttpService,req({Url=url,Method="GET"}).Body)
-    local newtable={}
-    for _,v in tab do
-        newtable[v.name]={
-            path=v.path,
-            url=v.html_url,
-            rawurl=v.download_url,
-            type=v.type,
-            self=v.url
-        }
-    end
-    return newtable,repo
+  local newtable={}
+  for _,v in tab do
+      newtable[v.name]={
+          path=v.path,
+          url=v.html_url,
+          rawurl=v.download_url,
+          type=v.type,
+          self=v.url
+      }
+  end
+  return newtable,repo
 end
 genv.LoadLocalAsset=function(x)
 if FilesEnabled then
@@ -280,6 +281,7 @@ setrawmetatable(n,{})
 return n
 end
 local rawmt=clonefunction(getrawmetatable)
+local tonum=clonefunction(tonumber)
 local nexenv={
 task=task,
 __index=index,
@@ -287,8 +289,8 @@ __newindex=newindex,
 std={
 NEXFunctions={},
 call={protected=pcall,extended_protected=xpcall},
-coutw=warn,
-throw=error,
+coutw=rwarn,
+throw=err,
 dicti=next,
 cout=print,
 tick=os.clock,
@@ -319,9 +321,9 @@ getmetatable=getmetatable,
 },
 string=string,
 convert={
-tonunber=tonumber,
+tonumber=tonum,
 tostring=tostring,
-    },
+  },
 globals={
 globalenvironment=_G,
 sharedenvironment=shared,
@@ -381,9 +383,9 @@ until bodysize<chunksize
 ext.finished=true
 end))
 return ext
-    else
-        rwarn("File permissions denied.")
-    end
+  else
+      rwarn("File permissions denied.")
+  end
 end
 local function streamget(url,chunksize)
 if HttpEnabled then
@@ -404,117 +406,225 @@ until bodysize<chunksize
 ext.finished=true
 end))
 return ext
-    else
-        rwarn("HTTP permissions denied.")
-    end
+  else
+      rwarn("HTTP permissions denied.")
+  end
 end
 local nd=newcclosure(clonefunction(download))
 local git={
 getgit=newcclosure(getgit),
 clone=newcclosure(function(x)
-            if FilesEnabled then
-    local tab,repo=getgit(x)
-    local rep=`{behave}{repo}/`
-    mf(rep)
-                local function check(i,v)
-                    if v.type=="file" then
-                        nd(v.rawurl,`{repo}/{v.path}`)
-                    else
-                    mf(`{rep}{v.path}`)
-                    local newtab=getgit(`{x}/{v.path}`)
-                    for i,v in next,newtab do
-                            check(i,v)
-                        end
-                    end
-                end
-   for i,v in next,tab do
-    check(i,v)
+          if FilesEnabled then
+  local tab,repo=getgit(x)
+  local rep=`{behave}{repo}/`
+  mf(rep)
+              local function check(i,v)
+                  if v.type=="file" then
+                      nd(v.rawurl,`{repo}/{v.path}`)
+                  else
+                  mf(`{rep}{v.path}`)
+                  local newtab=getgit(`{x}/{v.path}`)
+                  for i,v in next,newtab do
+                          check(i,v)
+                      end
+                  end
+              end
+ for i,v in next,tab do
+  check(i,v)
 end
-            else
-                rwarn("File permissions denied.")
-            end
-        end)
+          else
+              rwarn("File permissions denied.")
+          end
+      end)
 }
 NEXHttp.download=newcclosure(download)
 NEXHttp.streamget=newcclosure(streamget)
 renv.git=tclone(git)
+local isfl=clonefunction(isfolder)
 local lf=clonefunction(listfiles)
 local gsub=clonefunction(exstr.gsub)
+local requests={}
+local byte=clonefunction(string.byte)
+local format=clonefunction(string.format)
+local sillystring='\\x%02X'
+local tc=clonefunction(table.concat)
+local function utf8(x)
+local res={}
+for i=1,#x do
+res[i]=format(sillystring,byte(x,i))
+    end
+return tc(res)
+end
+local seriousstring = '\\x(%x%x)'
+local woahnumber=16
+local gmatch=clonefunction(string.gmatch)
+local char=clonefunction(string.char)
+local function untf8(x)
+local res = {}
+local amount=0 --Instead of #res+1, because this is faster
+for hex in gmatch(x,seriousstring) do
+amount+=1
+res[amount] = char(tonum(hex,woahnumber))
+end
+return tc(res)
+end
+local function retq(x,url)
+return {ok=x.Success,status_code=x.StatusCode,content=utf8(x.Body),text=x.Body,json=newcclosure(function() return JsonDecode(HttpService,x.Body)end),headers=x.Headers,raise_for_status=newcclosure(function() if not x.Success then err(x.StatusMessage) end end),url=url,elapsed=x.Headers['x-timer']}
+end
+requests.get=newcclosure(function(x,options)
+if HttpEnabled then
+options.Url=x
+options.Method="GET"
+return retq(req(options),x)
+  else
+    err("HTTP Permissions Denied.")
+  end
+end)
+requests.post=newcclosure(function(x,options)
+  if HttpEnabled then
+    options.Url=x
+    options.Method="POST"
+    return retq(req(options),x)
+  else
+    err("HTTP Permissions Denied.")
+  end
+end)
+requests.options=newcclosure(function(x,options)
+  if HttpEnabled then
+    options.Url=x
+    options.Method="OPTIONS"
+    return retq(req(options),x)
+  else
+    err("HTTP Permissions Denied.")
+  end
+end)
+requests.patch=newcclosure(function(x,options)
+  if HttpEnabled then
+    options.Url=x
+    options.Method="PATCH"
+    return retq(req(options),x)
+  else
+    err("HTTP Permissions Denied.")
+  end
+end)
+requests.put=newcclosure(function(x,options)
+  if HttpEnabled then
+    options.Url=x
+    options.Method="PUT"
+    return retq(req(options),x)
+  else
+    err("HTTP Permissions Denied.")
+  end
+end)
+requests.delete=newcclosure(function(x,options)
+  if HttpEnabled then
+    options.Url=x
+    options.Method="DELETE"
+    return retq(req(options),x)
+  else
+    err("HTTP Permissions Denied.")
+  end
+end)
+requests.post=newcclosure(function(x,options)
+  if HttpEnabled then
+    options.Url=x
+    options.Method="POST"
+    return retq(req(options),x)
+  else
+    err("HTTP Permissions Denied.")
+  end
+end)
+local encrypt={
+utf8={
+encode=newcclosure(utf8),
+decode=newcclosure(untf8)
+  },
+base64={
+  encode=clonefunction(crypt.base64.encode),
+  decode=clonefunction(crypt.base64.decode)
+}
+}
+renv.crypt=tclone(encrypt)
+renv.requests=tclone(requests)
 renv.typefile=newcclosure(function(x)
 if FilesEnabled then
 if isf(`{behave}{x}`) then
 return "file"
-        else
+      elseif isfl(`{behave}{x}`) then
 return "folder"
+      else
+        err("File doesnt exist!")
 end
-        else
-            rwarn("File permissions denied.")
-        end
-    end)
+      else
+          rwarn("File permissions denied.")
+      end
+  end)
 local split=clonefunction(exstr.split)
 local rf=clonefunction(readfile)
-local tc=clonefunction(table.concat)
 local function writeline(path,line,content) 
-    local lines = {}
-    for i,v in split(rf(`{behave}{path}`),'\n') do
-    lines[i]=v
-    end
-    if not lines[line] then
-    for i=1,line do
-    lines[i]=lines[i] or ''
-    end
-    end
-    lines[line]=content
+  local lines = {}
+  for i,v in split(rf(`{behave}{path}`),'\n') do
+  lines[i]=v
+  end
+  if not lines[line] then
+  for i=1,line do
+  lines[i]=lines[i] or ''
+  end
+  end
+  lines[line]=content
 wf(`{behave}{path}`,tc(lines, "\n"))
 end
 local function readline(path,line)
 if FilesEnabled then
-    local lines = {}
-    for i,v in split(rf(`{behave}{path}`),'\n') do
-    lines[i]=v
-    end
-    return lines[line]
-    end
-warn("File permissions denied.")
+  local lines = {}
+  for i,v in split(rf(`{behave}{path}`),'\n') do
+  lines[i]=v
+  end
+  return lines[line]
+  end
+rwarn("File permissions denied.")
 end
 local globalread=newcclosure(function(self)
-    return rf(`{behave}{self.Path}`)
-  end)
+  return rf(`{behave}{self.Path}`)
+end)
 local globalwrite=newcclosure(function(self,x)
-  return wf(`{behave}{self.Path}`,x)
+return wf(`{behave}{self.Path}`,x)
 end)
 local wl,rl=clonefunction(writeline),clonefunction(readline)
 local globalwriteline=newcclosure(function(self,x,y)
-  return wl(self.Path,x,y)
+return wl(self.Path,x,y)
 end)
 local globalreadline=newcclosure(function(self,x)
-  return rl(self.Path,x)
+return rl(self.Path,x)
 end)
 local function checksexy(x,t)
-  for _,v in lf(`{behave}{x}`) do
-  t[#t+1]=v
-  if typefile(v)=="folder" then
-  check(v)
-            end
+for _,v in lf(`{behave}{x}`) do
+t[#t+1]=v
+if typefile(v)=="folder" then
+check(v)
+          end
 end
 end
 local globalgd=newcclosure(function(self)
 local t={}
 checksexy(`{behave}{self.Path}`,t)
 return t
-  end)
+end)
 local df,dfo=clonefunction(delfile),clonefunction(delfolder)
 local globaldestroy=newcclosure(function(self)
 if self.Type=="file" then
-            df(`{behave}{self.Path}`)
-    else
-            dfo(`{behave}{self.Path}`)
-    end
-  end)
+          df(`{behave}{self.Path}`)
+  else
+          dfo(`{behave}{self.Path}`)
+  end
+end)
 local globalgc=newcclosure(function(self) 
-  return lf(`{behave}{self.Path}`)
-  end)
+return lf(`{behave}{self.Path}`)
+end)
 local function OpenFile(x)
+if not isf(`{behave}{x}`) then
+    wf(`{behave}{x}`,'')
+  end
 local FileData={
 Path=x,
 Destroy=globaldestroy,
@@ -522,20 +632,20 @@ Name=getfilename(x),
 Type=typefile(x),
 GetChildren=newcclosure(function(self)
 return {}
-    end),
+  end),
 GetDescendants=newcclosure(function(self)
-      return {}
-    end)
+    return {}
+  end)
 }
 if FileData.Type=="file" then
-  FileData.Read=globalread
-  FileData.Write=globalwrite
-  FileData.ReplaceLine=globalwriteline
-  FileData.ReadLine=globalreadline
-  elseif FileData.Type=="folder" then
+FileData.Read=globalread
+FileData.Write=globalwrite
+FileData.ReplaceLine=globalwriteline
+FileData.ReadLine=globalreadline
+elseif FileData.Type=="folder" then
 FileData.GetChildren=globalgc
 FileData.GetDescendants=globalgd
-  end
+end
 local bc=clonefunction(buffer.create)
 local rawsmt=clonefunction(rawsetmetatable)
 local metatable={
@@ -543,25 +653,25 @@ __namecall=function(x,...)
 local method=getnamecallmethod()
 local methf=x[method]
 if not methf then
-                error("Attempted to call a non-existent method!")
-            else
+              err("Attempted to call a non-existent method!")
+          else
 return methf(x,...)
-            end
-        end,
+          end
+      end,
 __type="File",
 __tostring=function() return FileData.Name end,
 __index=FileData,
 __newindex=function(l,y,z)
 if y=="Path" then
+wf(`{behave}{z}`,l:Read())
 l:Destroy()
-wf(`{behave}{z}`,FileData:Read())
 elseif y=="Name" then
+wf(`{behave}{x:gsub(FileData.Name,'')}{z}`,l:Read())
 l:Destroy()
-writefile(`{x:gsub(FileData.Name)}{z}`,FileData:Read())
-      else
-error(`Cannot modify the {y} property of File.`)
-      end
-    end,
+    else
+err(`Cannot modify the {y} property of File.`)
+    end
+  end,
 __metatable="The metatable is locked."
 }
 local Holder=bc(0)
@@ -580,11 +690,11 @@ local fi=lf(`{behave}{x}`)
 local newfi={}
 for i,v in fi do
 newfi[i]=gsub(v,behave,'')
-    end
+  end
 return newfi
-    else
-        rwarn("File permissions denied.")
-    end
+  else
+      rwarn("File permissions denied.")
+  end
 end)
 renv.NEXHttp=tclone(NEXHttp)
 renv._NEXVERSION=version
@@ -609,13 +719,13 @@ local envtenex=envte
 if env and env.Protected_Environment then
 if debugm or env.ForceDebuggedEnvironment then
 rwarn(`{env.script} IS PROTECTED`)
-                        end
-                else
+                      end
+              else
 if env.NEXLuau then
 nex(env)
 envte=nexenv.std.NEXFunctions
 envtenex=nexenv
-                        end
+                      end
 if env.ExternalThread then
 local newfunc=clonefunction(threadf)
 cclose(v)
@@ -629,9 +739,9 @@ for i,v in next,renv do
 envte[i]=v
 end
 envtenex.NEX_Loaded=true
-                        if debugm or env.ForceDebuggedEnvironment then
-                        rwarn(`NEX LOADED IN {env.script}`)
-                        end
+                      if debugm or env.ForceDebuggedEnvironment then
+                      rwarn(`NEX LOADED IN {env.script}`)
+                      end
 end
 end
 end
