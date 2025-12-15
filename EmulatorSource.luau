@@ -2,6 +2,7 @@
 --!nolint
 --!nocheck
 --!optimize 3
+local game,workspace=cloneref(game),cloneref(workspace) --this is not to stop detection from weaktables, this is just so replications to the Instance metatable dont replicate to these instances for better security, I might be just paranoid, but better safe than sorry.
 local function NEXRequire(x)
 return request({Url=`https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/{x}`,Method="GET"}).Body
 end
@@ -24,7 +25,7 @@ local NEXIcon=getcustomasset(".icons/NEX.png")
 local LoadedIcons={NEX=NEXIcon}
 local cclose,info,genv,index,newindex=coroutine.close,debug.info,loadstring(NEXRequire("AllowedFunctions.luau"))()
 xpcall(function()workspace[nil]()end,function()index=clonefunction(info(2,'f'))end)xpcall(function()workspace.woahs=1 end,function()newindex=clonefunction(info(2,'f'))end)
-local GetService=index(orgame,"GetService")
+local GetService=index(game,"GetService")
 local err=clonefunction(error)
 local GuiService=cloneref(GetService(game,"GuiService"))
 local ot=os.clock
