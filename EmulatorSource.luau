@@ -622,8 +622,23 @@ local globalgc=newcclosure(function(self)
 return lf(`{behave}{self.Path}`)
 end)
 local function OpenFile(x)
+if x then
 if not isf(`{behave}{x}`) then
     wf(`{behave}{x}`,'')
+  end
+  else
+x="unnamed"
+if not isf(`{behave}{x}`) then --Why would any sane person even do this, just use the path argument!
+wf(`{behave}{x}`,'')
+    else
+local newstr=`{behave}{x} (1)`
+local count=1
+while isf(newstr) do
+count+=1
+newstr=`{behave}{x} ({count})`
+    end
+wf(newstr,'')
+  end
   end
 local FileData={
 Path=x,
@@ -668,8 +683,17 @@ l:Destroy()
 elseif y=="Name" then
 wf(`{behave}{x:gsub(FileData.Name,'')}{z}`,l:Read())
 l:Destroy()
-    else
-err(`Cannot modify the {y} property of File.`)
+      elseif y=="Type" then
+l:Destroy()
+if z=="folder" then
+mf(`{behave}{x}`)
+        elseif z=="file" then
+wf(`{behave}{x}`,'')
+        else
+err(`Cannot change the type of File to {z}`)
+        end
+      else
+err(`Cannot modify the {y} of File.`)
     end
   end,
 __metatable="The metatable is locked."
