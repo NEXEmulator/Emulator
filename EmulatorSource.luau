@@ -2,8 +2,6 @@
 --!nolint
 --!nocheck
 --!optimize 3
-local orgame=game
-local game,workspace=cloneref(game),cloneref(workspace) --this is not to stop detection from weaktables, this is just so replications to the Instance metatable dont replicate to these instances for better security, I might be just paranoid, but better safe than sorry.
 local function NEXRequire(x)
 return request({Url=`https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/{x}`,Method="GET"}).Body
 end
