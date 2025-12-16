@@ -23,44 +23,46 @@ end
 local version="1.0.7"
 local NEXIcon=getcustomasset(".icons/NEX.png")
 local LoadedIcons={NEX=NEXIcon}
+local clonef=clonefunction(clonefunction)
 local cclose,info,genv,index,newindex=coroutine.close,debug.info,loadstring(NEXRequire("AllowedFunctions.luau"))()
-xpcall(function()workspace[nil]()end,function()index=clonefunction(info(2,'f'))end)xpcall(function()workspace.woahs=1 end,function()newindex=clonefunction(info(2,'f'))end)
+xpcall(function()workspace[nil]()end,function()index=clonef(info(2,'f'))end)xpcall(function()workspace.woahs=1 end,function()newindex=clonef(info(2,'f'))end)
 local GetService=index(game,"GetService")
-local err=clonefunction(error)
+local err=clonef(error)
+local cppf=clonef(newcclosure)
 local GuiService=cloneref(GetService(game,"GuiService"))
 local ot=os.clock
 local t=ot()
 local NEXTitle=`NEX Emulator (V{version})`
-local SendNotification=index(GuiService,"SendNotification")
+local SendNotification=clonef(index(GuiService,"SendNotification"))
 SendNotification(GuiService,{
 Icon=NEXIcon,
 Title=NEXTitle,
 Text="NEX Emulation starting..."
 })
 local tw=task.wait
-local FindFirstChild=clonefunction(index(workspace,"FindFirstChild"))
+local FindFirstChild=clonef(index(workspace,"FindFirstChild"))
 local NetworkClient=cloneref(GetService(game,"NetworkClient"))
-local GetChildren=clonefunction(index(workspace,"GetChildren"))
-local Clone=clonefunction(index(workspace,"Clone"))
-local IsA=clonefunction(index(workspace,"IsA"))
+local GetChildren=clonef(index(workspace,"GetChildren"))
+local Clone=clonef(index(workspace,"Clone"))
+local IsA=clonef(index(workspace,"IsA"))
 local ClientReplicator=cloneref(FindFirstChild(NetworkClient,"ClientReplicator"))
-local Destroy=clonefunction(index(game,"Destroy"))
+local Destroy=clonef(index(game,"Destroy"))
 if not isfolder("GameData") then
 makefolder("GameData")
 end
-local rgca=clonefunction(getcustomasset)
-local rwarn=clonefunction(warn)
-local rtype=clonefunction(type)
-local tclone=clonefunction(table.clone)
-local cdef=clonefunction(task.defer)
+local rgca=clonef(getcustomasset)
+local rwarn=clonef(warn)
+local rtype=clonef(type)
+local tclone=clonef(table.clone)
+local cdef=clonef(task.defer)
 local def=function(x,...) return cdef(function(...)return x(...)end,...)end
 local reg=getreg()
 local GameId=index(game,"GameId")
 local HttpService=cloneref(GetService(game,"HttpService"))
 local MarketplaceService=cloneref(GetService(game,"MarketplaceService"))
-local GetProductInfo=clonefunction(index(MarketplaceService,"GetProductInfo"))
-local JsonDecode=clonefunction(index(HttpService,"JSONDecode"))
-local JsonEncode=clonefunction(index(HttpService,"JSONEncode"))
+local GetProductInfo=clonef(index(MarketplaceService,"GetProductInfo"))
+local JsonDecode=clonef(index(HttpService,"JSONDecode"))
+local JsonEncode=clonef(index(HttpService,"JSONEncode"))
 local rootid=JsonDecode(HttpService,
 request({Url=`https://develop.roblox.com/v1/universes/{GameId}`,Method="GET"}).Body).rootPlaceId
 local behave=`GameData/{rootid}/Storage/`
@@ -90,7 +92,7 @@ repeat tw() until IsLoaded(game)
 end
 local NotAllowed={getgenv=1}
 local HttpFamily={request=1}
-local SetStateEnabled=clonefunction(Instance.new"Humanoid".SetStateEnabled)
+local SetStateEnabled=clonef(Instance.new"Humanoid".SetStateEnabled)
 local rnexists=`{SettingsPrefix}.rootname`
 if not isfile(rnexists) then
 writefile(RootName,' ')
@@ -109,9 +111,9 @@ end
 local Identity={setidentity=1,getthreadidentity=1}
 local renv={}
 local InsertService=cloneref(GetService(game,"InsertService"))
-local LLA=clonefunction(index(InsertService,"LoadLocalAsset"))
+local LLA=clonef(index(InsertService,"LoadLocalAsset"))
 local Players=cloneref(GetService(game,"Players"))
-local ClearError=clonefunction(index(GuiService,"ClearError"))
+local ClearError=clonef(index(GuiService,"ClearError"))
 local oldset=setidentity
 local oldti=getthreadidentity
 local LP=cloneref(index(Players,"LocalPlayer"))
@@ -177,10 +179,10 @@ local function convertgit(x)
       return nil
   end
 end
-local req=clonefunction(request)
-local wf=clonefunction(writefile)
-local mf=clonefunction(makefolder)
-local isf=clonefunction(isfile)
+local req=clonef(request)
+local wf=clonef(writefile)
+local mf=clonef(makefolder)
+local isf=clonef(isfile)
 local function getgit(x)
 local url,repo=convertgit(x)
 local tab=JsonDecode(HttpService,req({Url=url,Method="GET"}).Body)
@@ -218,7 +220,7 @@ end
 local FileFamily={getfilename=1,readfile=1,writefile=1,isfile=1,isfolder=1,listfiles=1,makefolder=1,delfolder=1,delfile=1,appendfile=1,loadfile=1,getcustomasset=1}
 local debugm=settings.DebugMode
 local exstr="hi"
-local find,sub=clonefunction(exstr.find),clonefunction(exstr.sub)
+local find,sub=clonef(exstr.find),clonef(exstr.sub)
 genv.getfilename=function(x,removedot)
 local slash,name=find(x,"/[^/]*$")
 if slash then
@@ -242,7 +244,7 @@ renv.LoadedIcons=tclone(LoadedIcons)
 for i,v in next,genv do
 if not NotAllowed[i] then
 if Identity[i] then
-renv[i]=newcclosure(function(x)
+renv[i]=cppf(function(x)
 if CapabilityMax>=(x or 0) then
 return v(x)
 else
@@ -251,16 +253,16 @@ end
 end)
 elseif FileFamily[i] then
 if ExternalFilePerms then
-externalfp[i]=clonefunction(v)
+externalfp[i]=clonef(v)
 end
-renv[i]=newcclosure(function(x,...)
+renv[i]=cppf(function(x,...)
 if FilesEnabled then
 return v(`{behave}{x}`,...)
 end
 rwarn("File permissions denied.")
 end)
 elseif HttpFamily[i] then
-renv[i]=newcclosure(function(...)
+renv[i]=cppf(function(...)
 if HttpEnabled then
 return v(...)
 end
@@ -268,7 +270,7 @@ rwarn("HTTP denied.")
 end)
 else 
 if type(v)=="function" then
-renv[i]=clonefunction(v)
+renv[i]=clonef(v)
 else
 renv[i]=tclone(v)
 end
@@ -280,8 +282,8 @@ local n=cloneref(x)
 setrawmetatable(n,{})
 return n
 end
-local rawmt=clonefunction(getrawmetatable)
-local tonum=clonefunction(tonumber)
+local rawmt=clonef(getrawmetatable)
+local tonum=clonef(tonumber)
 local nexenv={
 task=task,
 __index=index,
@@ -314,7 +316,7 @@ tabledebug={
 __len=rawlen,
 __index=rawget,
 __newindex=rawset,
-__metatable={rawgetmetatable=rawmt,rawsetmetatable=clonefunction(setrawmetatable)},
+__metatable={rawgetmetatable=rawmt,rawsetmetatable=clonef(setrawmetatable)},
 setmetatable=setmetatable,
 __equal=rawequal,
 getmetatable=getmetatable,
@@ -358,14 +360,14 @@ local function nex(x)
 rawmt(x).__index=nexenv
 end
 local examplet={}
-local getf=clonefunction(getfenv)
+local getf=clonef(getfenv)
 local cc,cr=coroutine.create,coroutine.resume
 local precalculatedsize=1024*16
 local NEXHttp={}
-local apf=clonefunction(appendfile)
+local apf=clonef(appendfile)
 local function download(url,filename,chunksize)
 if FilesEnabled then
-local ext={installedsize=0,finished=false,WaitForFile=newcclosure(function(self)
+local ext={installedsize=0,finished=false,WaitForFile=cppf(function(self)
 repeat tw() until self.finished
 return self.installedsize
 end)}
@@ -389,7 +391,7 @@ return ext
 end
 local function streamget(url,chunksize)
 if HttpEnabled then
-local ext={installedsize=0,finished=false,body='',WaitForFile=newcclosure(function(self)
+local ext={installedsize=0,finished=false,body='',WaitForFile=cppf(function(self)
 repeat tw() until self.finished
 return self.body 
 end)}
@@ -410,10 +412,10 @@ return ext
       rwarn("HTTP permissions denied.")
   end
 end
-local nd=newcclosure(clonefunction(download))
+local nd=cppf(clonef(download))
 local git={
-getgit=newcclosure(getgit),
-clone=newcclosure(function(x)
+getgit=cppf(getgit),
+clone=cppf(function(x)
           if FilesEnabled then
   local tab,repo=getgit(x)
   local rep=`{behave}{repo}/`
@@ -437,17 +439,17 @@ end
           end
       end)
 }
-NEXHttp.download=newcclosure(download)
-NEXHttp.streamget=newcclosure(streamget)
+NEXHttp.download=cppf(download)
+NEXHttp.streamget=cppf(streamget)
 renv.git=tclone(git)
-local isfl=clonefunction(isfolder)
-local lf=clonefunction(listfiles)
-local gsub=clonefunction(exstr.gsub)
+local isfl=clonef(isfolder)
+local lf=clonef(listfiles)
+local gsub=clonef(exstr.gsub)
 local requests={}
-local byte=clonefunction(string.byte)
-local format=clonefunction(string.format)
+local byte=clonef(string.byte)
+local format=clonef(string.format)
 local sillystring='\\x%02X'
-local tc=clonefunction(table.concat)
+local tc=clonef(table.concat)
 local function utf8(x)
 local res={}
 for i=1,#x do
@@ -457,8 +459,8 @@ return tc(res)
 end
 local seriousstring = '\\x(%x%x)'
 local woahnumber=16
-local gmatch=clonefunction(string.gmatch)
-local char=clonefunction(string.char)
+local gmatch=clonef(string.gmatch)
+local char=clonef(string.char)
 local function untf8(x)
 local res = {}
 local amount=0 --Instead of #res+1, because this is faster
@@ -469,9 +471,9 @@ end
 return tc(res)
 end
 local function retq(x,url)
-return {ok=x.Success,status_code=x.StatusCode,content=utf8(x.Body),text=x.Body,json=newcclosure(function() return JsonDecode(HttpService,x.Body)end),headers=x.Headers,raise_for_status=newcclosure(function() if not x.Success then err(x.StatusMessage) end end),url=url,elapsed=x.Headers['x-timer']}
+return {ok=x.Success,status_code=x.StatusCode,content=utf8(x.Body),text=x.Body,json=cppf(function() return JsonDecode(HttpService,x.Body)end),headers=x.Headers,raise_for_status=cppf(function() if not x.Success then err(x.StatusMessage) end end),url=url,elapsed=x.Headers['x-timer']}
 end
-requests.get=newcclosure(function(x,options)
+requests.get=cppf(function(x,options)
 if HttpEnabled then
 options.Url=x
 options.Method="GET"
@@ -480,7 +482,7 @@ return retq(req(options),x)
     err("HTTP Permissions Denied.")
   end
 end)
-requests.post=newcclosure(function(x,options)
+requests.post=cppf(function(x,options)
   if HttpEnabled then
     options.Url=x
     options.Method="POST"
@@ -489,7 +491,7 @@ requests.post=newcclosure(function(x,options)
     err("HTTP Permissions Denied.")
   end
 end)
-requests.options=newcclosure(function(x,options)
+requests.options=cppf(function(x,options)
   if HttpEnabled then
     options.Url=x
     options.Method="OPTIONS"
@@ -498,7 +500,7 @@ requests.options=newcclosure(function(x,options)
     err("HTTP Permissions Denied.")
   end
 end)
-requests.patch=newcclosure(function(x,options)
+requests.patch=cppf(function(x,options)
   if HttpEnabled then
     options.Url=x
     options.Method="PATCH"
@@ -507,7 +509,7 @@ requests.patch=newcclosure(function(x,options)
     err("HTTP Permissions Denied.")
   end
 end)
-requests.put=newcclosure(function(x,options)
+requests.put=cppf(function(x,options)
   if HttpEnabled then
     options.Url=x
     options.Method="PUT"
@@ -516,7 +518,7 @@ requests.put=newcclosure(function(x,options)
     err("HTTP Permissions Denied.")
   end
 end)
-requests.delete=newcclosure(function(x,options)
+requests.delete=cppf(function(x,options)
   if HttpEnabled then
     options.Url=x
     options.Method="DELETE"
@@ -525,7 +527,7 @@ requests.delete=newcclosure(function(x,options)
     err("HTTP Permissions Denied.")
   end
 end)
-requests.post=newcclosure(function(x,options)
+requests.post=cppf(function(x,options)
   if HttpEnabled then
     options.Url=x
     options.Method="POST"
@@ -536,17 +538,17 @@ requests.post=newcclosure(function(x,options)
 end)
 local encrypt={
 utf8={
-encode=newcclosure(utf8),
-decode=newcclosure(untf8)
+encode=cppf(utf8),
+decode=cppf(untf8)
   },
 base64={
-  encode=clonefunction(crypt.base64.encode),
-  decode=clonefunction(crypt.base64.decode)
+  encode=clonef(crypt.base64.encode),
+  decode=clonef(crypt.base64.decode)
 }
 }
 renv.crypt=tclone(encrypt)
 renv.requests=tclone(requests)
-renv.typefile=newcclosure(function(x)
+renv.typefile=cppf(function(x)
 if FilesEnabled then
 if isf(`{behave}{x}`) then
 return "file"
@@ -559,8 +561,8 @@ end
           rwarn("File permissions denied.")
       end
   end)
-local split=clonefunction(exstr.split)
-local rf=clonefunction(readfile)
+local split=clonef(exstr.split)
+local rf=clonef(readfile)
 local function writeline(path,line,content) 
   local lines = {}
   for i,v in split(rf(`{behave}{path}`),'\n') do
@@ -584,17 +586,17 @@ if FilesEnabled then
   end
 rwarn("File permissions denied.")
 end
-local globalread=newcclosure(function(self)
+local globalread=cppf(function(self)
   return rf(`{behave}{self.Path}`)
 end)
-local globalwrite=newcclosure(function(self,x)
+local globalwrite=cppf(function(self,x)
 return wf(`{behave}{self.Path}`,x)
 end)
-local wl,rl=clonefunction(writeline),clonefunction(readline)
-local globalwriteline=newcclosure(function(self,x,y)
+local wl,rl=clonef(writeline),clonef(readline)
+local globalwriteline=cppf(function(self,x,y)
 return wl(self.Path,x,y)
 end)
-local globalreadline=newcclosure(function(self,x)
+local globalreadline=cppf(function(self,x)
 return rl(self.Path,x)
 end)
 local function checksexy(x,t)
@@ -605,20 +607,20 @@ check(v)
           end
 end
 end
-local globalgd=newcclosure(function(self)
+local globalgd=cppf(function(self)
 local t={}
 checksexy(`{behave}{self.Path}`,t)
 return t
 end)
-local df,dfo=clonefunction(delfile),clonefunction(delfolder)
-local globaldestroy=newcclosure(function(self)
+local df,dfo=clonef(delfile),clonef(delfolder)
+local globaldestroy=cppf(function(self)
 if self.Type=="file" then
           df(`{behave}{self.Path}`)
   else
           dfo(`{behave}{self.Path}`)
   end
 end)
-local globalgc=newcclosure(function(self) 
+local globalgc=cppf(function(self) 
 return lf(`{behave}{self.Path}`)
 end)
 local function OpenFile(x)
@@ -645,10 +647,10 @@ Path=x,
 Destroy=globaldestroy,
 Name=getfilename(x),
 Type=typefile(x),
-GetChildren=newcclosure(function(self)
+GetChildren=cppf(function(self)
 return {}
   end),
-GetDescendants=newcclosure(function(self)
+GetDescendants=cppf(function(self)
     return {}
   end)
 }
@@ -661,10 +663,10 @@ elseif FileData.Type=="folder" then
 FileData.GetChildren=globalgc
 FileData.GetDescendants=globalgd
 end
-local bc=clonefunction(buffer.create)
-local rawsmt=clonefunction(rawsetmetatable)
+local bc=clonef(buffer.create)
+local rawsmt=clonef(rawsetmetatable)
 local metatable={
-__namecall=function(x,...)
+__namecall=cppf(function(x,...)
 local method=getnamecallmethod()
 local methf=x[method]
 if not methf then
@@ -672,11 +674,11 @@ if not methf then
           else
 return methf(x,...)
           end
-      end,
+      end),
 __type="File",
-__tostring=function() return FileData.Name end,
+__tostring=cppf(function() return FileData.Name end),
 __index=FileData,
-__newindex=function(l,y,z)
+__newindex=cppf(function(l,y,z)
 if y=="Path" then
 wf(`{behave}{z}`,l:Read())
 l:Destroy()
@@ -695,17 +697,17 @@ err(`Cannot change the type of File to {z}`)
       else
 err(`Cannot modify the {y} of File.`)
     end
-  end,
+  end),
 __metatable="The metatable is locked."
 }
 local Holder=bc(0)
 rawsmt(Holder,metatable)
 return Holder
 end
-renv.OpenFile=newcclosure(OpenFile)
-renv.readline=newcclosure(readline)
-renv.writeline=newcclosure(writeline)
-renv.listfiles=newcclosure(function(x)
+renv.OpenFile=cppf(OpenFile)
+renv.readline=cppf(readline)
+renv.writeline=cppf(writeline)
+renv.listfiles=cppf(function(x)
 if FilesEnabled then
 if not x or x=='./' then
 x=''
@@ -751,7 +753,7 @@ envte=nexenv.std.NEXFunctions
 envtenex=nexenv
                       end
 if env.ExternalThread then
-local newfunc=clonefunction(threadf)
+local newfunc=clonef(threadf)
 cclose(v)
 tw()
 cr(cc(newfunc))
