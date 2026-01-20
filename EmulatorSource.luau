@@ -257,120 +257,101 @@ return obj
     rwarn("XML permissions denied.")
   end
 end
-local basepart = {['CornerWedgePart']=true,["Part"]=true,['FlagStand']=true,['Platform']=true,['Seat']=true,["SkateboardPlatform"]=true,["SpawnLocation"]=true,["WedgePart"]=true,["VehicleSeat"]=true,["Terrain"]=true,["MeshPart"]=true,["PartOperation"]=true,["IntersectOperation"]=true,["UnionOperation"]=true,["NegateOperation"]=true,["TrussPart"]=true}
-local clamp = clonef(math.clamp)
-local tc = clonef(table.concat)
-local typo = clonef(typeof)
-local format = clonef(string.format)
-local floor = clonef(math.floor)
-local tos = clonef(tostring)
-local insert = clonef(table.insert)
-local upc = clonef(table.unpack)
-local handlers = {
-  ["string"] = function(pn, pv)
-    local tag = (pn == "HistoryId" or pn == "UniqueId") and "string" or "string"
-    return format('\n<%s name="%s"><![CDATA[%s]]></%s>', tag, pn, tos(pv), tag)
-  end,
-  ["boolean"] = function(pn, pv)
-    return format('\n<bool name="%s">%s</bool>', pn, tos(pv))
-  end,
-  ["number"] = function(pn, pv)
-    return format('\n<double name="%s">%f</double>', pn, pv)
-  end,
-  ["Vector3"] = function(pn, pv)
-    return format('\n<Vector3 name="%s"><X>%f</X><Y>%f</Y><Z>%f</Z></Vector3>', pn, pv.X, pv.Y, pv.Z)
-  end,
-  ["Vector2"] = function(pn, pv)
-    return format('\n<Vector2 name="%s"><X>%f</X><Y>%f</Y></Vector2>', pn, pv.X, pv.Y)
-  end,
-  ["CFrame"] = function(pn, pv)
-    return format('\n<CoordinateFrame name="%s"><X>%f</X><Y>%f</Y><Z>%f</Z><R00>%f</R00><R01>%f</R01><R02>%f</R02><R10>%f</R10><R11>%f</R11><R12>%f</R12><R20>%f</R20><R21>%f</R21><R22>%f</R22></CoordinateFrame>', pn, upc({pv.GetComponents(pv)}))
-  end,
-  ["UDim2"] = function(pn, pv)
-    return format('\n<UDim2 name="%s"><XS>%f</XS><XO>%d</XO><YS>%f</YS><YO>%d</YO></UDim2>', pn, pv.X.Scale, pv.X.Offset, pv.Y.Scale, pv.Y.Offset)
-  end,
-  ["UDim"] = function(pn, pv)
-    return format('\n<UDim name="%s"><S>%f</S><O>%d</O></UDim>', pn, pv.Scale, pv.Offset)
-  end,
-  ["Rect"] = function(pn, pv)
-    return format('\n<Rect2D name="%s"><min><X>%f</X><Y>%f</Y></min><max><X>%f</X><Y>%f</Y></max></Rect2D>', pn, pv.Min.X, pv.Min.Y, pv.Max.X, pv.Max.Y)
-  end,
-  ["PhysicalProperties"] = function(pn, pv)
-    return format('\n<PhysicalProperties name="%s"><CustomPhysics>true</CustomPhysics><AcousticAbsorption>%f</AcousticAbsorption><Density>%f</Density><Elasticity>%f</Elasticity><Friction>%f</Friction><ElasticityWeight>%f</ElasticityWeight><FrictionWeight>%f</FrictionWeight></PhysicalProperties>', pn, pv.AcousticAbsorption, pv.Density, pv.Elasticity, pv.Friction, pv.ElasticityWeight, pv.FrictionWeight)
-  end,
-  ["NumberRange"] = function(pn, pv)
-    return format('\n<NumberRange name="%s">%f %f</NumberRange>', pn, pv.Min, pv.Max)
-  end,
-  ["EnumItem"] = function(pn, pv)
-    local tag = (pn == "Capabilities") and "SecurityCapabilities" or "token"
-    return format('\n<%s name="%s">%d</%s>', tag, pn, pv.Value, tag)
-  end,
-  ["Axes"] = function(pn, pv)
-    local val = (pv.X and 1 or 0) + (pv.Y and 2 or 0) + (pv.Z and 4 or 0)
-    return format('\n<Axes name="%s"><axes>%d</axes></Axes>', pn, val)
-  end,
-  ["Faces"] = function(pn, pv)
-    local val = (pv.Front and 1 or 0) + (pv.Back and 2 or 0) + (pv.Top and 4 or 0) + (pv.Bottom and 8 or 0) + (pv.Left and 16 or 0) + (pv.Right and 32 or 0)
-    return format('\n<Faces name="%s"><faces>%d</faces></Faces>', pn, val)
-  end
+local sf,gsub,gmatch=clonef(string.format),clonef(string.gsub),clonef(string.gmatch)
+local ti,tc,tun,tsort=clonef(table.insert),clonef(table.concat),clonef(table.unpack),clonef(table.sort)
+local ton,tos,typo=clonef(tonumber),clonef(tostring),clonef(typeof)
+local mfloor=clonef(math.floor)
+local V3,V2,V3i16,V2i16,CF,UD,UD2,Rec,NR,NS,NSK,CS,CSK,C3,PP,Fa,Ax=Vector3.new,Vector2.new,Vector3int16.new,Vector2int16.new,CFrame.new,UDim.new,UDim2.new,Rect.new,NumberRange.new,NumberSequence.new,NumberSequenceKeypoint.new,ColorSequence.new,ColorSequenceKeypoint.new,Color3.new,PhysicalProperties.new,Faces.new,Axes.new
+local EnAx,EnNI=Enum.Axis,Enum.NormalId
+local function clean(s)return(gsub(s,"%s+",""))end
+local function getfaces(v)local f={}if v.Right then ti(f,EnNI.Right)end if v.Top then ti(f,EnNI.Top)end if v.Back then ti(f,EnNI.Back)end if v.Left then ti(f,EnNI.Left)end if v.Bottom then ti(f,EnNI.Bottom)end if v.Front then ti(f,EnNI.Front)end return Fa(tun(f))end
+local function getaxes(v)local a={}if v.X then ti(a,EnAx.X)end if v.Y then ti(a,EnAx.Y)end if v.Z then ti(a,EnAx.Z)end return Ax(tun(a))end
+local typemap={
+["Vector3"]={enc=function(p)local v=p.Value return sf('<X>%g</X><Y>%g</Y><Z>%g</Z>',v.X,v.Y,v.Z)end,dec=function(s)s=clean(s)return V3(ton(match(s,"<X>(.-)</X>"))or 0,ton(match(s,"<Y>(.-)</Y>"))or 0,ton(match(s,"<Z>(.-)</Z>"))or 0)end},
+["Vector2"]={enc=function(p)local v=p.Value return sf('<X>%g</X><Y>%g</Y>',v.X,v.Y)end,dec=function(s)s=clean(s)return V2(ton(match(s,"<X>(.-)</X>"))or 0,ton(match(s,"<Y>(.-)</Y>"))or 0)end},
+["Vector3int16"]={enc=function(p)local v=p.Value return sf('<X>%d</X><Y>%d</Y><Z>%d</Z>',v.X,v.Y,v.Z)end,dec=function(s)s=clean(s)return V3i16(ton(match(s,"<X>(.-)</X>"))or 0,ton(match(s,"<Y>(.-)</Y>"))or 0,ton(match(s,"<Z>(.-)</Z>"))or 0)end},
+["Vector2int16"]={enc=function(p)local v=p.Value return sf('<X>%d</X><Y>%d</Y>',v.X,v.Y)end,dec=function(s)s=clean(s)return V2i16(ton(match(s,"<X>(.-)</X>"))or 0,ton(match(s,"<Y>(.-)</Y>"))or 0)end},
+["CFrame"]={enc=function(p)local c={p.Value:GetComponents()}return sf('<X>%g</X><Y>%g</Y><Z>%g</Z><R00>%g</R00><R01>%g</R01><R02>%g</R02><R10>%g</R10><R11>%g</R11><R12>%g</R12><R20>%g</R20><R21>%g</R21><R22>%g</R22>',tun(c))end,dec=function(s)s=clean(s)local c={}for v in gmatch(s,">([^<]+)<")do ti(c,ton(v))end if#c<12 then c={ton(match(s,"<X>(.-)</X>")),ton(match(s,"<Y>(.-)</Y>")),ton(match(s,"<Z>(.-)</Z>")),ton(match(s,"<R00>(.-)</R00>")),ton(match(s,"<R01>(.-)</R01>")),ton(match(s,"<R02>(.-)</R02>")),ton(match(s,"<R10>(.-)</R10>")),ton(match(s,"<R11>(.-)</R11>")),ton(match(s,"<R12>(.-)</R12>")),ton(match(s,"<R20>(.-)</R20>")),ton(match(s,"<R21>(.-)</R21>")),ton(match(s,"<R22>(.-)</R22>"))}end return CF(tun(c))end},
+["UDim"]={enc=function(p)local v=p.Value return sf('<S>%g</S><O>%d</O>',v.Scale,v.Offset)end,dec=function(s)s=clean(s)return UD(ton(match(s,"<S>(.-)</S>"))or 0,ton(match(s,"<O>(.-)</O>"))or 0)end},
+["UDim2"]={enc=function(p)local v=p.Value return sf('<XS>%g</XS><XO>%d</XO><YS>%g</YS><YO>%d</YO>',v.X.Scale,v.X.Offset,v.Y.Scale,v.Y.Offset)end,dec=function(s)s=clean(s)return UD2(ton(match(s,"<XS>(.-)</XS>"))or 0,ton(match(s,"<XO>(.-)</XO>"))or 0,ton(match(s,"<YS>(.-)</YS>"))or 0,ton(match(s,"<YO>(.-)</YO>"))or 0)end},
+["Rect2D"]={enc=function(p)local v=p.Value return sf('<min><X>%g</X><Y>%g</Y></min><max><X>%g</X><Y>%g</Y></max>',v.Min.X,v.Min.Y,v.Max.X,v.Max.Y)end,dec=function(s)s=clean(s)return Rec(ton(match(s,"<min>.*<X>(.-)</X>"))or 0,ton(match(s,"<min>.*<Y>(.-)</Y>"))or 0,ton(match(s,"<max>.*<X>(.-)</X>"))or 0,ton(match(s,"<max>.*<Y>(.-)</Y>"))or 0)end},
+["NumberRange"]={enc=function(p)return sf('%g %g',p.Value.Min,p.Value.Max)end,dec=function(s)local m1,m2=match(s,"([^%s]+)%s+([^%s]+)")return NR(ton(m1)or 0,ton(m2)or 0)end},
+["NumberSequence"]={enc=function(p)local r={}for _,k in ipairs(p.Value.Keypoints)do ti(r,sf("%g %g %g",k.Time,k.Value,k.Envelope))end return tc(r," ")end,dec=function(s)local k,v={},{}for x in gmatch(s,"([^%s]+)")do ti(v,ton(x))end for i=1,#v,3 do ti(k,NSK(v[i],v[i+1],v[i+2]))end return NS(k)end},
+["ColorSequence"]={enc=function(p)local r={}for _,k in ipairs(p.Value.Keypoints)do ti(r,sf("%g %g %g %g 0",k.Time,k.Value.R,k.Value.G,k.Value.B))end return tc(r," ")end,dec=function(s)local k,v={},{}for x in gmatch(s,"([^%s]+)")do ti(v,ton(x))end for i=1,#v,5 do ti(k,CSK(v[i],C3(v[i+1],v[i+2],v[i+3])))end return CS(k)end},
+["Color3"]={enc=function(p)local v=p.Value return sf('<R>%g</R><G>%g</G><B>%g</B>',v.R,v.G,v.B)end,dec=function(s)s=clean(s)return C3(ton(match(s,"<R>(.-)</R>"))or 0,ton(match(s,"<G>(.-)</G>"))or 0,ton(match(s,"<B>(.-)</B>"))or 0)end},
+["Color3uint8"]={enc=function(p)local v=p.Value return tos(4278190080+(mfloor(v.R*255)*65536)+(mfloor(v.G*255)*256)+mfloor(v.B*255))end,dec=function(s)local u=ton(s)or 0 return Color3.fromRGB(mfloor(u/65536)%256,mfloor(u/256)%256,u%256)end},
+["PhysicalProperties"]={enc=function(p)local v=p.Value if v==nil then return "null" end if typo(v)=="string" then return v end return sf('<CustomPhysics>true</CustomPhysics><Density>%g</Density><Friction>%g</Friction><Elasticity>%g</Elasticity><FrictionWeight>%g</FrictionWeight><ElasticityWeight>%g</ElasticityWeight>',v.Density,v.Friction,v.Elasticity,v.FrictionWeight,v.ElasticityWeight)end,dec=function(s)return s end},
+["Faces"]={enc=function(p)local v,f=p.Value,0 if v.Right then f+=1 end if v.Top then f+=2 end if v.Back then f+=4 end if v.Left then f+=8 end if v.Bottom then f+=16 end if v.Front then f+=32 end return tos(f)end,dec=function(s)local i=ton(s)or 0 return getfaces({Right=(i%2>=1),Top=(i%4>=2),Back=(i%8>=4),Left=(i%16>=8),Bottom=(i%32>=16),Front=(i%64>=32)})end},
+["Axes"]={enc=function(p)local v,f=p.Value,0 if v.X then f+=1 end if v.Y then f+=2 end if v.Z then f+=4 end return tos(f)end,dec=function(s)local i=ton(s)or 0 return getaxes({X=(i%2>=1),Y=(i%4>=2),Z=(i%8>=4)})end}
 }
-local function tabletoxml(x)
-  local res = {'<roblox version="4">'}
-  local function tsex(tabl)
-    for i, v in next, tabl do
-      if i == "WorkspaceMeta" then
-        for k, val in next, v do
-          insert(res, format('\n<Meta name="%s">%s</Meta>', k, tos(val)))
-        end
-      elseif sub(i, 1, 4) == "Item" then
-        insert(res, v.referent and format('\n<Item class="%s" referent="%s">', v.ClassName, v.referent) or format('\n<Item class="%s">', v.ClassName))
-        local padd = false
-        local class = v.ClassName
-        for pn, pv in next, v do
-          if pn ~= "ClassName" and pn ~= "referent" and sub(pn, 1, 4) ~= "Item" then
-            if not padd then
-              padd = true
-              insert(res, "\n<Properties>")
-            end
-            local tp = typo(pv)
-            local handler = handlers[tp]
-            if handler then
-              insert(res, handler(pn, pv))
-            elseif tp == "Color3" then
-              if basepart[class] then
-                local u = (4278190080)+(floor(clamp(pv.R*255,0,255))*65536)+(floor(clamp(pv.G*255,0,255))*256)+floor(clamp(pv.B*255,0,255))
-                insert(res, format('\n<Color3uint8 name="%s">%u</Color3uint8>', pn, u))
-              else
-                insert(res, format('\n<Color3 name="%s"><R>%f</R><G>%f</G><B>%f</B></Color3>', pn, pv.R, pv.G, pv.B))
-              end
-            elseif tp == "table" then
-              if pv.Content then
-                insert(res, format('\n<Content name="%s"><url>%s</url></Content>', pn, pv.Content))
-              elseif pv.Reference then
-                insert(res, format('\n<Ref name="%s">%s</Ref>', pn, pv.Reference))
-              elseif pv.SharedString then
-                insert(res, format('\n<SharedString name="%s">%s</SharedString>', pn, pv.SharedString))
-              else
-                insert(res, format('\n%s', pv[1]))
-              end
-            else
-              insert(res, format('\n<%s name="%s">%s</%s>', tp, pn, tos(pv), tp))
-            end
-          end
-        end
-        if padd then insert(res, "\n</Properties>") end
-        for kn, kv in next, v do
-          if sub(kn, 1, 4) == "Item" then
-            tsex({[kn] = kv})
-          end
-        end
-        insert(res, "\n</Item>")
-      end
+typemap["CoordinateFrame"]=typemap["CFrame"]
+local function tabletoxml(root)
+  local out={'<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">'}
+  local uss={}
+  local function scan(t)for k,v in next,t do if type(v)=="table" and v.Tag=="SharedString" then uss[v.Value]=true end if type(k)=="string" and k:find("^Item") then scan(v) end end end
+  scan(root)
+  if root.SharedStrings then local sb={} for h,c in next,root.SharedStrings do if uss[h] then ti(sb,sf('<SharedString md5="%s">%s</SharedString>',h,c)) end end if #sb>0 then ti(out,"\n<SharedStrings>") ti(out,"\n"..tc(sb,"\n")) ti(out,"\n</SharedStrings>") end end
+  local refmap,refcnt={},0
+  local function remap_refs(t)
+    local it={} for k,v in next,t do if typo(k)=="string" and k:find("^Item") then ti(it,{k,v}) end end
+    tsort(it,function(a,b) return (ton(match(a[1],"%d+"))or 0)<(ton(match(b[1],"%d+"))or 0) end)
+    for _,pair in ipairs(it) do
+      local d=pair[2]
+      refcnt=refcnt+1
+      local oldRef=d.Referent
+      local newRef=sf("NEX%d",refcnt)
+      if oldRef then refmap[oldRef]=newRef end
+      d.Referent=newRef
+      remap_refs(d)
     end
   end
-  tsex(x)
-  insert(res, "\n</roblox>")
-  return tc(res)
+  remap_refs(root)
+  local function proc(t)
+    local it={} for k,v in next,t do if typo(k)=="string" and k:find("^Item") then ti(it,{k,v}) end end
+    tsort(it,function(a,b) return (ton(match(a[1],"%d+"))or 0)<(ton(match(b[1],"%d+"))or 0) end)
+    for _,pair in ipairs(it) do
+      local d,ref=pair[2],pair[2].Referent
+      ti(out,sf('\n<Item class="%s" referent="%s">',d.ClassName or "Part",ref)) ti(out,"\n<Properties>")
+      for pn,pw in next,d do
+        if pn~="ClassName" and pn~="Referent" and not pn:find("^Item") and typo(pw)=="table" and pw.Tag then
+          local tag,logic=pw.Tag,typemap[pw.Tag]
+          if tag=="Ref" then 
+            local v = pw.Value
+            if v and refmap[v] then v=refmap[v] end
+            ti(out,sf('\n<Ref name="%s">%s</Ref>',pn,(v==nil)and"null"or tos(v)))
+          elseif tag=="BinaryString" or tag=="ProtectedString" or tag=="string" then ti(out,sf('\n<%s name="%s"><![CDATA[%s]]></%s>',tag,pn,pw.Value,tag))
+          elseif logic then local val=logic.enc(pw) ti(out,sf('\n<%s name="%s">%s</%s>',tag,pn,(val=="null")and"null"or val,tag))
+          elseif tag=="UniqueId" or tag=="SharedString" then ti(out,sf('\n<%s name="%s">%s</%s>',tag,pn,pw.Value,tag))
+          elseif tag=="bool" then ti(out,sf('\n<bool name="%s">%s</bool>',pn,tos(pw.Value)))
+          elseif tag=="int" or tag=="int64" then ti(out,sf('\n<%s name="%s">%d</%s>',tag,pn,pw.Value,tag))
+          elseif tag=="float" or tag=="double" then ti(out,sf('\n<%s name="%s">%g</%s>',tag,pn,pw.Value,tag))
+          elseif tag=="token" then ti(out,sf('\n<%s name="%s">%d</%s>',tag,pn,mfloor(pw.Value+0.5),tag))
+          else ti(out,sf('\n<%s name="%s">%s</%s>',tag,pn,tos(pw.Value),tag)) end
+        end end
+      ti(out,"\n</Properties>") proc(d) ti(out,"\n</Item>")
+    end end
+  proc(root) ti(out,"\n</roblox>") return tc(out)
+end
+local function xmltotable(xml)
+  local ss={} for h,b in gmatch(xml,'<SharedString md5="([^"]+)">([^<]*)</SharedString>') do ss[h]=b end
+  local function parse(s)
+    local res,idx,pos={},1,1
+    while true do
+      local b,e,cls,ref=s:find('<Item class="([^"]*)" referent="([^"]*)"[^>]*>',pos)
+      if not b then b,e,cls=s:find('<Item class="([^"]*)"[^>]*>',pos) end if not b then break end
+      local d,ce=1,e+1
+      while d>0 do local no,nc=s:find('<Item%s',ce),s:find('</Item>',ce) if nc and(not no or nc<no) then d-=1 ce=nc+7 elseif no then d+=1 ce=no+6 else break end end
+      local idat={ClassName=cls,Referent=ref} local body=s:sub(b,ce) local ps,pe,pc=body:find("<Properties>"),nil,body:find("</Properties>")
+      if ps and pc then pe=ps+11 local px=body:sub(pe+1,pc-1)
+        for tag,n,c in gmatch(px,"<([^%s>]+) name=\"([^\"]+)\">(.-)</%1>") do
+          local v=c if tag=="BinaryString" or tag=="ProtectedString" or tag=="string" then v=gsub(c,"<!%[CDATA%[(.-)%]%]>","%1")
+          elseif tag=="bool" then v=(c=="true") elseif tag=="int" or tag=="float" or tag=="double" or tag=="token" or tag=="int64" then v=ton(c)
+          elseif tag=="Ref" then v=(c~="null"and c)or nil elseif typemap[tag] then v=typemap[tag].dec(c) elseif tag=="SharedString" then v=c end
+          idat[n]={Tag=tag,Value=v} end end
+      local chi=parse(body:sub((pc or 0)+13,#body-7)) for k,v in next,chi do idat[k]=v end
+      res["Item"..idx]=idat idx+=1 pos=ce
+    end return res end
+  local fin=parse(xml) fin.SharedStrings=ss return fin
 end
 local req=clonef(request)
 local mf=clonef(makefolder)
@@ -390,12 +371,55 @@ local tab=JsonDecode(HttpService,req({Url=url,Method="GET"}).Body)
   end
   return newtable,repo
 end
+local reverse=clonef(string.reverse)
+local function splitxml(xml,y)
+local res={}
+local s=xml
+local h=match(xml,"(<roblox[^>]*>)") or '<roblox version="4">'
+if find(s,"^<roblox")then
+s=reverse(gsub(reverse(gsub(s,"^<roblox[^>]*>","")),">xolbor/<","",1))
+end
+if find(s,"^%s*<Item")then
+s=gsub(s,"^%s*","")
+local _,p=find(s,"<Properties>.-</Properties>")
+if not p then _,p=find(s,"^<Item[^>]*>")end
+s=reverse(gsub(reverse(sub(s,p+1)),">metI/<","",1))
+end
+local cur=1
+while true do
+local b,e,c=find(s,'<Item class="([^"]+)"[^>]*>',cur)
+if not b then break end
+local d,p,f=1,e+1,nil
+while d>0 do
+local ns,ne=find(s,'<Item%s',p)
+local cs,ce=find(s,'</Item>',p)
+if cs and(not ns or cs<ns)then
+d=d-1
+f=ce
+p=ce+1
+elseif ns then
+d=d+1
+p=ne+1
+else break end
+end
+if f then
+local x=sub(s,b,f)
+if y then x=h..x..'</roblox>' end
+ti(res,{Class=c,XML=x})
+cur=f+1
+else cur=e+1 end
+end
+return res
+end
 local XML={
 Object=cppf(xmlobject),
 Load=cppf(loadxml),
-TableToXML=cppf(tabletoxml)
+TableToXML=cppf(tabletoxml),
+XMLToTable=cppf(xmltotable),
+SplitXML=cppf(splitxml)
 }
-renv.XML=tclone(XML)
+local roblox={XML=tclone(XML)}
+renv.roblox=tclone(roblox)
 genv.LoadLocalAsset=function(x)
 if FilesEnabled then
 local id=oldti()
