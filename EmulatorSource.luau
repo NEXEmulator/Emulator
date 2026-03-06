@@ -227,6 +227,17 @@ Name="",
 }
 local woahc=clonef(pcall)
 local HttpGet=index(game,"HttpGet")
+local RFS=GetService(game,"ReflectionService")
+local GPOC=clonef(index(RFS,"GetPropertiesOfClass"))
+local function getproperties(x)
+  local props={}
+  for _,v in GPOC(RFS,index(x,"ClassName")) do
+    if v.Permits.Read then
+      props[v.Name]=index(x,v.Name)
+    end
+  end
+  return props
+end
 local XMLEnabled=settings.XMLEnabled
 local requestinternal=clonefunc(index(HttpService,"RequestInternal"))
 local interfunc
@@ -481,6 +492,7 @@ local roblox={XML=tclone(XML),GetAssetSource=cppf(GetAssetSource),BinaryFormat={
     XMLType=cppf(robloxtype)
 }}
 local rf=clonef(readfile)
+genv.GetProperties=cppf(getproperties)
 genv.GetLocalObjects=function(x)
   local id=oldti()
   if id<3 then
