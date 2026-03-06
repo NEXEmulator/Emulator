@@ -1653,7 +1653,17 @@ PropType[0x22] = {
 		local out={};local p=1
 		for i=1,n do
 			local len,np=sunpack("<I4",data,p);p=np
-			out[i]=data:sub(p,p+len-1);p+=len
+			local raw=data:sub(p,p+len-1);p+=len
+			if len >= 8
+			and raw:byte(1)==0x01 and raw:byte(2)==0x00
+			and raw:byte(3)==0x00 and raw:byte(4)==0x00 then
+				local slen = sunpack("<I4", raw, 5)
+				out[i] = raw:sub(9, 8 + slen)
+			elseif len >= 1 and raw:byte(1)==0x00 then
+				out[i] = ""
+			else
+				out[i] = raw
+			end
 		end; return out
 	end,
 	writeBin=function(vals)
