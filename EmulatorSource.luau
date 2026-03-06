@@ -10,8 +10,8 @@ local function ImportToFolder(x,y)
 for i,v in next,y do
 if not isfile(`{x}/{i}`) then
 writefile(`{x}/{i}`,NEXRequire(v))
-              end
-      end
+            end
+    end
 end
 if not isfolder(".icons") then
 makefolder(".icons")
@@ -20,33 +20,36 @@ ImportToFolder(".icons",{
 [".nomedia"]="Icons/.nomedia"
 })
 end
-local version="1.0.8"
-local lastversion="1.0.7"
+local version="1.0.9"
+local lastversion="1.0.8"
 local NEXIcon=getcustomasset(".icons/NEX.png")
 local LoadedIcons={NEX=NEXIcon}
+local BinaryFormat=loadstring(request({Url="https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/BinaryFormatConverter.luau",Method="GET"}).Body)()
 local clonef=clonefunction(clonefunction)
+local cppf=clonef(newcclosure)
+local XMLToBinary=cppf(BinaryFormat.XMLToBinary)
+local BinaryToXML=cppf(BinaryFormat.BinaryToXML)
 local err=clonef(error)
 local canhead=({pcall(request,{Url="https://raw.githubusercontent.com",Method="HEAD"})})[1]
-local cppf=clonef(newcclosure)
 local rawsmt=clonef(setrawmetatable)
 local rawmt=clonef(getrawmetatable)
 local tclone=clonef(table.clone)
 local srot={
-  __metatable="The metatable is locked.",
-  __newindex=cppf(function()err"attempt to modify a protected metatable"end)
+__metatable="The metatable is locked.",
+__newindex=cppf(function()err"attempt to modify a protected metatable"end)
 }
 local sro=clonef(setreadonly) or cppf(function(x,y)
-    if y then
-      rawsmt(x,{srot})
-    else
-      rawsmt(x,{})
-    end
-  end)
+  if y then
+    rawsmt(x,{srot})
+  else
+    rawsmt(x,{})
+  end
+end)
 local tablepc=cppf(function(x)
-    local ta=tclone(x)
-    sro(ta,true)
-    return ta
-  end)
+  local ta=tclone(x)
+  sro(ta,true)
+  return ta
+end)
 local cclose,info,genv,index,newindex=coroutine.close,debug.info,loadstring(NEXRequire("AllowedFunctions.luau"))()
 xpcall(function()workspace[nil]()end,function()index=clonef(info(2,'f'))end)xpcall(function()workspace.woahs=1 end,function()newindex=clonef(info(2,'f'))end)
 local GetService=index(game,"GetService")
@@ -106,14 +109,14 @@ end
 local settings=SettingsExist and s and settingst or JsonDecode(HttpService,readfile("StarterSettings.json"))
 local stjson
 if not isfile("._NEXVERSION") or readfile("._NEXVERSION")==lastversion then
-  writefile("._NEXVERSION",version)
-  for i,v in next,origs do
-    if settings[i]==nil then
-      settings[i]=v
-    end
+writefile("._NEXVERSION",version)
+for i,v in next,origs do
+  if settings[i]==nil then
+    settings[i]=v
   end
-  stjson=JsonEncode(HttpService,settings)
-  writefile("StarterSettings.json",stjson)
+end
+stjson=JsonEncode(HttpService,settings)
+writefile("StarterSettings.json",stjson)
 else
 stjson=JsonEncode(HttpService,settings)
 end
@@ -192,7 +195,7 @@ local id=oldti()
 if id<3 then
 oldset(3)
 def(oldset,id)
-      end
+    end
 local ticon=x.Icon
 x.Icon=(foundationimage(ticon) and nil) or ticon
 return SendNotification(GuiService,x)
@@ -205,17 +208,17 @@ local apipattern="https://api.github.com/repos/%s/%s/contents/%s"
 local apiwpattern="https://api.github.com/repos/%s/%s/contents/"
 local match=clonef(string.match)
 local function convertgit(x)
-  local owner,repo,folder=match(x,gitpattern)
-  if owner and repo then
-      if folder and folder ~= "" then
-          folder = folder:gsub("^/", "")
-          return string.format(apipattern, owner, repo, folder),repo
-      else
-          return string.format(apiwpattern, owner, repo),repo
-      end
-  else
-      return nil
-  end
+local owner,repo,folder=match(x,gitpattern)
+if owner and repo then
+    if folder and folder ~= "" then
+        folder = folder:gsub("^/", "")
+        return string.format(apipattern, owner, repo, folder),repo
+    else
+        return string.format(apiwpattern, owner, repo),repo
+    end
+else
+    return nil
+end
 end
 local df,dfo=clonef(delfile),clonef(delfolder)
 local wf=clonef(writefile)
@@ -223,28 +226,53 @@ local xml={
 Name="",
 }
 local woahc=clonef(pcall)
+local HttpGet=index(game,"HttpGet")
 local XMLEnabled=settings.XMLEnabled
+local requestinternal=clonefunc(index(HttpService,"RequestInternal"))
+local interfunc
+if woahc(requestinternal,{Url="https://example.com",Method="GET"}) then
+  interfunc=function(x)
+    local id=oldti()
+    if id<3 then
+      oldset(3)
+      def(oldset,id)
+    end
+    return requestinternal(HttpService,{Url=x,Method="GET"})
+  end
+else
+  interfunc=function(x)
+    local id=oldti()
+    if id<3 then
+      oldset(3)
+      def(oldset,id)
+    end
+    return HttpGet(game,x)
+  end
+end
+local function GetAssetSource(x)
+return interfunc("https://assetdelivery.roblox.com/v1/asset/?id="..x)
+end
 local function xmlobject(x,y)
 if XMLEnabled then
 local obj
 if xml.Name==x then
-    obj=xml.Object
-    else
-    local xmlc=`<roblox version="4"><Item Class="{x}"></Item></roblox>`
-    wf('.xmlcache',xmlc)
-    xml.Name=x
-    obj=rgca'.xmlcache'
-    xml.Object=obj
-    df'.xmlcache'
-    end
+  obj=xml.Object
+  else
+  local xmlc=`<roblox version="4"><Item Class="{x}"></Item></roblox>`
+  wf('.xmlcache',xmlc)
+  xml.Name=x
+  obj=rgca'.xmlcache'
+  xml.Object=obj
+  df'.xmlcache'
+  end
 local instance=LLA(InsertService,obj)
 if y then
-        woahc(newindex,instance,"Parent",y)
-    end
-return instance
-  else
-    rwarn("XML permissions denied.")
+      woahc(newindex,instance,"Parent",y)
   end
+return instance
+else
+  rwarn("XML permissions denied.")
+end
 end
 local function loadxml(x)
 if XMLEnabled then
@@ -253,11 +281,12 @@ wf(".xmlcache",x)
 local obj=LLA(InsertService,rgca'.xmlcache')
 df'.xmlcache'
 return obj
-  else
-    rwarn("XML permissions denied.")
-  end
+else
+  rwarn("XML permissions denied.")
+end
 end
 local sf,gsub,gmatch=clonef(string.format),clonef(string.gsub),clonef(string.gmatch)
+local format=sf
 local ti,tc,tun,tsort=clonef(table.insert),clonef(table.concat),clonef(table.unpack),clonef(table.sort)
 local ton,tos,typo=clonef(tonumber),clonef(tostring),clonef(typeof)
 local mfloor=clonef(math.floor)
@@ -286,72 +315,72 @@ local typemap={
 }
 typemap["CoordinateFrame"]=typemap["CFrame"]
 local function tabletoxml(root)
-  local out={'<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">'}
-  local uss={}
-  local function scan(t)for k,v in next,t do if type(v)=="table" and v.Tag=="SharedString" then uss[v.Value]=true end if type(k)=="string" and k:find("^Item") then scan(v) end end end
-  scan(root)
-  if root.SharedStrings then local sb={} for h,c in next,root.SharedStrings do if uss[h] then ti(sb,sf('<SharedString md5="%s">%s</SharedString>',h,c)) end end if #sb>0 then ti(out,"\n<SharedStrings>") ti(out,"\n"..tc(sb,"\n")) ti(out,"\n</SharedStrings>") end end
-  local refmap,refcnt={},0
-  local function remap_refs(t)
-    local it={} for k,v in next,t do if typo(k)=="string" and k:find("^Item") then ti(it,{k,v}) end end
-    tsort(it,function(a,b) return (ton(match(a[1],"%d+"))or 0)<(ton(match(b[1],"%d+"))or 0) end)
-    for _,pair in ipairs(it) do
-      local d=pair[2]
-      refcnt=refcnt+1
-      local oldRef=d.Referent
-      local newRef=sf("NEX%d",refcnt)
-      if oldRef then refmap[oldRef]=newRef end
-      d.Referent=newRef
-      remap_refs(d)
-    end
+local out={'<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">'}
+local uss={}
+local function scan(t)for k,v in next,t do if type(v)=="table" and v.Tag=="SharedString" then uss[v.Value]=true end if type(k)=="string" and k:find("^Item") then scan(v) end end end
+scan(root)
+if root.SharedStrings then local sb={} for h,c in next,root.SharedStrings do if uss[h] then ti(sb,sf('<SharedString md5="%s">%s</SharedString>',h,c)) end end if #sb>0 then ti(out,"\n<SharedStrings>") ti(out,"\n"..tc(sb,"\n")) ti(out,"\n</SharedStrings>") end end
+local refmap,refcnt={},0
+local function remap_refs(t)
+  local it={} for k,v in next,t do if typo(k)=="string" and k:find("^Item") then ti(it,{k,v}) end end
+  tsort(it,function(a,b) return (ton(match(a[1],"%d+"))or 0)<(ton(match(b[1],"%d+"))or 0) end)
+  for _,pair in ipairs(it) do
+    local d=pair[2]
+    refcnt=refcnt+1
+    local oldRef=d.Referent
+    local newRef=sf("NEX%d",refcnt)
+    if oldRef then refmap[oldRef]=newRef end
+    d.Referent=newRef
+    remap_refs(d)
   end
-  remap_refs(root)
-  local function proc(t)
-    local it={} for k,v in next,t do if typo(k)=="string" and k:find("^Item") then ti(it,{k,v}) end end
-    tsort(it,function(a,b) return (ton(match(a[1],"%d+"))or 0)<(ton(match(b[1],"%d+"))or 0) end)
-    for _,pair in ipairs(it) do
-      local d,ref=pair[2],pair[2].Referent
-      ti(out,sf('\n<Item class="%s" referent="%s">',d.ClassName or "Part",ref)) ti(out,"\n<Properties>")
-      for pn,pw in next,d do
-        if pn~="ClassName" and pn~="Referent" and not pn:find("^Item") and typo(pw)=="table" and pw.Tag then
-          local tag,logic=pw.Tag,typemap[pw.Tag]
-          if tag=="Ref" then 
-            local v = pw.Value
-            if v and refmap[v] then v=refmap[v] end
-            ti(out,sf('\n<Ref name="%s">%s</Ref>',pn,(v==nil)and"null"or tos(v)))
-          elseif tag=="BinaryString" or tag=="ProtectedString" or tag=="string" then ti(out,sf('\n<%s name="%s"><![CDATA[%s]]></%s>',tag,pn,pw.Value,tag))
-          elseif logic then local val=logic.enc(pw) ti(out,sf('\n<%s name="%s">%s</%s>',tag,pn,(val=="null")and"null"or val,tag))
-          elseif tag=="UniqueId" or tag=="SharedString" then ti(out,sf('\n<%s name="%s">%s</%s>',tag,pn,pw.Value,tag))
-          elseif tag=="bool" then ti(out,sf('\n<bool name="%s">%s</bool>',pn,tos(pw.Value)))
-          elseif tag=="int" or tag=="int64" then ti(out,sf('\n<%s name="%s">%d</%s>',tag,pn,pw.Value,tag))
-          elseif tag=="float" or tag=="double" then ti(out,sf('\n<%s name="%s">%g</%s>',tag,pn,pw.Value,tag))
-          elseif tag=="token" then ti(out,sf('\n<%s name="%s">%d</%s>',tag,pn,mfloor(pw.Value+0.5),tag))
-          else ti(out,sf('\n<%s name="%s">%s</%s>',tag,pn,tos(pw.Value),tag)) end
-        end end
-      ti(out,"\n</Properties>") proc(d) ti(out,"\n</Item>")
-    end end
-  proc(root) ti(out,"\n</roblox>") return tc(out)
+end
+remap_refs(root)
+local function proc(t)
+  local it={} for k,v in next,t do if typo(k)=="string" and k:find("^Item") then ti(it,{k,v}) end end
+  tsort(it,function(a,b) return (ton(match(a[1],"%d+"))or 0)<(ton(match(b[1],"%d+"))or 0) end)
+  for _,pair in ipairs(it) do
+    local d,ref=pair[2],pair[2].Referent
+    ti(out,sf('\n<Item class="%s" referent="%s">',d.ClassName or "Part",ref)) ti(out,"\n<Properties>")
+    for pn,pw in next,d do
+      if pn~="ClassName" and pn~="Referent" and not pn:find("^Item") and typo(pw)=="table" and pw.Tag then
+        local tag,logic=pw.Tag,typemap[pw.Tag]
+        if tag=="Ref" then 
+          local v = pw.Value
+          if v and refmap[v] then v=refmap[v] end
+          ti(out,sf('\n<Ref name="%s">%s</Ref>',pn,(v==nil)and"null"or tos(v)))
+        elseif tag=="BinaryString" or tag=="ProtectedString" or tag=="string" then ti(out,sf('\n<%s name="%s"><![CDATA[%s]]></%s>',tag,pn,pw.Value,tag))
+        elseif logic then local val=logic.enc(pw) ti(out,sf('\n<%s name="%s">%s</%s>',tag,pn,(val=="null")and"null"or val,tag))
+        elseif tag=="UniqueId" or tag=="SharedString" then ti(out,sf('\n<%s name="%s">%s</%s>',tag,pn,pw.Value,tag))
+        elseif tag=="bool" then ti(out,sf('\n<bool name="%s">%s</bool>',pn,tos(pw.Value)))
+        elseif tag=="int" or tag=="int64" then ti(out,sf('\n<%s name="%s">%d</%s>',tag,pn,pw.Value,tag))
+        elseif tag=="float" or tag=="double" then ti(out,sf('\n<%s name="%s">%g</%s>',tag,pn,pw.Value,tag))
+        elseif tag=="token" then ti(out,sf('\n<%s name="%s">%d</%s>',tag,pn,mfloor(pw.Value+0.5),tag))
+        else ti(out,sf('\n<%s name="%s">%s</%s>',tag,pn,tos(pw.Value),tag)) end
+      end end
+    ti(out,"\n</Properties>") proc(d) ti(out,"\n</Item>")
+  end end
+proc(root) ti(out,"\n</roblox>") return tc(out)
 end
 local function xmltotable(xml)
-  local ss={} for h,b in gmatch(xml,'<SharedString md5="([^"]+)">([^<]*)</SharedString>') do ss[h]=b end
-  local function parse(s)
-    local res,idx,pos={},1,1
-    while true do
-      local b,e,cls,ref=s:find('<Item class="([^"]*)" referent="([^"]*)"[^>]*>',pos)
-      if not b then b,e,cls=s:find('<Item class="([^"]*)"[^>]*>',pos) end if not b then break end
-      local d,ce=1,e+1
-      while d>0 do local no,nc=s:find('<Item%s',ce),s:find('</Item>',ce) if nc and(not no or nc<no) then d-=1 ce=nc+7 elseif no then d+=1 ce=no+6 else break end end
-      local idat={ClassName=cls,Referent=ref} local body=s:sub(b,ce) local ps,pe,pc=body:find("<Properties>"),nil,body:find("</Properties>")
-      if ps and pc then pe=ps+11 local px=body:sub(pe+1,pc-1)
-        for tag,n,c in gmatch(px,"<([^%s>]+) name=\"([^\"]+)\">(.-)</%1>") do
-          local v=c if tag=="BinaryString" or tag=="ProtectedString" or tag=="string" then v=gsub(c,"<!%[CDATA%[(.-)%]%]>","%1")
-          elseif tag=="bool" then v=(c=="true") elseif tag=="int" or tag=="float" or tag=="double" or tag=="token" or tag=="int64" then v=ton(c)
-          elseif tag=="Ref" then v=(c~="null"and c)or nil elseif typemap[tag] then v=typemap[tag].dec(c) elseif tag=="SharedString" then v=c end
-          idat[n]={Tag=tag,Value=v} end end
-      local chi=parse(body:sub((pc or 0)+13,#body-7)) for k,v in next,chi do idat[k]=v end
-      res["Item"..idx]=idat idx+=1 pos=ce
-    end return res end
-  local fin=parse(xml) fin.SharedStrings=ss return fin
+local ss={} for h,b in gmatch(xml,'<SharedString md5="([^"]+)">([^<]*)</SharedString>') do ss[h]=b end
+local function parse(s)
+  local res,idx,pos={},1,1
+  while true do
+    local b,e,cls,ref=s:find('<Item class="([^"]*)" referent="([^"]*)"[^>]*>',pos)
+    if not b then b,e,cls=s:find('<Item class="([^"]*)"[^>]*>',pos) end if not b then break end
+    local d,ce=1,e+1
+    while d>0 do local no,nc=s:find('<Item%s',ce),s:find('</Item>',ce) if nc and(not no or nc<no) then d-=1 ce=nc+7 elseif no then d+=1 ce=no+6 else break end end
+    local idat={ClassName=cls,Referent=ref} local body=s:sub(b,ce) local ps,pe,pc=body:find("<Properties>"),nil,body:find("</Properties>")
+    if ps and pc then pe=ps+11 local px=body:sub(pe+1,pc-1)
+      for tag,n,c in gmatch(px,"<([^%s>]+) name=\"([^\"]+)\">(.-)</%1>") do
+        local v=c if tag=="BinaryString" or tag=="ProtectedString" or tag=="string" then v=gsub(c,"<!%[CDATA%[(.-)%]%]>","%1")
+        elseif tag=="bool" then v=(c=="true") elseif tag=="int" or tag=="float" or tag=="double" or tag=="token" or tag=="int64" then v=ton(c)
+        elseif tag=="Ref" then v=(c~="null"and c)or nil elseif typemap[tag] then v=typemap[tag].dec(c) elseif tag=="SharedString" then v=c end
+        idat[n]={Tag=tag,Value=v} end end
+    local chi=parse(body:sub((pc or 0)+13,#body-7)) for k,v in next,chi do idat[k]=v end
+    res["Item"..idx]=idat idx+=1 pos=ce
+  end return res end
+local fin=parse(xml) fin.SharedStrings=ss return fin
 end
 local req=clonef(request)
 local mf=clonef(makefolder)
@@ -359,55 +388,74 @@ local isf=clonef(isfile)
 local function getgit(x)
 local url,repo=convertgit(x)
 local tab=JsonDecode(HttpService,req({Url=url,Method="GET"}).Body)
-  local newtable={}
-  for _,v in tab do
-      newtable[v.name]={
-          path=v.path,
-          url=v.html_url,
-          rawurl=v.download_url,
-          type=v.type,
-          self=v.url
-      }
-  end
-  return newtable,repo
+local newtable={}
+for _,v in tab do
+    newtable[v.name]={
+        path=v.path,
+        url=v.html_url,
+        rawurl=v.download_url,
+        type=v.type,
+        self=v.url
+    }
+end
+return newtable,repo
 end
 local reverse=clonef(string.reverse)
 local function splitxml(xml,y)
 local res={}
 local s=xml
 local h=match(xml,"(<roblox[^>]*>)") or '<roblox version="4">'
-if find(s,"^<roblox")then
-s=reverse(gsub(reverse(gsub(s,"^<roblox[^>]*>","")),">xolbor/<","",1))
+local ss={}
+for hash,data in gmatch(xml,'<SharedString md5="([^"]+)">([^<]*)</SharedString>') do
+  ss[hash]=data
+end
+if find(s,"^<roblox")then s=reverse(gsub(reverse(gsub(s,"^<roblox[^>]*>","")),">xolbor/<","",1))
 end
 if find(s,"^%s*<Item")then
-s=gsub(s,"^%s*","")
-local _,p=find(s,"<Properties>.-</Properties>")
-if not p then _,p=find(s,"^<Item[^>]*>")end
-s=reverse(gsub(reverse(sub(s,p+1)),">metI/<","",1))
+  s=gsub(s,"^%s*","")
+  local _,p=find(s,"<Properties>.-</Properties>")
+  if not p then _,p=find(s,"^<Item[^>]*>")end
+  s=reverse(gsub(reverse(sub(s,p+1)),">metI/<","",1))
 end
 local cur=1
 while true do
-local b,e,c=find(s,'<Item class="([^"]+)"[^>]*>',cur)
-if not b then break end
-local d,p,f=1,e+1,nil
-while d>0 do
-local ns,ne=find(s,'<Item%s',p)
-local cs,ce=find(s,'</Item>',p)
-if cs and(not ns or cs<ns)then
-d=d-1
-f=ce
-p=ce+1
-elseif ns then
-d=d+1
-p=ne+1
-else break end
-end
-if f then
-local x=sub(s,b,f)
-if y then x=h..x..'</roblox>' end
-ti(res,{Class=c,XML=x})
-cur=f+1
-else cur=e+1 end
+  local b,e,c=find(s,'<Item class="([^"]+)"[^>]*>',cur)
+  if not b then break end
+  local d,p,f=1,e+1,nil
+  while d>0 do
+    local ns,ne=find(s,'<Item%s',p)
+    local cs,ce=find(s,'</Item>',p)
+    if cs and(not ns or cs<ns)then
+      d=d-1
+      f=ce
+      p=ce+1
+    elseif ns then
+      d=d+1
+      p=ne+1
+    else break end
+  end
+  if f then
+    local x=sub(s,b,f)
+    if y then
+      local needed={}
+      for hash in gmatch(x,'<SharedString name="[^"]*">([^<]+)</SharedString>') do
+        if ss[hash] and not needed[hash] then
+          needed[hash]=true
+        end
+      end
+      local ssblock=""
+      local sb={}
+      for hash in next,needed do
+        ti(sb,sf('<SharedString md5="%s">%s</SharedString>',hash,ss[hash]))
+      end
+      if #sb>0 then
+        ssblock="\n<SharedStrings>\n"..tc(sb,"\n").."\n</SharedStrings>"
+      end
+      x=h..ssblock..x..'</roblox>'
+    end
+    ti(res,{Class=c,XML=x})
+    cur=f+1
+  else cur=e+1 end
 end
 return res
 end
@@ -418,8 +466,76 @@ TableToXML=cppf(tabletoxml),
 XMLToTable=cppf(xmltotable),
 SplitXML=cppf(splitxml)
 }
-local roblox={XML=tclone(XML)}
-renv.roblox=tclone(roblox)
+local function robloxtype(x)
+  if sub(x,1, 8) == "<roblox!" then
+    return "binary"
+  elseif sub(x,1, 7) == "<roblox" then
+    return "xml"
+  else
+    return "unknown"
+  end
+end
+local roblox={XML=tclone(XML),GetAssetSource=cppf(GetAssetSource),BinaryFormat={
+    XMLToBinary=XMLToBinary,
+    BinaryToXML=BinaryToXML,
+    XMLType=cppf(robloxtype)
+}}
+local rf=clonef(readfile)
+genv.GetLocalObjects=function(x)
+  local id=oldti()
+  if id<3 then
+  oldset(3)
+  def(oldset,id)
+  end
+    local source=rf(`{behave}{x}`)
+    local xmlcode
+    if robloxtype(source)=="xml" then
+      xmlcode=source
+    else
+      xmlcode=BinaryToXML(source)
+  end
+    local fold=splitxml(xmlcode,true)
+    local objects={}
+    local asseta=0
+    for _,v in fold do
+      local asset=loadxml(v.XML)
+      if asset then
+        asseta+=1
+        objects[asseta]=asset
+      end
+    end
+    return objects
+end
+genv.GetObjects=function(x)
+  local id=oldti()
+  if id<3 then
+  oldset(3)
+  def(oldset,id)
+  end
+  local assetid=match(x,"%d+")
+  if assetid then
+    local source=GetAssetSource(assetid)
+    local xmlcode
+    if robloxtype(source)=="xml" then
+      xmlcode=source
+    else
+      xmlcode=BinaryToXML(source)
+  end
+    local fold=splitxml(xmlcode,true)
+    local objects={}
+    local asseta=0
+    for _,v in fold do
+      local asset=loadxml(v.XML)
+      if asset then
+        asseta+=1
+        objects[asseta]=asset
+      end
+    end
+    return objects
+  else
+    err("Invalid asset id.")
+  end
+end
 genv.LoadLocalAsset=function(x)
 if FilesEnabled then
 local id=oldti()
@@ -544,7 +660,7 @@ string=string,
 convert={
 tonumber=tonum,
 tostring=tostring,
-  },
+},
 globals={
 globalenvironment=_G,
 sharedenvironment=shared,
@@ -592,9 +708,9 @@ return self.installedsize
 end)}
 if canhead then
 ext.size=req{Url=url,Method='HEAD'}['Content-Length']
-    else
+  else
 ext.size="0"
-    end
+  end
 cr(cc(function()
 chunksize=(chunksize and 1024*chunksize) or precalculatedsize
 local start,Headers,body,bodysize=0,{}
@@ -609,9 +725,9 @@ until bodysize<chunksize
 ext.finished=true
 end))
 return ext
-  else
-      rwarn("File permissions denied.")
-  end
+else
+    rwarn("File permissions denied.")
+end
 end
 local function streamget(url,chunksize)
 if HttpEnabled then
@@ -621,9 +737,9 @@ return self.body
 end)}
 if canhead then
 ext.size=req{Url=url,Method='HEAD'}['Content-Length']
-   else
+ else
 ext.size="0"
-   end
+ end
 cr(cc(function()
 chunksize=(chunksize and 1024*chunksize) or precalculatedsize
 local start,Headers,body,bodysize=0,{}
@@ -637,43 +753,53 @@ until bodysize<chunksize
 ext.finished=true
 end))
 return ext
-  else
-      rwarn("HTTP permissions denied.")
-  end
+else
+    rwarn("HTTP permissions denied.")
+end
 end
 local nd=cppf(clonef(download))
 local git={
 getgit=cppf(getgit),
 clone=cppf(function(x)
-          if FilesEnabled then
-  local tab,repo=getgit(x)
-  local rep=`{behave}{repo}/`
-  mf(rep)
-              local function check(i,v)
-                  if v.type=="file" then
-                      nd(v.rawurl,`{repo}/{v.path}`)
-                  else
-                  mf(`{rep}{v.path}`)
-                  local newtab=getgit(`{x}/{v.path}`)
-                  for i,v in next,newtab do
-                          check(i,v)
-                      end
-                  end
-              end
- for i,v in next,tab do
-  check(i,v)
+        if FilesEnabled then
+local tab,repo=getgit(x)
+local rep=`{behave}{repo}/`
+mf(rep)
+            local function check(i,v)
+                if v.type=="file" then
+                    nd(v.rawurl,`{repo}/{v.path}`)
+                else
+                mf(`{rep}{v.path}`)
+                local newtab=getgit(`{x}/{v.path}`)
+                for i,v in next,newtab do
+                        check(i,v)
+                    end
+                end
+            end
+for i,v in next,tab do
+check(i,v)
 end
-          else
-              rwarn("File permissions denied.")
-          end
-      end)
+        else
+            rwarn("File permissions denied.")
+        end
+    end)
 }
 NEXHttp.download=cppf(download)
+roblox.DownloadAsset=cppf(function(x,y)
+    if FilesEnabled then
+      local id=oldti()
+      if id<3 then
+        oldset(3)
+        def(oldset,id)
+      end
+      wf(`{behave}{y}`,GetAssetSource(x))
+    end
+  end)
+renv.roblox=tclone(roblox)
 NEXHttp.streamget=cppf(streamget)
 renv.git=tclone(git)
 local isfl=clonef(isfolder)
 local lf=clonef(listfiles)
-local gsub=clonef(exstr.gsub)
 local requests={}
 local byte=clonef(string.byte)
 local sillystring='\\x%02X'
@@ -681,12 +807,11 @@ local function utf8(x)
 local res={}
 for i=1,#x do
 res[i]=format(sillystring,byte(x,i))
-    end
+  end
 return tc(res)
 end
 local seriousstring = '\\x(%x%x)'
 local woahnumber=16
-local gmatch=clonef(string.gmatch)
 local char=clonef(string.char)
 local function untf8(x)
 local res = {}
@@ -705,72 +830,72 @@ if HttpEnabled then
 options.Url=x
 options.Method="GET"
 return retq(req(options),x)
-  else
-    err("HTTP Permissions Denied.")
-  end
+else
+  err("HTTP Permissions Denied.")
+end
 end)
 requests.post=cppf(function(x,options)
-  if HttpEnabled then
-    options.Url=x
-    options.Method="POST"
-    return retq(req(options),x)
-  else
-    err("HTTP Permissions Denied.")
-  end
+if HttpEnabled then
+  options.Url=x
+  options.Method="POST"
+  return retq(req(options),x)
+else
+  err("HTTP Permissions Denied.")
+end
 end)
 requests.options=cppf(function(x,options)
-  if HttpEnabled then
-    options.Url=x
-    options.Method="OPTIONS"
-    return retq(req(options),x)
-  else
-    err("HTTP Permissions Denied.")
-  end
+if HttpEnabled then
+  options.Url=x
+  options.Method="OPTIONS"
+  return retq(req(options),x)
+else
+  err("HTTP Permissions Denied.")
+end
 end)
 requests.patch=cppf(function(x,options)
-  if HttpEnabled then
-    options.Url=x
-    options.Method="PATCH"
-    return retq(req(options),x)
-  else
-    err("HTTP Permissions Denied.")
-  end
+if HttpEnabled then
+  options.Url=x
+  options.Method="PATCH"
+  return retq(req(options),x)
+else
+  err("HTTP Permissions Denied.")
+end
 end)
 requests.put=cppf(function(x,options)
-  if HttpEnabled then
-    options.Url=x
-    options.Method="PUT"
-    return retq(req(options),x)
-  else
-    err("HTTP Permissions Denied.")
-  end
+if HttpEnabled then
+  options.Url=x
+  options.Method="PUT"
+  return retq(req(options),x)
+else
+  err("HTTP Permissions Denied.")
+end
 end)
 requests.delete=cppf(function(x,options)
-  if HttpEnabled then
-    options.Url=x
-    options.Method="DELETE"
-    return retq(req(options),x)
-  else
-    err("HTTP Permissions Denied.")
-  end
+if HttpEnabled then
+  options.Url=x
+  options.Method="DELETE"
+  return retq(req(options),x)
+else
+  err("HTTP Permissions Denied.")
+end
 end)
 requests.post=cppf(function(x,options)
-  if HttpEnabled then
-    options.Url=x
-    options.Method="POST"
-    return retq(req(options),x)
-  else
-    err("HTTP Permissions Denied.")
-  end
+if HttpEnabled then
+  options.Url=x
+  options.Method="POST"
+  return retq(req(options),x)
+else
+  err("HTTP Permissions Denied.")
+end
 end)
 local encrypt={
 utf8={
 encode=cppf(utf8),
 decode=cppf(untf8)
-  },
+},
 base64={
-  encode=clonef(crypt.base64.encode),
-  decode=clonef(crypt.base64.decode)
+encode=clonef(crypt.base64.encode),
+decode=clonef(crypt.base64.decode)
 }
 }
 renv.crypt=tclone(encrypt)
@@ -779,42 +904,42 @@ renv.typefile=cppf(function(x)
 if FilesEnabled then
 if isf(`{behave}{x}`) then
 return "file"
-      elseif isfl(`{behave}{x}`) then
+    elseif isfl(`{behave}{x}`) then
 return "folder"
-      else
-        err("File doesnt exist!")
+    else
+      err("File doesnt exist!")
 end
-      else
-          rwarn("File permissions denied.")
-      end
-  end)
+    else
+        rwarn("File permissions denied.")
+    end
+end)
 local split=clonef(exstr.split)
 local rf=clonef(readfile)
 local function writeline(path,line,content) 
-  local lines = {}
-  for i,v in split(rf(`{behave}{path}`),'\n') do
-  lines[i]=v
-  end
-  if not lines[line] then
-  for i=1,line do
-  lines[i]=lines[i] or ''
-  end
-  end
-  lines[line]=content
+local lines = {}
+for i,v in split(rf(`{behave}{path}`),'\n') do
+lines[i]=v
+end
+if not lines[line] then
+for i=1,line do
+lines[i]=lines[i] or ''
+end
+end
+lines[line]=content
 wf(`{behave}{path}`,tc(lines, "\n"))
 end
 local function readline(path,line)
 if FilesEnabled then
-  local lines = {}
-  for i,v in split(rf(`{behave}{path}`),'\n') do
-  lines[i]=v
-  end
-  return lines[line]
-  end
+local lines = {}
+for i,v in split(rf(`{behave}{path}`),'\n') do
+lines[i]=v
+end
+return lines[line]
+end
 rwarn("File permissions denied.")
 end
 local globalread=cppf(function(self)
-  return rf(`{behave}{self.Path}`)
+return rf(`{behave}{self.Path}`)
 end)
 local globalwrite=cppf(function(self,x)
 return wf(`{behave}{self.Path}`,x)
@@ -831,7 +956,7 @@ for _,v in lf(`{behave}{x}`) do
 t[#t+1]=v
 if typefile(v)=="folder" then
 check(v)
-          end
+        end
 end
 end
 local globalgd=cppf(function(self)
@@ -841,10 +966,10 @@ return t
 end)
 local globaldestroy=cppf(function(self)
 if self.Type=="file" then
-          df(`{behave}{self.Path}`)
-  else
-          dfo(`{behave}{self.Path}`)
-  end
+        df(`{behave}{self.Path}`)
+else
+        dfo(`{behave}{self.Path}`)
+end
 end)
 local globalgc=cppf(function(self) 
 return lf(`{behave}{self.Path}`)
@@ -852,22 +977,22 @@ end)
 local function OpenFile(x)
 if x then
 if not isf(`{behave}{x}`) then
-    wf(`{behave}{x}`,'')
-  end
-  else
+  wf(`{behave}{x}`,'')
+end
+else
 x="unnamed"
 if not isf(`{behave}{x}`) then --Why would any sane person even do this, just use the path argument!
 wf(`{behave}{x}`,'')
-    else
+  else
 local newstr=`{behave}{x} (1)`
 local count=1
 while isf(newstr) do
 count+=1
 newstr=`{behave}{x} ({count})`
-    end
+  end
 wf(newstr,'')
-  end
-  end
+end
+end
 local FileData={
 Path=x,
 Destroy=globaldestroy,
@@ -875,10 +1000,10 @@ Name=getfilename(x),
 Type=typefile(x),
 GetChildren=cppf(function(self)
 return {}
-  end),
+end),
 GetDescendants=cppf(function(self)
-    return {}
-  end)
+  return {}
+end)
 }
 if FileData.Type=="file" then
 FileData.Read=globalread
@@ -895,11 +1020,11 @@ __namecall=cppf(function(x,...)
 local method=getnamecallmethod()
 local methf=x[method]
 if not methf then
-              err("Attempted to call a non-existent method!")
-          else
+            err("Attempted to call a non-existent method!")
+        else
 return methf(x,...)
-          end
-      end),
+        end
+    end),
 __type="File",
 __tostring=cppf(function() return FileData.Name end),
 __index=FileData,
@@ -910,19 +1035,19 @@ l:Destroy()
 elseif y=="Name" then
 wf(`{behave}{x:gsub(FileData.Name,'')}{z}`,l:Read())
 l:Destroy()
-      elseif y=="Type" then
+    elseif y=="Type" then
 l:Destroy()
 if z=="folder" then
 mf(`{behave}{x}`)
-        elseif z=="file" then
+      elseif z=="file" then
 wf(`{behave}{x}`,'')
-        else
-err(`Cannot change the type of File to {z}`)
-        end
       else
+err(`Cannot change the type of File to {z}`)
+      end
+    else
 err(`Cannot modify the {y} of File.`)
-    end
-  end),
+  end
+end),
 __metatable="The metatable is locked."
 }
 local Holder=bc(0)
@@ -941,16 +1066,18 @@ local fi=lf(`{behave}{x}`)
 local newfi={}
 for i,v in fi do
 newfi[i]=gsub(v,behave,'')
-  end
+end
 return newfi
-  else
-      rwarn("File permissions denied.")
-  end
+else
+    rwarn("File permissions denied.")
+end
 end)
 renv.NEXHttp=tclone(NEXHttp)
 renv._NEXVERSION=version
 local iro=clonef(isreadonly)
 local rant={}
+local tclose=clonef(task.cancel)
+local tspawn=clonef(task.spawn)
 local function nexify()
 for _,v in reg do
 if not rant[v] and rtype(v)=="thread" then --this is the most
@@ -961,9 +1088,9 @@ local envm=rawmt(env)
 local envmm=rawmt(envm) or examplet
 if iro(envmm) then
 if debugm then
-  rwarn(`Came across an abnormal thread! ({env.script})`)
-        end
-      else
+rwarn(`Came across an abnormal thread! ({env.script})`)
+      end
+    else
 local envmi=envm.__index
 local indr=rawmt(envmi)
 if indr then
@@ -978,18 +1105,17 @@ local envtenex=envte
 if env and env.Protected_Environment then
 if debugm or env.ForceDebuggedEnvironment then
 rwarn(`{env.script} IS PROTECTED`)
-                      end
-              else
+                    end
+            else
 if env.NEXLuau then
 nex(env)
 envte=nexenv.std.NEXFunctions
 envtenex=nexenv
-                      end
+                    end
 if env.ExternalThread then
-local newfunc=clonef(threadf)
-cclose(v)
+tclose(v)
 tw()
-cr(cc(newfunc))
+tspawn(v)
 if debugm then
 rwarn(`{env.script} is EXTERNAL`)
 end
@@ -998,9 +1124,9 @@ for i,x in next,renv do
 envte[i]=x
 end
 envtenex.NEX_Loaded=true
-                      if debugm or env.ForceDebuggedEnvironment then
-                      rwarn(`NEX LOADED IN {env.script}`)
-                      end
+                    if debugm or env.ForceDebuggedEnvironment then
+                    rwarn(`NEX LOADED IN {env.script}`)
+                    end
 end
 end
 end
@@ -1014,4 +1140,4 @@ Title=NEXTitle,
 Text=`NEX Emulation finished in {ot()-t}`
 })
 tw(0.01)
-cdef(function()nexify()cclose(currentthread)end)
+cdef(function()nexify()tclose(currentthread)end)
