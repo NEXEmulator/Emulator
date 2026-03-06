@@ -1,4 +1,4 @@
-local Converter = {NEX_Version="1.0.1"}
+local Converter = {}
 local b32 = bit32
 local spack, sunpack = string.pack, string.unpack
 local HttpService = game:GetService("HttpService")
@@ -1283,9 +1283,9 @@ local function parseBinary(data)
 				local _,np=sunpack("<I4",payload,sp);sp=np
 				local count,np2=sunpack("<I4",payload,sp);sp=np2
 				for i=1,count do
-					sp+=16
+					local key=payload:sub(sp,sp+15);sp+=16
 					local s,np3=sunpack("<s4",payload,sp);sp=np3
-					sharedStrs[i-1]=s
+					sharedStrs[i-1]={blob=s,key=key}
 				end
 			end)
 
@@ -1382,7 +1382,12 @@ local function parseBinary(data)
 		end
 	end
 
-	return roots,sharedStrs
+	local sharedBlobs,sharedKeys={},{}
+	for idx,entry in pairs(sharedStrs) do
+		sharedBlobs[idx]=entry.blob
+		sharedKeys[idx]=entry.key
+	end
+	return roots,sharedBlobs,sharedKeys
 end
 
 local function tokenize(xml)
@@ -1868,7 +1873,7 @@ local function serializeBinary(roots, xmlSharedStrings)
 	return table.concat(parts)
 end
 
-local function serializeXml(roots,sharedStrs)
+local function serializeXml(roots,sharedStrs,sharedKeys)
 	local lines={}
 	lines[#lines+1]='<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime"'
 	                ..' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
@@ -1876,6 +1881,11 @@ local function serializeXml(roots,sharedStrs)
 	                ..' version="4">'
 
 	local blobKeyCache={}
+	if sharedKeys and sharedStrs then
+		for idx,key in pairs(sharedKeys) do
+			if sharedStrs[idx] then blobKeyCache[sharedStrs[idx]]=key end
+		end
+	end
 	local function getBlobKey(blob)
 		if not blobKeyCache[blob] then blobKeyCache[blob]=newBlobKey() end
 		return blobKeyCache[blob]
@@ -1996,9 +2006,9 @@ end
 function Converter.BinaryToXML(binaryString)
 	assert(type(binaryString)=="string" and #binaryString>0,
 		"BinaryToXML: expected a non-empty binary string")
-	local roots, sharedStrs = parseBinary(binaryString)
+	local roots, sharedStrs, sharedKeys = parseBinary(binaryString)
 	assert(#roots > 0, "BinaryToXML: no instances found in binary string")
-	return serializeXml(roots, sharedStrs)
+	return serializeXml(roots, sharedStrs, sharedKeys)
 end
 
 return Converter
