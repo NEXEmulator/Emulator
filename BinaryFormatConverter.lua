@@ -1,4 +1,4 @@
--- AI was used in this script due to the complexity. It still took 16 hours just to make this script functional. This module is up for free-use.
+--This module can be used by anyone. (Made by Secment)
 local Converter={NEX_Version="1.0.0"}
 local b32=bit32
 local spack, sunpack=string.pack, string.unpack
