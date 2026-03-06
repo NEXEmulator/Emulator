@@ -1,4 +1,4 @@
---This module can be used by anyone. (Made by Secment. Optimized&Fixed by AI)
+--This module can be used by anyone. (Made by Secment. Optimized&"Fixed" by AI)
 local Converter={NEX_Version="1.0.0"}
 local b32=bit32
 local spack, sunpack=string.pack, string.unpack
