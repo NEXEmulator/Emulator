@@ -180,10 +180,9 @@ local function zzEnc(v)
 end
 
 local function deinterleaveU32(data, n)
-	local out   = table.create(n)
-	local bytes = {data:byte(1, n*4)}
+	local out = table.create(n)
 	for i = 1, n do
-		out[i] = bytes[i]*0x1000000 + bytes[n+i]*0x10000 + bytes[2*n+i]*0x100 + bytes[3*n+i]
+		out[i] = data:byte(i)*0x1000000 + data:byte(n+i)*0x10000 + data:byte(2*n+i)*0x100 + data:byte(3*n+i)
 	end
 	return out
 end
@@ -202,10 +201,9 @@ local function interleaveU32(vals)
 end
 
 local function deinterleaveI32(data, n)
-	local out   = table.create(n)
-	local bytes = {data:byte(1, n*4)}
+	local out = table.create(n)
 	for i = 1, n do
-		local raw = bytes[i]*0x1000000 + bytes[n+i]*0x10000 + bytes[2*n+i]*0x100 + bytes[3*n+i]
+		local raw = data:byte(i)*0x1000000 + data:byte(n+i)*0x10000 + data:byte(2*n+i)*0x100 + data:byte(3*n+i)
 		out[i] = zzDec(raw)
 	end
 	return out
@@ -225,11 +223,10 @@ local function interleaveI32(vals)
 end
 
 local function deinterleaveRef(data, n)
-	local out   = table.create(n)
-	local bytes = {data:byte(1, n*4)}
-	local acc   = 0
+	local out = table.create(n)
+	local acc = 0
 	for i = 1, n do
-		local raw = bytes[i]*0x1000000 + bytes[n+i]*0x10000 + bytes[2*n+i]*0x100 + bytes[3*n+i]
+		local raw = data:byte(i)*0x1000000 + data:byte(n+i)*0x10000 + data:byte(2*n+i)*0x100 + data:byte(3*n+i)
 		acc += zzDec(raw)
 		out[i] = acc
 	end
@@ -265,10 +262,9 @@ local function rotEncode(f)
 end
 
 local function deinterleaveF32(data, n)
-	local out   = table.create(n)
-	local bytes = {data:byte(1, n*4)}
+	local out = table.create(n)
 	for i = 1, n do
-		out[i] = rotDecode(bytes[i], bytes[n+i], bytes[n*2+i], bytes[n*3+i])
+		out[i] = rotDecode(data:byte(i), data:byte(n+i), data:byte(n*2+i), data:byte(n*3+i))
 	end
 	return out
 end
