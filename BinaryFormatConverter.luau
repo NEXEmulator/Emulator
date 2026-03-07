@@ -1104,7 +1104,11 @@ local BINARY_STRING_PROPS={
 	MaterialColors=true,
 	HiddenServices=true,
 	VisibleServices=true,
-	SolidMeshHolder=true,  -- union mesh data: binary blob stored as 0x1C SharedString, not a URL
+}
+-- Properties stored as 0x1C in binary but serialized as <NetAssetRef> in XML
+-- (same SSTR blob-key encoding as SharedString, but different XML tag)
+local NETASSET_PROPS={
+	SolidMeshHolder=true,
 }
 local function parseBinary(data)
 	assert(data:sub(1,16)==RBX_MAGIC,"Not a valid .rbxm binary file")
@@ -1177,6 +1181,7 @@ pcall(function()
 	local typeId=payload:byte(sp);sp+=1
 	if typeId==0x01 and CONTENT_PROPS[propName] then typeId=0x22 end
 	if typeId==0x01 and BINARY_STRING_PROPS[propName] then typeId=0x1E2 end
+	if typeId==0x1C and NETASSET_PROPS[propName] then typeId=0x1E3 end
 	local ti=typeMap[typeIdx]
 	if ti then
 		local typeInfo=getType(typeId)
@@ -1457,6 +1462,18 @@ xmlTagToTypeId["Font"]=0x20
 xmlTagToTypeId["SecurityCapabilities"]=0x21
 xmlTagToTypeId["OptionalCoordinateFrame"]=0x1E
 xmlTagToTypeId["Content"]=0x22
+xmlTagToTypeId["NetAssetRef"]=0x1E3
+-- 0x1E3 virtual: NetAssetRef — same binary encoding as SharedString (0x1C),
+-- but serialized as <NetAssetRef> in XML (not <SharedString>).
+-- Used for properties like SolidMeshHolder on union instances.
+PropType[0x1E3]={
+	name="NetAssetRef",
+	readBin=function(data,n) return deinterleaveU32(data,n) end,
+	writeBin=function(vals) return interleaveU32(vals) end,
+	xmlTag="NetAssetRef",
+	readXml=function(s) return base64Decode(s or "") end,
+	writeXml=function(v) return base64Encode(v or "") end,
+}
 PropType[0x1E2]={
 	name="BinaryString",
 	readBin=function(data,n)
@@ -1597,6 +1614,15 @@ idx=#sstrBlobs;sstrBlobs[idx+1]=""
 sstrKeyToIdx[key]=idx
 		end
 		vals[i]=idx
+	elseif tid==0x1E3 then
+		-- NetAssetRef XML: prop.text is base64-encoded blob data, not a key
+		local blob=base64Decode(prop.text or "")
+		local idx=sstrKeyToIdx[blob]
+		if idx==nil then
+idx=#sstrBlobs;sstrBlobs[idx+1]=blob
+sstrKeyToIdx[blob]=idx
+		end
+		vals[i]=idx
 	elseif tid==0x13 and v and v ~= -1 then
 		local refStr=prop.text or ""
 		local refNode=xmlRefNodeMap[refStr]
@@ -1639,6 +1665,8 @@ if binData and #binData>0 then
 	local binTypeId
 	if typeId==0x22 or typeId==0x1E2 then
 		binTypeId=typeId==0x22 and 0x1D or 0x01
+	elseif typeId==0x1E3 then
+		binTypeId=0x1C  -- NetAssetRef → SharedString in binary
 	elseif typeId==0x1F and not PROTECTED_STRING_PROPS[pname] then
 		binTypeId=0x01
 	else
@@ -1745,13 +1773,17 @@ elseif type(prop)=="table" and prop.xmlTag then
 else
 	continue
 end
-if typeId==0x1C then
+if typeId==0x1C or typeId==0x1E3 then
 	local idx=type(value)=="number" and value or tonumber(value) or 0
 	local blob=sharedStrs and sharedStrs[idx] or ""
 	if CONTENT_PROPS[pname] then
 		typeId=0x22
 		value=blob
+	elseif typeId==0x1E3 then
+		-- NetAssetRef: inline base64-encoded blob (not a SharedStrings key reference)
+		value=blob
 	else
+		-- SharedString: emit the blob's MD5 key as base64, referenced from <SharedStrings> block
 		value=base64Encode(getBlobKey(blob))
 	end
 end
