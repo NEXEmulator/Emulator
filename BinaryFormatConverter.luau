@@ -880,6 +880,8 @@ local function serializeXml(roots,sharedStrs,sharedKeys)local lc=0;local lines={
 					value=base64Encode(getBlobKey(blob))end
 			end
 			local typeInfo=getType(typeId)local tag=typeInfo.xmlTag
+			-- Properties in CONTENT_PROPS stored as String in binary should output as Content in XML
+			if typeId==0x01 and CONTENT_PROPS[pname]then typeId=0x22;typeInfo=getType(0x22);tag=typeInfo.xmlTag end
 			local ok,inner=pcall(typeInfo.writeXml,value)if ok then
 				local encoded
 				if typeId==0x1E4 then
