@@ -1089,7 +1089,6 @@ local CONTENT_PROPS={
 	ContentId=true,GraphicId=true,	OverlayTextureId=true,BaseTextureId=true,NormalMap=true,
 	VideoSource=true,
 	AssetId=true,
-	SolidMeshHolder=true,
 }
 local BINARY_STRING_PROPS={
 	AttributesSerialize=true,
@@ -1105,6 +1104,7 @@ local BINARY_STRING_PROPS={
 	MaterialColors=true,
 	HiddenServices=true,
 	VisibleServices=true,
+	SolidMeshHolder=true,  -- union mesh data: binary blob stored as 0x1C SharedString, not a URL
 }
 local function parseBinary(data)
 	assert(data:sub(1,16)==RBX_MAGIC,"Not a valid .rbxm binary file")
@@ -1176,7 +1176,6 @@ pcall(function()
 	local propName=payload:sub(sp,sp+pnLen-1);sp+=pnLen
 	local typeId=payload:byte(sp);sp+=1
 	if typeId==0x01 and CONTENT_PROPS[propName] then typeId=0x22 end
-	if typeId==0x1D then typeId=0x22 end
 	if typeId==0x01 and BINARY_STRING_PROPS[propName] then typeId=0x1E2 end
 	local ti=typeMap[typeIdx]
 	if ti then
