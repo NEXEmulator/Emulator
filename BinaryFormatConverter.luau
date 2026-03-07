@@ -520,15 +520,16 @@ PropType[0x1E3]={name="NetAssetRef",readBin=function(data,n)return deinterleaveU
 				local propName=ssub(payload,sp,sp+pnLen-1);sp+=pnLen
 				local typeId=sbyte(payload,sp);sp+=1
 				local ti=typeMap[typeIdx]
-				if typeId==0x01 and CONTENT_PROPS[propName]and not(ti and CLASS_STRING_PROPS[ti.className]and CLASS_STRING_PROPS[ti.className][propName])then typeId=0x22 end
-				if typeId==0x01 and BINARY_STRING_PROPS[propName]then typeId=0x1E2 end
-				if typeId==0x1C and NETASSET_PROPS[propName]then typeId=0x1E3 end
+				local storeTypeId=typeId
+				if typeId==0x01 and CONTENT_PROPS[propName]and not(ti and CLASS_STRING_PROPS[ti.className]and CLASS_STRING_PROPS[ti.className][propName])then storeTypeId=0x22 end
+				if typeId==0x01 and BINARY_STRING_PROPS[propName]then storeTypeId=0x1E2 end
+				if typeId==0x1C and NETASSET_PROPS[propName]then storeTypeId=0x1E3 end
 				if not ti then return end
 				local typeInfo=getType(typeId)local ok2,values=pcall(typeInfo.readBin,ssub(payload,sp),ti.count)if not ok2 then return end
 				local refs=ti.referents
 				for i=1,#refs do
 					local inst=instMap[refs[i]]if inst and values[i]~=nil then
-						inst.properties[propName]={typeId=typeId,value=values[i]}end
+						inst.properties[propName]={typeId=storeTypeId,value=values[i]}end
 				end
 			end)elseif chunkName=="PRNT" then
 			pcall(function()local sp=2
