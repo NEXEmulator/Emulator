@@ -455,10 +455,16 @@ PropType[0x1E3]={name="NetAssetRef",readBin=function(data,n)return deinterleaveU
 		end
 		-- Distribute URIs to instances by SourceType
 		local ui=0 for i=1,n do if srcTypes[i]==1 then ui+=1;out[i]=uris[ui]or "" else out[i]="" end end
+		-- Consume ObjectIdCount + any object ref data (Object-type Content; we map to empty string)
+		if p <= #data then
+			local objCount;objCount,p=sunpack("<I4",data,p)
+			-- skip object ref payloads if any (not yet supported, treat as empty)
+		end
 		return out
 	end,writeBin=function(vals)local n=#vals;local srcTypes=tcreat(n);local uriParts={};local uc=0
 		for i=1,n do local v=tostring(vals[i]or "")if v~="" then srcTypes[i]=spack("<I4",1);uc+=1;uriParts[uc]=spack("<I4",#v)..v else srcTypes[i]=spack("<I4",0)end end
-		return tconc(srcTypes)..spack("<I4",uc)..tconc(uriParts)end,xmlTag="Content",readXml=function(text,sub)if type(sub)=="table" then
+		-- SourceTypes + UriCount + URIs + ObjectIdCount (0, no Object-type Content)
+		return tconc(srcTypes)..spack("<I4",uc)..tconc(uriParts)..spack("<I4",0)end,xmlTag="Content",readXml=function(text,sub)if type(sub)=="table" then
 			if type(sub.uri)=="string" then return sub.uri end
 			if type(sub.url)=="string" and sub.url~="" then return sub.url end
 			if sub.null~=nil then return "" end
