@@ -429,37 +429,6 @@ PropType[0x1E]={name="OptionalCFrame",readBin=function(data,n)local p=2
 			local lo=v%0x100000000
 			local hi=mfloor(v/0x100000000)%0x100000000
 			pc+=1;parts[pc]=spack("<I4",lo)..spack("<I4",hi)end;return tconc(parts)end,xmlTag="SecurityCapabilities",readXml=function(s)return tonumber(s)or 0 end,writeXml=function(v)return tostring(mfloor(v or 0))end,}local function getType(id)return PropType[id]or{name="Unknown("..sfmt("0x%02X",id)..")",readBin=function()return{}end,writeBin=function()return "" end,xmlTag="BinaryString",readXml=function(s)return s end,writeXml=function(v)return tostring(v or "")end,}end
-local LEGACY_CONTENT_PROPS={ContentId=true,ClassName=true,}
-local SKIP_XML_PROPS={
-	-- Internal IDs (not needed in portable XML)
-	HistoryId=true,UniqueId=true,
-	-- Capability system (always default 0/false)
-	Capabilities=true,DefinesCapabilities=true,
-	-- Usually empty / always -1 default
-	AttributesSerialize=true,Tags=true,SourceAssetId=true,
-	-- Runtime physics state (always 0 in saved files)
-	Velocity=true,RotVelocity=true,
-	-- Computed physics (derived from mesh geometry)
-	UnscaledCofm=true,UnscaledVolume=true,
-	UnscaledVolInertiaDiags=true,UnscaledVolInertiaOffDiags=true,
-	-- Internal joint / skinning state
-	JointOffset=true,HasJointOffset=true,HasSkinnedMesh=true,
-	-- Derived / internal flags
-	InertiaMigrated=true,NeedsPivotMigration=true,
-	VertexCount=true,FlipbookIncompatible=true,
-	FluidFidelityInternal=true,AudioCanCollide=true,
-	-- Deprecated / redundant
-	CollisionGroupId=true,formFactorRaw=true,ComponentIndex=true,
-	RootPriority=true,SelectionOrder=true,
-	-- Surface input modes (always Constant/0) and surface params (always -0.5)
-	BackSurfaceInput=true,FrontSurfaceInput=true,LeftSurfaceInput=true,
-	RightSurfaceInput=true,TopSurfaceInput=true,BottomSurfaceInput=true,
-	BackParamA=true,BackParamB=true,FrontParamA=true,FrontParamB=true,
-	LeftParamA=true,LeftParamB=true,RightParamA=true,RightParamB=true,
-	TopParamA=true,TopParamB=true,BottomParamA=true,BottomParamB=true,
-	-- Fluid / misc always-false defaults
-	EnableFluidForces=true,InitialSize=true,
-}
 local CONTENT_PROPS={SoundId=true,Image=true,HoverImage=true,PressedImage=true,Texture=true,LinkedSource=true,MeshId=true,TextureId=true,TextureID=true,SkyboxBk=true,SkyboxDn=true,SkyboxFt=true,SkyboxLf=true,SkyboxRt=true,SkyboxUp=true,AnimationId=true,ShirtTemplate=true,PantsTemplate=true,ContentId=true,GraphicId=true,OverlayTextureId=true,BaseTextureId=true,NormalMap=true,VideoSource=true,AssetId=true,}local BINARY_STRING_PROPS={AttributesSerialize=true,Tags=true,PhysicsData=true,PhysicsGrid=true,LevelOfDetailData=true,TerrainColors=true,TerrainMaterialColors=true,SmoothGrid=true,ClusterGrid=true,CollisionGroupData=true,MaterialColors=true,HiddenServices=true,VisibleServices=true,}local NETASSET_PROPS={SolidMeshHolder=true}local xmlTagToTypeId={}for id,info in pairs(PropType)do
 	if info.xmlTag then xmlTagToTypeId[info.xmlTag]=id end
 end
@@ -545,9 +514,8 @@ PropType[0x1E3]={name="NetAssetRef",readBin=function(data,n)return deinterleaveU
 				local pnLen,np2=sunpack("<I4",payload,sp);sp=np2
 				local propName=ssub(payload,sp,sp+pnLen-1);sp+=pnLen
 				local typeId=sbyte(payload,sp);sp+=1
-				if typeId==0x1D then typeId=0x22 end
-				if typeId==0x01 and BINARY_STRING_PROPS[propName]then typeId=0x1E2 end
 				if typeId==0x01 and CONTENT_PROPS[propName]then typeId=0x22 end
+				if typeId==0x01 and BINARY_STRING_PROPS[propName]then typeId=0x1E2 end
 				if typeId==0x1C and NETASSET_PROPS[propName]then typeId=0x1E3 end
 				local ti=typeMap[typeIdx]if not ti then return end
 				local typeInfo=getType(typeId)local ok2,values=pcall(typeInfo.readBin,ssub(payload,sp),ti.count)if not ok2 then return end
@@ -820,7 +788,7 @@ local function serializeBinary(roots,xmlSharedStrings)local allInsts={}local fun
 			end
 			local binData=typeInfo.writeBin(vals)if binData and#binData>0 then
 				local binTypeId
-				if typeId==0x22 then binTypeId=LEGACY_CONTENT_PROPS[pname] and 0x01 or 0x1D
+				if typeId==0x22 then binTypeId=0x1D
 				elseif typeId==0x1E2 then binTypeId=0x01
 				elseif typeId==0x1E3 then binTypeId=0x1C
 				elseif typeId==0x1E4 and not PROTECTED_STRING_PROPS[pname]then binTypeId=0x01
@@ -888,8 +856,7 @@ local function serializeXml(roots,sharedStrs,sharedKeys)local lc=0;local lines={
 		local pnames={};local pnc=0
 		for pname in pairs(node.properties)do pnc+=1;pnames[pnc]=pname end
 		tsort(pnames)for pi=1,pnc do
-			local pname=pnames[pi]if SKIP_XML_PROPS[pname]then continue end
-			local prop=node.properties[pname]local typeId,value
+			local pname=pnames[pi]local prop=node.properties[pname]local typeId,value
 			if type(prop)=="table" and prop.typeId then
 				typeId=prop.typeId;value=prop.value
 			elseif type(prop)=="table" and prop.xmlTag then
