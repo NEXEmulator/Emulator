@@ -1,4 +1,3 @@
---some ai was used for optimizations
 local Converter={NEX_Version="1.0.2"}
 local b32=bit32
 local spack,sunpack=string.pack,string.unpack
@@ -1089,6 +1088,7 @@ local CONTENT_PROPS={
 	ShirtTemplate=true,PantsTemplate=true,
 	ContentId=true,GraphicId=true,	OverlayTextureId=true,BaseTextureId=true,NormalMap=true,
 	VideoSource=true,
+	AssetId=true,
 }
 local BINARY_STRING_PROPS={
 	AttributesSerialize=true,
@@ -1690,9 +1690,9 @@ if sharedStrs[idx] then blobKeyCache[sharedStrs[idx]]=key end
 	end
 	local sharedBlobByMd5={}
 	local function collectSharedBlobs(node)
-		for _,prop in pairs(node.properties) do
+		for pname,prop in pairs(node.properties) do
 local tid=type(prop)=="table" and prop.typeId or nil
-if tid==0x1C then
+if tid==0x1C and not CONTENT_PROPS[pname] then
 	local idx=prop.value
 	if type(idx)=="number" and sharedStrs and sharedStrs[idx] then
 		local blob=sharedStrs[idx]
@@ -1742,7 +1742,12 @@ end
 if typeId==0x1C then
 	local idx=type(value)=="number" and value or tonumber(value) or 0
 	local blob=sharedStrs and sharedStrs[idx] or ""
-	value=base64Encode(getBlobKey(blob))
+	if CONTENT_PROPS[pname] then
+		typeId=0x22
+		value=blob
+	else
+		value=base64Encode(getBlobKey(blob))
+	end
 end
 local typeInfo=getType(typeId)
 local tag=typeInfo.xmlTag
