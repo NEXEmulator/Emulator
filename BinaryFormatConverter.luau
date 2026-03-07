@@ -1681,8 +1681,13 @@ local function serializeXml(roots,sharedStrs,sharedKeys)
 	lines[#lines+1]='<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime"'..' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'..' xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd"'..' version="4">'
 	local blobKeyCache={}
 	if sharedKeys and sharedStrs then
+		local usedKeys={}
 		for idx,key in pairs(sharedKeys) do
-if sharedStrs[idx] then blobKeyCache[sharedStrs[idx]]=key end
+local blob=sharedStrs[idx]
+if blob and not blobKeyCache[blob] and not usedKeys[key] then
+	blobKeyCache[blob]=key
+	usedKeys[key]=true
+end
 		end
 	end
 	local function getBlobKey(blob)
