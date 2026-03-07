@@ -1,5 +1,5 @@
---some ai was used in this
-local Converter = {NEX_Version="1.0.0"}
+--some ai was used in this for rewriting my shitty code
+local Converter = {NEX_Version="1.0.2"}
 local b32 = bit32
 local spack, sunpack = string.pack, string.unpack
 local HttpService = game:GetService("HttpService")
