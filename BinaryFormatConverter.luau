@@ -429,7 +429,7 @@ PropType[0x1E]={name="OptionalCFrame",readBin=function(data,n)local p=2
 			local lo=v%0x100000000
 			local hi=mfloor(v/0x100000000)%0x100000000
 			pc+=1;parts[pc]=spack("<I4",lo)..spack("<I4",hi)end;return tconc(parts)end,xmlTag="SecurityCapabilities",readXml=function(s)return tonumber(s)or 0 end,writeXml=function(v)return tostring(mfloor(v or 0))end,}local function getType(id)return PropType[id]or{name="Unknown("..sfmt("0x%02X",id)..")",readBin=function()return{}end,writeBin=function()return "" end,xmlTag="BinaryString",readXml=function(s)return s end,writeXml=function(v)return tostring(v or "")end,}end
-local CONTENT_PROPS={SoundId=true,Image=true,HoverImage=true,PressedImage=true,Texture=true,LinkedSource=true,MeshId=true,TextureId=true,TextureID=true,SkyboxBk=true,SkyboxDn=true,SkyboxFt=true,SkyboxLf=true,SkyboxRt=true,SkyboxUp=true,AnimationId=true,ShirtTemplate=true,PantsTemplate=true,ContentId=true,GraphicId=true,OverlayTextureId=true,BaseTextureId=true,NormalMap=true,VideoSource=true,AssetId=true,}local BINARY_STRING_PROPS={AttributesSerialize=true,Tags=true,PhysicsData=true,PhysicsGrid=true,LevelOfDetailData=true,TerrainColors=true,TerrainMaterialColors=true,SmoothGrid=true,ClusterGrid=true,CollisionGroupData=true,MaterialColors=true,HiddenServices=true,VisibleServices=true,}local NETASSET_PROPS={SolidMeshHolder=true}local xmlTagToTypeId={}for id,info in pairs(PropType)do
+local CONTENT_PROPS={SoundId=true,Image=true,HoverImage=true,PressedImage=true,Texture=true,LinkedSource=true,MeshId=true,TextureId=true,TextureID=true,SkyboxBk=true,SkyboxDn=true,SkyboxFt=true,SkyboxLf=true,SkyboxRt=true,SkyboxUp=true,AnimationId=true,ShirtTemplate=true,PantsTemplate=true,ContentId=true,GraphicId=true,OverlayTextureId=true,BaseTextureId=true,NormalMap=true,VideoSource=true,AssetId=true,EmissiveMaskContent=true,ColorMaskContent=true,MetalnessContent=true,RoughnessContent=true,NormalContent=true,}local BINARY_STRING_PROPS={AttributesSerialize=true,Tags=true,PhysicsData=true,PhysicsGrid=true,LevelOfDetailData=true,TerrainColors=true,TerrainMaterialColors=true,SmoothGrid=true,ClusterGrid=true,CollisionGroupData=true,MaterialColors=true,HiddenServices=true,VisibleServices=true,}local NETASSET_PROPS={SolidMeshHolder=true}local xmlTagToTypeId={}for id,info in pairs(PropType)do
 	if info.xmlTag then xmlTagToTypeId[info.xmlTag]=id end
 end
 xmlTagToTypeId["string"]=0x01;xmlTagToTypeId["bool"]=0x02
@@ -458,7 +458,7 @@ PropType[0x1E3]={name="NetAssetRef",readBin=function(data,n)return deinterleaveU
 				out[i]=raw
 			end
 		end;return out
-	end,writeBin=function(vals)local n=#vals;local pc=0;local parts=tcreat(n*2)for i=1,n do local v=tostring(vals[i]or "")pc+=1;parts[pc]=spack("<I4",#v)pc+=1;parts[pc]=v
+	end,writeBin=function(vals)local n=#vals;local pc=0;local parts=tcreat(n*2)for i=1,n do local v=tostring(vals[i]or "")if v=="" then pc+=1;parts[pc]=spack("<I4",0)else local inner="\x01\x00\x00\x00"..spack("<I4",#v)..v;pc+=1;parts[pc]=spack("<I4",#inner)pc+=1;parts[pc]=inner end
 		end;return tconc(parts)end,xmlTag="Content",readXml=function(text,sub)if type(sub)=="table" then
 			if type(sub.url)=="string" and sub.url~="" then return sub.url end
 			if sub.null~=nil then return "" end
@@ -514,7 +514,7 @@ PropType[0x1E3]={name="NetAssetRef",readBin=function(data,n)return deinterleaveU
 				local pnLen,np2=sunpack("<I4",payload,sp);sp=np2
 				local propName=ssub(payload,sp,sp+pnLen-1);sp+=pnLen
 				local typeId=sbyte(payload,sp);sp+=1
-				if typeId==0x1D or (typeId==0x01 and CONTENT_PROPS[propName])then typeId=0x22 end
+				if typeId==0x01 and CONTENT_PROPS[propName]then typeId=0x22 end
 				if typeId==0x01 and BINARY_STRING_PROPS[propName]then typeId=0x1E2 end
 				if typeId==0x1C and NETASSET_PROPS[propName]then typeId=0x1E3 end
 				local ti=typeMap[typeIdx]if not ti then return end
@@ -782,13 +782,13 @@ local function serializeBinary(roots,xmlSharedStrings)local allInsts={}local fun
 					elseif typeId==0x1E then vals[i]=false
 					elseif typeId==0x1E2 or typeId==0x1E4 then vals[i]=""
 					elseif typeId==0x1F then vals[i]=("\0"):rep(16)
-					elseif typeId==0x20 then vals[i]={family="",weight=400,style=0,cachedFaceId=""}elseif typeId==0x21 or typeId==0x22 then vals[i]=0
+					elseif typeId==0x20 then vals[i]={family="",weight=400,style=0,cachedFaceId=""}elseif typeId==0x21 then vals[i]=0 elseif typeId==0x22 then vals[i]=""
 					else vals[i]=0 end
 				end
 			end
 			local binData=typeInfo.writeBin(vals)if binData and#binData>0 then
 				local binTypeId
-				if typeId==0x22 then binTypeId=0x01
+				if typeId==0x22 then binTypeId=0x22
 				elseif typeId==0x1E2 then binTypeId=0x01
 				elseif typeId==0x1E3 then binTypeId=0x1C
 				elseif typeId==0x1E4 and not PROTECTED_STRING_PROPS[pname]then binTypeId=0x01
