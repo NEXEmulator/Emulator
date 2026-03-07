@@ -753,7 +753,7 @@ local function serializeBinary(roots,xmlSharedStrings)local allInsts={}local fun
 					elseif typeId==0x03 or typeId==0x04 or typeId==0x05
 					 or typeId==0x0B or typeId==0x12 then vals[i]=0
 					elseif typeId==0x0C then vals[i]={r=0,g=0,b=0}elseif typeId==0x0E then vals[i]={x=0,y=0,z=0}elseif typeId==0x10 then vals[i]={r=CF_IDENTITY,x=0,y=0,z=0}elseif typeId==0x13 then vals[i]=-1
-					elseif typeId==0x1E then vals[i]=nil
+					elseif typeId==0x1E then vals[i]=false
 					elseif typeId==0x1E2 or typeId==0x1F then vals[i]=""
 					elseif typeId==0x20 then vals[i]={family="",weight=400,style=0,cachedFaceId=""}elseif typeId==0x21 or typeId==0x22 then vals[i]=0
 					else vals[i]=0 end
