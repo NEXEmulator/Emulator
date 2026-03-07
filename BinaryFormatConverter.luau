@@ -458,7 +458,7 @@ PropType[0x1E3]={name="NetAssetRef",readBin=function(data,n)return deinterleaveU
 				out[i]=raw
 			end
 		end;return out
-	end,writeBin=function(vals)local n=#vals;local pc=0;local parts=tcreat(n*2)for i=1,n do local v=tostring(vals[i]or "")if v=="" then pc+=1;parts[pc]=spack("<I4",0)else local inner="\x01\x00\x00\x00"..spack("<I4",#v)..v;pc+=1;parts[pc]=spack("<I4",#inner)pc+=1;parts[pc]=inner end
+	end,writeBin=function(vals)local n=#vals;local pc=0;local parts=tcreat(n*2)for i=1,n do local v=tostring(vals[i]or "")pc+=1;parts[pc]=spack("<I4",#v)pc+=1;parts[pc]=v
 		end;return tconc(parts)end,xmlTag="Content",readXml=function(text,sub)if type(sub)=="table" then
 			if type(sub.url)=="string" and sub.url~="" then return sub.url end
 			if sub.null~=nil then return "" end
@@ -514,10 +514,10 @@ PropType[0x1E3]={name="NetAssetRef",readBin=function(data,n)return deinterleaveU
 				local pnLen,np2=sunpack("<I4",payload,sp);sp=np2
 				local propName=ssub(payload,sp,sp+pnLen-1);sp+=pnLen
 				local typeId=sbyte(payload,sp);sp+=1
-				local ti=typeMap[typeIdx]if not ti then return end
-				if typeId==0x01 and CONTENT_PROPS[propName]and not(CLASS_STRING_PROPS[ti.className]and CLASS_STRING_PROPS[ti.className][propName])then typeId=0x22 end
+				if typeId==0x01 and CONTENT_PROPS[propName]then typeId=0x22 end
 				if typeId==0x01 and BINARY_STRING_PROPS[propName]then typeId=0x1E2 end
 				if typeId==0x1C and NETASSET_PROPS[propName]then typeId=0x1E3 end
+				local ti=typeMap[typeIdx]if not ti then return end
 				local typeInfo=getType(typeId)local ok2,values=pcall(typeInfo.readBin,ssub(payload,sp),ti.count)if not ok2 then return end
 				local refs=ti.referents
 				for i=1,#refs do
