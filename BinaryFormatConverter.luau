@@ -446,25 +446,24 @@ PropType[0x1E3]={name="NetAssetRef",readBin=function(data,n)return deinterleaveU
 		end;return out
 	end,writeBin=function(vals)local n=#vals;local pc=0;local parts=tcreat(n*2)for i=1,n do local v=vals[i]or ""
 			pc+=1;parts[pc]=spack("<I4",#v)pc+=1;parts[pc]=v
-		end;return tconc(parts)end,xmlTag="BinaryString",readXml=function(s)return base64Decode(s or "")end,writeXml=function(v)return base64Encode(v or "")end,}PropType[0x22]={name="Content",readBin=function(data,n)local out=tcreat(n);local p=1
-		-- Read N SourceType u32s (0=None, 1=Uri)
-		local srcTypes=tcreat(n)for i=1,n do srcTypes[i],p=sunpack("<I4",data,p)end
-		-- Read UriCount then UriCount URIs
+		end;return tconc(parts)end,xmlTag="BinaryString",readXml=function(s)return base64Decode(s or "")end,writeXml=function(v)return base64Encode(v or "")end,}PropType[0x22]={name="Content",readBin=function(data,n)local out=tcreat(n)
+		-- 1) N interleaved-i32 source types (0=None, 1=Uri, 2=Object)
+		local srcTypes=deinterleaveI32(ssub(data,1,n*4),n);local p=n*4+1
+		-- 2) UriCount + URIs
 		local uriCount;uriCount,p=sunpack("<I4",data,p)local uris=tcreat(uriCount)for i=1,uriCount do
 			local ulen;ulen,p=sunpack("<I4",data,p);uris[i]=ssub(data,p,p+ulen-1);p+=ulen
 		end
-		-- Distribute URIs to instances by SourceType
+		-- 3) ObjectCount + interleaved referent array (skip; Object-type Content unsupported)
+		local objCount;objCount,p=sunpack("<I4",data,p);p+=objCount*4
+		-- 4) ExternalObjectCount (always 0, skip)
+		p+=4
+		-- Distribute URIs to instances
 		local ui=0 for i=1,n do if srcTypes[i]==1 then ui+=1;out[i]=uris[ui]or "" else out[i]="" end end
-		-- Consume ObjectIdCount + any object ref data (Object-type Content; we map to empty string)
-		if p <= #data then
-			local objCount;objCount,p=sunpack("<I4",data,p)
-			-- skip object ref payloads if any (not yet supported, treat as empty)
-		end
 		return out
-	end,writeBin=function(vals)local n=#vals;local srcTypes=tcreat(n);local uriParts={};local uc=0
-		for i=1,n do local v=tostring(vals[i]or "")if v~="" then srcTypes[i]=spack("<I4",1);uc+=1;uriParts[uc]=spack("<I4",#v)..v else srcTypes[i]=spack("<I4",0)end end
-		-- SourceTypes + UriCount + URIs + ObjectIdCount (0, no Object-type Content)
-		return tconc(srcTypes)..spack("<I4",uc)..tconc(uriParts)..spack("<I4",0)end,xmlTag="Content",readXml=function(text,sub)if type(sub)=="table" then
+	end,writeBin=function(vals)local n=#vals;local srcTypeInts=tcreat(n);local uriParts={};local uc=0
+		for i=1,n do local v=tostring(vals[i]or "")if v~="" then srcTypeInts[i]=1;uc+=1;uriParts[uc]=spack("<I4",#v)..v else srcTypeInts[i]=0 end end
+		-- 1) interleaved-i32 source types  2) UriCount+URIs  3) ObjectCount=0  4) ExternalCount=0
+		return interleaveI32(srcTypeInts)..spack("<I4",uc)..tconc(uriParts)..spack("<I4",0)..spack("<I4",0)end,xmlTag="Content",readXml=function(text,sub)if type(sub)=="table" then
 			if type(sub.uri)=="string" then return sub.uri end
 			if type(sub.url)=="string" and sub.url~="" then return sub.url end
 			if sub.null~=nil then return "" end
