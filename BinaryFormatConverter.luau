@@ -1089,6 +1089,7 @@ local CONTENT_PROPS={
 	ContentId=true,GraphicId=true,	OverlayTextureId=true,BaseTextureId=true,NormalMap=true,
 	VideoSource=true,
 	AssetId=true,
+	SolidMeshHolder=true,
 }
 local BINARY_STRING_PROPS={
 	AttributesSerialize=true,
