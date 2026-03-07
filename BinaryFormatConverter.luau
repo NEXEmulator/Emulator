@@ -429,7 +429,7 @@ PropType[0x1E]={name="OptionalCFrame",readBin=function(data,n)local p=2
 			local lo=v%0x100000000
 			local hi=mfloor(v/0x100000000)%0x100000000
 			pc+=1;parts[pc]=spack("<I4",lo)..spack("<I4",hi)end;return tconc(parts)end,xmlTag="SecurityCapabilities",readXml=function(s)return tonumber(s)or 0 end,writeXml=function(v)return tostring(mfloor(v or 0))end,}local function getType(id)return PropType[id]or{name="Unknown("..sfmt("0x%02X",id)..")",readBin=function()return{}end,writeBin=function()return "" end,xmlTag="BinaryString",readXml=function(s)return s end,writeXml=function(v)return tostring(v or "")end,}end
-local CONTENT_PROPS={SoundId=true,Image=true,HoverImage=true,PressedImage=true,Texture=true,LinkedSource=true,MeshId=true,TextureId=true,TextureID=true,SkyboxBk=true,SkyboxDn=true,SkyboxFt=true,SkyboxLf=true,SkyboxRt=true,SkyboxUp=true,AnimationId=true,ShirtTemplate=true,PantsTemplate=true,ContentId=true,GraphicId=true,OverlayTextureId=true,BaseTextureId=true,NormalMap=true,VideoSource=true,AssetId=true,EmissiveMaskContent=true,ColorMaskContent=true,MetalnessContent=true,RoughnessContent=true,NormalContent=true,}local BINARY_STRING_PROPS={AttributesSerialize=true,Tags=true,PhysicsData=true,PhysicsGrid=true,LevelOfDetailData=true,TerrainColors=true,TerrainMaterialColors=true,SmoothGrid=true,ClusterGrid=true,CollisionGroupData=true,MaterialColors=true,HiddenServices=true,VisibleServices=true,}local NETASSET_PROPS={SolidMeshHolder=true}local xmlTagToTypeId={}for id,info in pairs(PropType)do
+local CONTENT_PROPS={SoundId=true,Image=true,HoverImage=true,PressedImage=true,Texture=true,LinkedSource=true,MeshId=true,TextureId=true,TextureID=true,SkyboxBk=true,SkyboxDn=true,SkyboxFt=true,SkyboxLf=true,SkyboxRt=true,SkyboxUp=true,AnimationId=true,ShirtTemplate=true,PantsTemplate=true,ContentId=true,GraphicId=true,OverlayTextureId=true,BaseTextureId=true,NormalMap=true,VideoSource=true,AssetId=true,EmissiveMaskContent=true,ColorMaskContent=true,MetalnessContent=true,RoughnessContent=true,NormalContent=true,}local BINARY_STRING_PROPS={AttributesSerialize=true,Tags=true,PhysicsData=true,PhysicsGrid=true,LevelOfDetailData=true,TerrainColors=true,TerrainMaterialColors=true,SmoothGrid=true,ClusterGrid=true,CollisionGroupData=true,MaterialColors=true,HiddenServices=true,VisibleServices=true,}local NETASSET_PROPS={SolidMeshHolder=true}local CLASS_STRING_PROPS={UnionOperation={AssetId=true},}local xmlTagToTypeId={}for id,info in pairs(PropType)do
 	if info.xmlTag then xmlTagToTypeId[info.xmlTag]=id end
 end
 xmlTagToTypeId["string"]=0x01;xmlTagToTypeId["bool"]=0x02
@@ -514,10 +514,10 @@ PropType[0x1E3]={name="NetAssetRef",readBin=function(data,n)return deinterleaveU
 				local pnLen,np2=sunpack("<I4",payload,sp);sp=np2
 				local propName=ssub(payload,sp,sp+pnLen-1);sp+=pnLen
 				local typeId=sbyte(payload,sp);sp+=1
-				if typeId==0x01 and CONTENT_PROPS[propName]then typeId=0x22 end
+				local ti=typeMap[typeIdx]if not ti then return end
+				if typeId==0x01 and CONTENT_PROPS[propName]and not(CLASS_STRING_PROPS[ti.className]and CLASS_STRING_PROPS[ti.className][propName])then typeId=0x22 end
 				if typeId==0x01 and BINARY_STRING_PROPS[propName]then typeId=0x1E2 end
 				if typeId==0x1C and NETASSET_PROPS[propName]then typeId=0x1E3 end
-				local ti=typeMap[typeIdx]if not ti then return end
 				local typeInfo=getType(typeId)local ok2,values=pcall(typeInfo.readBin,ssub(payload,sp),ti.count)if not ok2 then return end
 				local refs=ti.referents
 				for i=1,#refs do
@@ -772,6 +772,7 @@ local function serializeBinary(roots,xmlSharedStrings)local allInsts={}local fun
 				end
 			end
 			if not typeId then continue end
+			if CLASS_STRING_PROPS[className]and CLASS_STRING_PROPS[className][pname]then typeId=0x01 end
 			local typeInfo=getType(typeId)for i=1,ng do
 				if vals[i]==nil then
 					if typeId==0x01 then vals[i]=""
