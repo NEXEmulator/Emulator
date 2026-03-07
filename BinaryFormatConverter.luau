@@ -377,13 +377,39 @@ PropType[0x1E]={name="OptionalCFrame",readBin=function(data,n)local p=2
 		return{r={v"R00",v"R01",v"R02",v"R10",v"R11",v"R12",v"R20",v"R21",v"R22"},x=v"X",y=v"Y",z=v"Z"}end,writeXml=function(v)if not v then return "" end
 		local r=v.r or CF_IDENTITY
 		return "<CFrame>".."<X>"..safeF(v.x).."</X><Y>"..safeF(v.y).."</Y><Z>"..safeF(v.z).."</Z>".."<R00>"..safeF(r[1]).."</R00><R01>"..safeF(r[2]).."</R01><R02>"..safeF(r[3]).."</R02>".."<R10>"..safeF(r[4]).."</R10><R11>"..safeF(r[5]).."</R11><R12>"..safeF(r[6]).."</R12>".."<R20>"..safeF(r[7]).."</R20><R21>"..safeF(r[8]).."</R21><R22>"..safeF(r[9]).."</R22>".."</CFrame>"
-	end,}PropType[0x1F]={name="ProtectedString",readBin=function(data,n)local out=tcreat(n);local p=1
+	end,}PropType[0x1E4]={name="ProtectedString",readBin=function(data,n)local out=tcreat(n);local p=1
 		for i=1,n do
 			local len,np=sunpack("<I4",data,p);p=np
 			out[i]=ssub(data,p,p+len-1);p+=len
 		end;return out
 	end,writeBin=function(vals)local n=#vals;local pc=0;local parts=tcreat(n*2)for i=1,n do local v=vals[i]pc+=1;parts[pc]=spack("<I4",#v)pc+=1;parts[pc]=v
-		end;return tconc(parts)end,xmlTag="ProtectedString",readXml=function(s)return s or "" end,writeXml=function(v)return tostring(v or "")end,}PropType[0x20]={name="Font",readBin=function(data,n)local out=tcreat(n);local p=1
+		end;return tconc(parts)end,xmlTag="ProtectedString",readXml=function(s)return s or "" end,writeXml=function(v)return tostring(v or "")end,}PropType[0x1F]={name="UniqueId",readBin=function(data,n)local out=tcreat(n);local n4=n*4;local n2=n*2;local n3=n*3
+		for i=1,n do
+			local blob=tcreat(16);local base=0
+			for f=0,3 do
+				local seg=f*n4
+				blob[base+1]=schar(sbyte(data,seg+i)or 0)
+				blob[base+2]=schar(sbyte(data,seg+n+i)or 0)
+				blob[base+3]=schar(sbyte(data,seg+n2+i)or 0)
+				blob[base+4]=schar(sbyte(data,seg+n3+i)or 0)
+				base+=4
+			end
+			out[i]=tconc(blob)
+		end;return out
+	end,writeBin=function(vals)local n=#vals;local n2=n*2;local n3=n*3;local null=("\0"):rep(16)
+		local g={}for f=0,3 do g[f]=tcreat(n*4)end
+		for i=1,n do local v=vals[i]or null
+			for f=0,3 do local base=f*4
+				g[f][i]=chr[sbyte(v,base+1)or 0];g[f][n+i]=chr[sbyte(v,base+2)or 0]
+				g[f][n2+i]=chr[sbyte(v,base+3)or 0];g[f][n3+i]=chr[sbyte(v,base+4)or 0]
+			end
+		end
+		local pc=0;local parts=tcreat(4)
+		for f=0,3 do pc+=1;parts[pc]=tconc(g[f])end;return tconc(parts)
+	end,xmlTag="UniqueId",readXml=function(s)local hex=(s or ""):gsub("%s","")
+		if #hex==0 then return("\0"):rep(16)end
+		local out=tcreat(16);for i=1,16 do out[i]=schar(tonumber(hex:sub(i*2-1,i*2),16)or 0)end;return tconc(out)
+	end,writeXml=function(v)local out=tcreat(16);for i=1,16 do out[i]=sfmt("%02x",sbyte(v,i)or 0)end;return tconc(out)end,}PropType[0x20]={name="Font",readBin=function(data,n)local out=tcreat(n);local p=1
 		for i=1,n do
 			local flen,np=sunpack("<I4",data,p);p=np
 			local family=ssub(data,p,p+flen-1);p+=flen
@@ -409,7 +435,7 @@ end
 xmlTagToTypeId["string"]=0x01;xmlTagToTypeId["bool"]=0x02
 xmlTagToTypeId["int"]=0x03;xmlTagToTypeId["float"]=0x04
 xmlTagToTypeId["double"]=0x05;xmlTagToTypeId["BinaryString"]=0x1E2
-xmlTagToTypeId["ProtectedString"]=0x1F;xmlTagToTypeId["Font"]=0x20
+xmlTagToTypeId["ProtectedString"]=0x1E4;xmlTagToTypeId["UniqueId"]=0x1F;xmlTagToTypeId["Font"]=0x20
 xmlTagToTypeId["SecurityCapabilities"]=0x21
 xmlTagToTypeId["OptionalCoordinateFrame"]=0x1E
 xmlTagToTypeId["Content"]=0x22;xmlTagToTypeId["NetAssetRef"]=0x1E3
@@ -754,7 +780,8 @@ local function serializeBinary(roots,xmlSharedStrings)local allInsts={}local fun
 					 or typeId==0x0B or typeId==0x12 then vals[i]=0
 					elseif typeId==0x0C then vals[i]={r=0,g=0,b=0}elseif typeId==0x0E then vals[i]={x=0,y=0,z=0}elseif typeId==0x10 then vals[i]={r=CF_IDENTITY,x=0,y=0,z=0}elseif typeId==0x13 then vals[i]=-1
 					elseif typeId==0x1E then vals[i]=false
-					elseif typeId==0x1E2 or typeId==0x1F then vals[i]=""
+					elseif typeId==0x1E2 or typeId==0x1E4 then vals[i]=""
+					elseif typeId==0x1F then vals[i]=("\0"):rep(16)
 					elseif typeId==0x20 then vals[i]={family="",weight=400,style=0,cachedFaceId=""}elseif typeId==0x21 or typeId==0x22 then vals[i]=0
 					else vals[i]=0 end
 				end
@@ -764,7 +791,7 @@ local function serializeBinary(roots,xmlSharedStrings)local allInsts={}local fun
 				if typeId==0x22 then binTypeId=0x1D
 				elseif typeId==0x1E2 then binTypeId=0x01
 				elseif typeId==0x1E3 then binTypeId=0x1C
-				elseif typeId==0x1F and not PROTECTED_STRING_PROPS[pname]then binTypeId=0x01
+				elseif typeId==0x1E4 and not PROTECTED_STRING_PROPS[pname]then binTypeId=0x01
 				else binTypeId=typeId end
 				local payload=spack("<I4I4",ti-1,#pname)..pname..chr[binTypeId]..binData
 				pcc+=1;propChunks[pcc]=makeChunk("PROP",payload)end
@@ -848,7 +875,7 @@ local function serializeXml(roots,sharedStrs,sharedKeys)local lc=0;local lines={
 			local typeInfo=getType(typeId)local tag=typeInfo.xmlTag
 			local ok,inner=pcall(typeInfo.writeXml,value)if ok then
 				local encoded
-				if typeId==0x1F then
+				if typeId==0x1E4 then
 					local sv=tostring(inner or "")if sv:find("[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\xFF]")then
 						encoded=base64Encode(sv);tag="BinaryString"
 					else encoded="<![CDATA["..sv.."]]>" end
