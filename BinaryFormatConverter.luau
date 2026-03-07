@@ -1175,6 +1175,7 @@ pcall(function()
 	local propName=payload:sub(sp,sp+pnLen-1);sp+=pnLen
 	local typeId=payload:byte(sp);sp+=1
 	if typeId==0x01 and CONTENT_PROPS[propName] then typeId=0x22 end
+	if typeId==0x1D then typeId=0x22 end
 	if typeId==0x01 and BINARY_STRING_PROPS[propName] then typeId=0x1E2 end
 	local ti=typeMap[typeIdx]
 	if ti then
@@ -1637,7 +1638,7 @@ local binData=typeInfo.writeBin(vals)
 if binData and #binData>0 then
 	local binTypeId
 	if typeId==0x22 or typeId==0x1E2 then
-		binTypeId=0x01
+		binTypeId=typeId==0x22 and 0x1D or 0x01
 	elseif typeId==0x1F and not PROTECTED_STRING_PROPS[pname] then
 		binTypeId=0x01
 	else
