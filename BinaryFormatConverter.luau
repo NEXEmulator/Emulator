@@ -514,7 +514,7 @@ PropType[0x1E3]={name="NetAssetRef",readBin=function(data,n)return deinterleaveU
 				local pnLen,np2=sunpack("<I4",payload,sp);sp=np2
 				local propName=ssub(payload,sp,sp+pnLen-1);sp+=pnLen
 				local typeId=sbyte(payload,sp);sp+=1
-				if typeId==0x01 and CONTENT_PROPS[propName]then typeId=0x22 end
+				if typeId==0x1D or (typeId==0x01 and CONTENT_PROPS[propName])then typeId=0x22 end
 				if typeId==0x01 and BINARY_STRING_PROPS[propName]then typeId=0x1E2 end
 				if typeId==0x1C and NETASSET_PROPS[propName]then typeId=0x1E3 end
 				local ti=typeMap[typeIdx]if not ti then return end
@@ -788,7 +788,7 @@ local function serializeBinary(roots,xmlSharedStrings)local allInsts={}local fun
 			end
 			local binData=typeInfo.writeBin(vals)if binData and#binData>0 then
 				local binTypeId
-				if typeId==0x22 then binTypeId=0x1D
+				if typeId==0x22 then binTypeId=0x01
 				elseif typeId==0x1E2 then binTypeId=0x01
 				elseif typeId==0x1E3 then binTypeId=0x1C
 				elseif typeId==0x1E4 and not PROTECTED_STRING_PROPS[pname]then binTypeId=0x01
