@@ -447,24 +447,24 @@ PropType[0x1E3]={name="NetAssetRef",readBin=function(data,n)return deinterleaveU
 	end,writeBin=function(vals)local n=#vals;local pc=0;local parts=tcreat(n*2)for i=1,n do local v=vals[i]or ""
 			pc+=1;parts[pc]=spack("<I4",#v)pc+=1;parts[pc]=v
 		end;return tconc(parts)end,xmlTag="BinaryString",readXml=function(s)return base64Decode(s or "")end,writeXml=function(v)return base64Encode(v or "")end,}PropType[0x22]={name="Content",readBin=function(data,n)local out=tcreat(n);local p=1
-		for i=1,n do
-			local len,np=sunpack("<I4",data,p);p=np
-			local raw=ssub(data,p,p+len-1);p+=len
-			if len>=8 and sbyte(raw,1)==0x01 and sbyte(raw,2)==0x00
-			 and sbyte(raw,3)==0x00 and sbyte(raw,4)==0x00 then
-				local slen=sunpack("<I4",raw,5)out[i]=ssub(raw,9,8+slen)elseif len>=1 and sbyte(raw,1)==0x00 then
-				out[i]=""
-			else
-				out[i]=raw
-			end
-		end;return out
-	end,writeBin=function(vals)local n=#vals;local pc=0;local parts=tcreat(n*2)for i=1,n do local v=tostring(vals[i]or "")pc+=1;parts[pc]=spack("<I4",#v)pc+=1;parts[pc]=v
-		end;return tconc(parts)end,xmlTag="Content",readXml=function(text,sub)if type(sub)=="table" then
+		-- Read N SourceType u32s (0=None, 1=Uri)
+		local srcTypes=tcreat(n)for i=1,n do srcTypes[i],p=sunpack("<I4",data,p)end
+		-- Read UriCount then UriCount URIs
+		local uriCount;uriCount,p=sunpack("<I4",data,p)local uris=tcreat(uriCount)for i=1,uriCount do
+			local ulen;ulen,p=sunpack("<I4",data,p);uris[i]=ssub(data,p,p+ulen-1);p+=ulen
+		end
+		-- Distribute URIs to instances by SourceType
+		local ui=0 for i=1,n do if srcTypes[i]==1 then ui+=1;out[i]=uris[ui]or "" else out[i]="" end end
+		return out
+	end,writeBin=function(vals)local n=#vals;local srcTypes=tcreat(n);local uriParts={};local uc=0
+		for i=1,n do local v=tostring(vals[i]or "")if v~="" then srcTypes[i]=spack("<I4",1);uc+=1;uriParts[uc]=spack("<I4",#v)..v else srcTypes[i]=spack("<I4",0)end end
+		return tconc(srcTypes)..spack("<I4",uc)..tconc(uriParts)end,xmlTag="Content",readXml=function(text,sub)if type(sub)=="table" then
+			if type(sub.uri)=="string" then return sub.uri end
 			if type(sub.url)=="string" and sub.url~="" then return sub.url end
 			if sub.null~=nil then return "" end
 		end
 		return text or ""
-	end,writeXml=function(v)v=tostring(v or "")return v=="" and "<null></null>" or "<url>"..xmlEscape(v).."</url>"
+	end,writeXml=function(v)v=tostring(v or "")return v=="" and "<null></null>" or "<uri>"..xmlEscape(v).."</uri>"
 	end,}local function parseBinary(data)assert(ssub(data,1,16)==RBX_MAGIC,"Not a valid .rbxm binary file")local pos=17
 	local _,np2=sunpack("<I4",data,pos);pos=np2
 	local _,np3=sunpack("<I4",data,pos);pos=np3
@@ -514,10 +514,11 @@ PropType[0x1E3]={name="NetAssetRef",readBin=function(data,n)return deinterleaveU
 				local pnLen,np2=sunpack("<I4",payload,sp);sp=np2
 				local propName=ssub(payload,sp,sp+pnLen-1);sp+=pnLen
 				local typeId=sbyte(payload,sp);sp+=1
-				if typeId==0x01 and CONTENT_PROPS[propName]then typeId=0x22 end
+				local ti=typeMap[typeIdx]
+				if typeId==0x01 and CONTENT_PROPS[propName]and not(ti and CLASS_STRING_PROPS[ti.className]and CLASS_STRING_PROPS[ti.className][propName])then typeId=0x22 end
 				if typeId==0x01 and BINARY_STRING_PROPS[propName]then typeId=0x1E2 end
 				if typeId==0x1C and NETASSET_PROPS[propName]then typeId=0x1E3 end
-				local ti=typeMap[typeIdx]if not ti then return end
+				if not ti then return end
 				local typeInfo=getType(typeId)local ok2,values=pcall(typeInfo.readBin,ssub(payload,sp),ti.count)if not ok2 then return end
 				local refs=ti.referents
 				for i=1,#refs do
