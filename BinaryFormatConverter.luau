@@ -1,356 +1,356 @@
 --some ai was used in this for rewriting my shitty code
-local Converter = {NEX_Version="1.0.2"}
-local b32 = bit32
-local spack, sunpack = string.pack, string.unpack
-local HttpService = game:GetService("HttpService")
+local Converter={NEX_Version="1.0.2"}
+local b32=bit32
+local spack,sunpack=string.pack,string.unpack
+local HttpService=game:GetService("HttpService")
 
-local chr = table.create(256)
-for _i = 0, 255 do chr[_i] = string.char(_i) end
+local chr=table.create(256)
+for _i=0,255 do chr[_i]=string.char(_i) end
 local function newBlobKey()
-	local g = HttpService:GenerateGUID(false):gsub("-","")
-	local b = table.create(16)
-	for i = 1,16 do b[i] = string.char(tonumber(g:sub(i*2-1,i*2),16)) end
+	local g=HttpService:GenerateGUID(false):gsub("-","")
+	local b=table.create(16)
+	for i=1,16 do b[i]=string.char(tonumber(g:sub(i*2-1,i*2),16)) end
 	return table.concat(b)
 end
 
-local function lz4Decompress(src, uncompSize)
-	local out  = table.create(uncompSize + 64, 0)
-	local si   = 1
-	local oi   = 1
-	local slen = #src
+local function lz4Decompress(src,uncompSize)
+	local out=table.create(uncompSize+64,0)
+	local si=1
+	local oi=1
+	local slen=#src
 
-	while si <= slen do
-		local tok = src:byte(si); si = si + 1
+	while si<=slen do
+		local tok=src:byte(si);si=si+1
 
-		local ll = b32.rshift(tok, 4)
-		if ll == 15 then
+		local ll=b32.rshift(tok,4)
+		if ll==15 then
 			local e
 			repeat
-				e  = src:byte(si) or 0
-				si = si + 1
-				ll = ll + e
+				e=src:byte(si) or 0
+				si=si+1
+				ll=ll+e
 			until e ~= 255
 		end
-		for _ = 1, ll do
-			out[oi] = src:byte(si) or 0
-			oi = oi + 1
-			si = si + 1
+		for _=1,ll do
+			out[oi]=src:byte(si) or 0
+			oi=oi+1
+			si=si+1
 		end
 
-		if si > slen then break end
+		if si>slen then break end
 
-		local b0     = src:byte(si) or 0;     si = si + 1
-		local b1     = src:byte(si) or 0;     si = si + 1
-		local offset = b0 + b1 * 256
-		if offset == 0 then break end
+		local b0=src:byte(si) or 0;si=si+1
+		local b1=src:byte(si) or 0;si=si+1
+		local offset=b0+b1*256
+		if offset==0 then break end
 
-		local ml = b32.band(tok, 0xF) + 4
-		if b32.band(tok, 0xF) == 15 then
+		local ml=b32.band(tok,0xF)+4
+		if b32.band(tok,0xF)==15 then
 			local e
 			repeat
-				e  = src:byte(si) or 0
-				si = si + 1
-				ml = ml + e
+				e=src:byte(si) or 0
+				si=si+1
+				ml=ml+e
 			until e ~= 255
 		end
 
-		local ms = oi - offset
-		for _ = 1, ml do
-			out[oi] = (ms >= 1) and (out[ms] or 0) or 0
-			oi = oi + 1
-			ms = ms + 1
+		local ms=oi-offset
+		for _=1,ml do
+			out[oi]=(ms>=1)and(out[ms] or 0) or 0
+			oi=oi+1
+			ms=ms+1
 		end
 	end
 
-	local BATCH = 200
-	local r = table.create(math.ceil((oi-1)/BATCH))
-	for i = 1, oi-1, BATCH do
-		r[#r+1] = string.char(table.unpack(out, i, math.min(i+BATCH-1, oi-1)))
+	local BATCH=200
+	local r=table.create(math.ceil((oi-1)/BATCH))
+	for i=1,oi-1,BATCH do
+		r[#r+1]=string.char(table.unpack(out,i,math.min(i+BATCH-1,oi-1)))
 	end
 	return table.concat(r)
 end
 
 local function lz4Compress(src)
-	local n = #src
-	if n == 0 then return "\x00" end
-	local limit = n - 12
+	local n=#src
+	if n==0 then return "\x00" end
+	local limit=n-12
 
-	local htBits = 16
-	while htBits < 20 and b32.lshift(1, htBits) < n do htBits += 1 end
-	local HTSIZE  = b32.lshift(1, htBits)
-	local htShift = 32 - htBits
-	local M = 2654435761
+	local htBits=16
+	while htBits<20 and b32.lshift(1,htBits)<n do htBits+=1 end
+	local HTSIZE=b32.lshift(1,htBits)
+	local htShift=32-htBits
+	local M=2654435761
 
-	local ht   = table.create(HTSIZE, 0)
-	local prev = table.create(n + 1, 0)
+	local ht=table.create(HTSIZE,0)
+	local prev=table.create(n+1,0)
 
-	local MAX_DEPTH = 16
+	local MAX_DEPTH=16
 
-	local out    = {}
-	local oi     = 1
-	local anchor = 1
-	local ip     = 1
+	local out={}
+	local oi=1
+	local anchor=1
+	local ip=1
 
-	local function hash4(b0, b1, b2, b3)
-		local lo = b32.band((b0 + b1*256) * M, 0xFFFFFFFF)
-		local hi = b32.band((b2 + b3*256) * M, 0xFFFFFFFF)
-		return b32.rshift(b32.band(lo + b32.lshift(hi, 16), 0xFFFFFFFF), htShift) + 1
+	local function hash4(b0,b1,b2,b3)
+		local lo=b32.band((b0+b1*256)*M,0xFFFFFFFF)
+		local hi=b32.band((b2+b3*256)*M,0xFFFFFFFF)
+		return b32.rshift(b32.band(lo+b32.lshift(hi,16),0xFFFFFFFF),htShift)+1
 	end
 
-	while ip <= limit do
-		local b0, b1, b2, b3 = src:byte(ip, ip + 3)
-		local h = hash4(b0, b1, b2, b3)
+	while ip<=limit do
+		local b0,b1,b2,b3=src:byte(ip,ip+3)
+		local h=hash4(b0,b1,b2,b3)
 
-		prev[ip] = ht[h]
-		ht[h]    = ip
+		prev[ip]=ht[h]
+		ht[h]=ip
 
-		local best_ml  = 3
-		local best_ref = 0
-		local maxMl    = n - 4 - ip
-		local pos      = prev[ip]
-		local depth    = 0
+		local best_ml=3
+		local best_ref=0
+		local maxMl=n-4-ip
+		local pos=prev[ip]
+		local depth=0
 
-		while pos > 0 and depth < MAX_DEPTH do
-			if ip - pos > 65535 then break end
-			local r0, r1, r2, r3 = src:byte(pos, pos + 3)
-			if r0 == b0 and r1 == b1 and r2 == b2 and r3 == b3 then
-				local ml = 4
-				while ml + 8 <= maxMl
-				  and src:sub(ip+ml, ip+ml+7) == src:sub(pos+ml, pos+ml+7) do
-					ml += 8
+		while pos>0 and depth<MAX_DEPTH do
+			if ip-pos>65535 then break end
+			local r0,r1,r2,r3=src:byte(pos,pos+3)
+			if r0==b0 and r1==b1 and r2==b2 and r3==b3 then
+				local ml=4
+				while ml+8<=maxMl
+				  and src:sub(ip+ml,ip+ml+7)==src:sub(pos+ml,pos+ml+7) do
+					ml+=8
 				end
-				while ml < maxMl and src:byte(ip+ml) == src:byte(pos+ml) do
-					ml += 1
+				while ml<maxMl and src:byte(ip+ml)==src:byte(pos+ml) do
+					ml+=1
 				end
-				if ml > best_ml then
-					best_ml  = ml
-					best_ref = pos
-					if ml >= maxMl then break end
+				if ml>best_ml then
+					best_ml=ml
+					best_ref=pos
+					if ml>=maxMl then break end
 				end
 			end
-			pos   = prev[pos]
-			depth += 1
+			pos=prev[pos]
+			depth+=1
 		end
 
-		if best_ref > 0 then
-			local ml     = best_ml
-			local ref    = best_ref
-			local ll     = ip - anchor
-			local ml4    = ml - 4
-			local offset = ip - ref
+		if best_ref>0 then
+			local ml=best_ml
+			local ref=best_ref
+			local ll=ip-anchor
+			local ml4=ml-4
+			local offset=ip-ref
 
-			out[oi] = string.char(math.min(ll,15)*16 + math.min(ml4,15)); oi+=1
-			if ll >= 15 then
-				local r = ll-15
-				while r>=255 do out[oi]="\xff"; oi+=1; r-=255 end
-				out[oi]=string.char(r); oi+=1
+			out[oi]=string.char(math.min(ll,15)*16+math.min(ml4,15));oi+=1
+			if ll>=15 then
+				local r=ll-15
+				while r>=255 do out[oi]="\xff";oi+=1;r-=255 end
+				out[oi]=string.char(r);oi+=1
 			end
-			if ll > 0 then out[oi]=src:sub(anchor, ip-1); oi+=1 end
-			out[oi]=string.char(offset%256);            oi+=1
+			if ll>0 then out[oi]=src:sub(anchor,ip-1);oi+=1 end
+			out[oi]=string.char(offset%256);      oi+=1
 			out[oi]=string.char(math.floor(offset/256));oi+=1
-			if ml4 >= 15 then
-				local r = ml4-15
-				while r>=255 do out[oi]="\xff"; oi+=1; r-=255 end
-				out[oi]=string.char(r); oi+=1
+			if ml4>=15 then
+				local r=ml4-15
+				while r>=255 do out[oi]="\xff";oi+=1;r-=255 end
+				out[oi]=string.char(r);oi+=1
 			end
 
-			ip     = ip + ml
-			anchor = ip
+			ip=ip+ml
+			anchor=ip
 		else
-			ip += 1
+			ip+=1
 		end
 	end
 
-	local ll = n - anchor + 1
-	out[oi]=string.char(math.min(ll,15)*16); oi+=1
-	if ll >= 15 then
-		local r = ll-15
-		while r>=255 do out[oi]="\xff"; oi+=1; r-=255 end
-		out[oi]=string.char(r); oi+=1
+	local ll=n-anchor+1
+	out[oi]=string.char(math.min(ll,15)*16);oi+=1
+	if ll>=15 then
+		local r=ll-15
+		while r>=255 do out[oi]="\xff";oi+=1;r-=255 end
+		out[oi]=string.char(r);oi+=1
 	end
-	out[oi]=src:sub(anchor, n); oi+=1
+	out[oi]=src:sub(anchor,n);oi+=1
 
-	return table.concat(out, "", 1, oi-1)
+	return table.concat(out,"",1,oi-1)
 end
 
 local function zzDec(v)
-	return b32.band(v, 1) == 0 and b32.rshift(v, 1) or -(b32.rshift(v, 1) + 1)
+	return b32.band(v,1)==0 and b32.rshift(v,1) or -(b32.rshift(v,1)+1)
 end
 local function zzEnc(v)
-	return v >= 0 and v * 2 or -v * 2 - 1
+	return v>=0 and v*2 or -v*2-1
 end
 
-local function deinterleaveU32(data, n)
-	local out = table.create(n)
-	for i = 1, n do
-		out[i] = data:byte(i)*0x1000000 + data:byte(n+i)*0x10000 + data:byte(2*n+i)*0x100 + data:byte(3*n+i)
+local function deinterleaveU32(data,n)
+	local out=table.create(n)
+	for i=1,n do
+		out[i]=data:byte(i)*0x1000000+data:byte(n+i)*0x10000+data:byte(2*n+i)*0x100+data:byte(3*n+i)
 	end
 	return out
 end
 
 local function interleaveU32(vals)
-	local n   = #vals
-	local out = table.create(n*4)
-	for i, v in ipairs(vals) do
-		local r = (v or 0) % 0x100000000
-		out[i]     = chr[b32.rshift(r,24)]
-		out[n+i]   = chr[b32.band(b32.rshift(r,16),255)]
-		out[2*n+i] = chr[b32.band(b32.rshift(r, 8),255)]
-		out[3*n+i] = chr[b32.band(r,255)]
+	local n=#vals
+	local out=table.create(n*4)
+	for i,v in ipairs(vals) do
+		local r=(v or 0) % 0x100000000
+		out[i]=chr[b32.rshift(r,24)]
+		out[n+i]=chr[b32.band(b32.rshift(r,16),255)]
+		out[2*n+i]=chr[b32.band(b32.rshift(r,8),255)]
+		out[3*n+i]=chr[b32.band(r,255)]
 	end
 	return table.concat(out)
 end
 
-local function deinterleaveI32(data, n)
-	local out = table.create(n)
-	for i = 1, n do
-		local raw = data:byte(i)*0x1000000 + data:byte(n+i)*0x10000 + data:byte(2*n+i)*0x100 + data:byte(3*n+i)
-		out[i] = zzDec(raw)
+local function deinterleaveI32(data,n)
+	local out=table.create(n)
+	for i=1,n do
+		local raw=data:byte(i)*0x1000000+data:byte(n+i)*0x10000+data:byte(2*n+i)*0x100+data:byte(3*n+i)
+		out[i]=zzDec(raw)
 	end
 	return out
 end
 
 local function interleaveI32(vals)
-	local n   = #vals
-	local out = table.create(n*4)
-	for i, v in ipairs(vals) do
-		local r = zzEnc(v) % 0x100000000
-		out[i]     = chr[b32.rshift(r,24)]
-		out[n+i]   = chr[b32.band(b32.rshift(r,16),255)]
-		out[2*n+i] = chr[b32.band(b32.rshift(r, 8),255)]
-		out[3*n+i] = chr[b32.band(r,255)]
+	local n=#vals
+	local out=table.create(n*4)
+	for i,v in ipairs(vals) do
+		local r=zzEnc(v) % 0x100000000
+		out[i]=chr[b32.rshift(r,24)]
+		out[n+i]=chr[b32.band(b32.rshift(r,16),255)]
+		out[2*n+i]=chr[b32.band(b32.rshift(r,8),255)]
+		out[3*n+i]=chr[b32.band(r,255)]
 	end
 	return table.concat(out)
 end
 
-local function deinterleaveRef(data, n)
-	local out = table.create(n)
-	local acc = 0
-	for i = 1, n do
-		local raw = data:byte(i)*0x1000000 + data:byte(n+i)*0x10000 + data:byte(2*n+i)*0x100 + data:byte(3*n+i)
-		acc += zzDec(raw)
-		out[i] = acc
+local function deinterleaveRef(data,n)
+	local out=table.create(n)
+	local acc=0
+	for i=1,n do
+		local raw=data:byte(i)*0x1000000+data:byte(n+i)*0x10000+data:byte(2*n+i)*0x100+data:byte(3*n+i)
+		acc+=zzDec(raw)
+		out[i]=acc
 	end
 	return out
 end
 
-local deinterleaveParentRef = deinterleaveRef
+local deinterleaveParentRef=deinterleaveRef
 
 local function interleaveRef(refs)
-	local n      = #refs
-	local deltas = table.create(n)
-	local prev   = 0
-	for i, v in ipairs(refs) do deltas[i] = v - prev; prev = v end
+	local n=#refs
+	local deltas=table.create(n)
+	local prev=0
+	for i,v in ipairs(refs) do deltas[i]=v-prev;prev=v end
 	return interleaveI32(deltas)
 end
 
-local interleaveParentRef = interleaveRef
+local interleaveParentRef=interleaveRef
 
-local function rotDecode(b0, b1, b2, b3)
-	local raw  = b0*0x1000000 + b1*0x10000 + b2*0x100 + b3
-	local bits = b32.bor(b32.rshift(raw,1), b32.lshift(b32.band(raw,1),31))
-	return (sunpack(">f", string.char(
-		b32.rshift(bits,24)%256, b32.rshift(bits,16)%256,
-		b32.rshift(bits, 8)%256, bits%256)))
+local function rotDecode(b0,b1,b2,b3)
+	local raw=b0*0x1000000+b1*0x10000+b2*0x100+b3
+	local bits=b32.bor(b32.rshift(raw,1),b32.lshift(b32.band(raw,1),31))
+	return (sunpack(">f",string.char(
+		b32.rshift(bits,24)%256,b32.rshift(bits,16)%256,
+		b32.rshift(bits,8)%256,bits%256)))
 end
 
 local function rotEncode(f)
-	local b0,b1,b2,b3 = spack(">f", f):byte(1,4)
-	local bits = b0*0x1000000 + b1*0x10000 + b2*0x100 + b3
-	local raw  = b32.bor(b32.lshift(bits,1), b32.rshift(bits,31)) % 0x100000000
-	return string.char(b32.rshift(raw,24)%256, b32.rshift(raw,16)%256,
-	                   b32.rshift(raw, 8)%256, raw%256)
+	local b0,b1,b2,b3=spack(">f",f):byte(1,4)
+	local bits=b0*0x1000000+b1*0x10000+b2*0x100+b3
+	local raw=b32.bor(b32.lshift(bits,1),b32.rshift(bits,31)) % 0x100000000
+	return string.char(b32.rshift(raw,24)%256,b32.rshift(raw,16)%256,
+	                   b32.rshift(raw,8)%256,raw%256)
 end
 
-local function deinterleaveF32(data, n)
-	local out = table.create(n)
-	for i = 1, n do
-		out[i] = rotDecode(data:byte(i), data:byte(n+i), data:byte(n*2+i), data:byte(n*3+i))
+local function deinterleaveF32(data,n)
+	local out=table.create(n)
+	for i=1,n do
+		out[i]=rotDecode(data:byte(i),data:byte(n+i),data:byte(n*2+i),data:byte(n*3+i))
 	end
 	return out
 end
 
 local function interleaveF32(vals)
-	local n   = #vals
-	local out = table.create(n*4)
-	for i, v in ipairs(vals) do
-		local b0,b1,b2,b3 = spack(">f", v):byte(1,4)
-		local bits = b0*0x1000000 + b1*0x10000 + b2*0x100 + b3
-		local raw  = b32.bor(b32.lshift(bits,1), b32.rshift(bits,31)) % 0x100000000
-		out[i]     = chr[b32.rshift(raw,24)]
-		out[n+i]   = chr[b32.band(b32.rshift(raw,16),255)]
-		out[2*n+i] = chr[b32.band(b32.rshift(raw, 8),255)]
-		out[3*n+i] = chr[b32.band(raw,255)]
+	local n=#vals
+	local out=table.create(n*4)
+	for i,v in ipairs(vals) do
+		local b0,b1,b2,b3=spack(">f",v):byte(1,4)
+		local bits=b0*0x1000000+b1*0x10000+b2*0x100+b3
+		local raw=b32.bor(b32.lshift(bits,1),b32.rshift(bits,31)) % 0x100000000
+		out[i]=chr[b32.rshift(raw,24)]
+		out[n+i]=chr[b32.band(b32.rshift(raw,16),255)]
+		out[2*n+i]=chr[b32.band(b32.rshift(raw,8),255)]
+		out[3*n+i]=chr[b32.band(raw,255)]
 	end
 	return table.concat(out)
 end
 
-local RBX_MAGIC = "<roblox!\x89\xFF\x0D\x0A\x1A\x0A\x00\x00"
+local RBX_MAGIC="<roblox!\x89\xFF\x0D\x0A\x1A\x0A\x00\x00"
 
-local function readChunk(data, pos)
-	local name    = data:sub(pos, pos+3);  pos += 4
-	local compLen,   np1 = sunpack("<I4", data, pos); pos = np1
-	local uncompLen, np2 = sunpack("<I4", data, pos); pos = np2
-	local _,         np3 = sunpack("<I4", data, pos); pos = np3
+local function readChunk(data,pos)
+	local name=data:sub(pos,pos+3);pos+=4
+	local compLen,  np1=sunpack("<I4",data,pos);pos=np1
+	local uncompLen,np2=sunpack("<I4",data,pos);pos=np2
+	local _,        np3=sunpack("<I4",data,pos);pos=np3
 	local payload
-	if compLen == 0 then
-		payload = data:sub(pos, pos+uncompLen-1); pos += uncompLen
+	if compLen==0 then
+		payload=data:sub(pos,pos+uncompLen-1);pos+=uncompLen
 	else
-		payload = lz4Decompress(data:sub(pos, pos+compLen-1), uncompLen); pos += compLen
+		payload=lz4Decompress(data:sub(pos,pos+compLen-1),uncompLen);pos+=compLen
 	end
-	return name, payload, pos
+	return name,payload,pos
 end
 
-local function makeChunk(name, payload)
-	local n          = #payload
-	local compressed = lz4Compress(payload)
-	if #compressed < n then
+local function makeChunk(name,payload)
+	local n=#payload
+	local compressed=lz4Compress(payload)
+	if #compressed<n then
 		return name
-			.. spack("<I4", #compressed)
-			.. spack("<I4", n)
-			.. spack("<I4", 0)
+			.. spack("<I4",#compressed)
+			.. spack("<I4",n)
+			.. spack("<I4",0)
 			.. compressed
 	end
 	return name
-		.. spack("<I4", 0)
-		.. spack("<I4", n)
-		.. spack("<I4", 0)
+		.. spack("<I4",0)
+		.. spack("<I4",n)
+		.. spack("<I4",0)
 		.. payload
 end
 
-local CF_IDENTITY = {1,0,0, 0,1,0, 0,0,1}
-local CF_SPECIAL  = {
-	[0x02]={1,0,0,   0,1,0,   0,0,1},
-	[0x03]={1,0,0,   0,0,-1,  0,1,0},
-	[0x05]={1,0,0,   0,-1,0,  0,0,-1},
-	[0x06]={1,0,0,   0,0,1,   0,-1,0},
-	[0x07]={0,1,0,   1,0,0,   0,0,-1},
-	[0x09]={0,0,1,   1,0,0,   0,1,0},
-	[0x0A]={0,-1,0,  1,0,0,   0,0,1},
-	[0x0C]={0,0,-1,  1,0,0,   0,-1,0},
-	[0x0D]={0,1,0,   0,0,1,   1,0,0},
-	[0x0E]={0,0,-1,  0,1,0,   1,0,0},
-	[0x10]={0,-1,0,  0,0,-1,  1,0,0},
-	[0x11]={0,0,1,   0,-1,0,  1,0,0},
-	[0x14]={-1,0,0,  0,1,0,   0,0,-1},
-	[0x15]={-1,0,0,  0,0,1,   0,1,0},
-	[0x17]={-1,0,0,  0,-1,0,  0,0,1},
-	[0x18]={-1,0,0,  0,0,-1,  0,-1,0},
-	[0x19]={0,1,0,   -1,0,0,  0,0,1},
-	[0x1B]={0,0,-1,  -1,0,0,  0,1,0},
-	[0x1C]={0,-1,0,  -1,0,0,  0,0,-1},
-	[0x1E]={0,0,1,   -1,0,0,  0,-1,0},
-	[0x1F]={0,1,0,   0,0,-1,  -1,0,0},
-	[0x20]={0,0,1,   0,1,0,   -1,0,0},
-	[0x22]={0,-1,0,  0,0,1,   -1,0,0},
-	[0x23]={0,0,-1,  0,-1,0,  -1,0,0},
+local CF_IDENTITY={1,0,0,0,1,0,0,0,1}
+local CF_SPECIAL={
+	[0x02]={1,0,0,  0,1,0,  0,0,1},
+	[0x03]={1,0,0,  0,0,-1, 0,1,0},
+	[0x05]={1,0,0,  0,-1,0, 0,0,-1},
+	[0x06]={1,0,0,  0,0,1,  0,-1,0},
+	[0x07]={0,1,0,  1,0,0,  0,0,-1},
+	[0x09]={0,0,1,  1,0,0,  0,1,0},
+	[0x0A]={0,-1,0, 1,0,0,  0,0,1},
+	[0x0C]={0,0,-1, 1,0,0,  0,-1,0},
+	[0x0D]={0,1,0,  0,0,1,  1,0,0},
+	[0x0E]={0,0,-1, 0,1,0,  1,0,0},
+	[0x10]={0,-1,0, 0,0,-1, 1,0,0},
+	[0x11]={0,0,1,  0,-1,0, 1,0,0},
+	[0x14]={-1,0,0, 0,1,0,  0,0,-1},
+	[0x15]={-1,0,0, 0,0,1,  0,1,0},
+	[0x17]={-1,0,0, 0,-1,0, 0,0,1},
+	[0x18]={-1,0,0, 0,0,-1, 0,-1,0},
+	[0x19]={0,1,0,  -1,0,0, 0,0,1},
+	[0x1B]={0,0,-1, -1,0,0, 0,1,0},
+	[0x1C]={0,-1,0, -1,0,0, 0,0,-1},
+	[0x1E]={0,0,1,  -1,0,0, 0,-1,0},
+	[0x1F]={0,1,0,  0,0,-1, -1,0,0},
+	[0x20]={0,0,1,  0,1,0,  -1,0,0},
+	[0x22]={0,-1,0, 0,0,1,  -1,0,0},
+	[0x23]={0,0,-1, 0,-1,0, -1,0,0},
 }
 
 local function findCFSpecial(r)
-	for id, sr in pairs(CF_SPECIAL) do
-		local ok = true
-		for j = 1, 9 do
-			if math.abs((r[j] or 0) - sr[j]) > 1e-4 then ok = false; break end
+	for id,sr in pairs(CF_SPECIAL) do
+		local ok=true
+		for j=1,9 do
+			if math.abs((r[j] or 0)-sr[j])>1e-4 then ok=false;break end
 		end
 		if ok then return id end
 	end
@@ -366,22 +366,22 @@ local function xmlEscape(s)
 end
 
 local function safeF(v)
-	if type(v) ~= "number" or v ~= v or math.abs(v) == math.huge then
+	if type(v) ~= "number" or v ~= v or math.abs(v)==math.huge then
 		return "0"
 	end
-	return string.format("%.9g", v)
+	return string.format("%.9g",v)
 end
 
-local PropType = {}
+local PropType={}
 
-PropType[0x01] = {
+PropType[0x01]={
 	name="String",
 	readBin=function(data,n)
 		local out={};local p=1
 		for i=1,n do
 			local len,np=sunpack("<I4",data,p);p=np
 			out[i]=data:sub(p,p+len-1);p+=len
-		end; return out
+		end;return out
 	end,
 	writeBin=function(vals)
 		local parts={}
@@ -393,13 +393,13 @@ PropType[0x01] = {
 	writeXml=function(v) return tostring(v) end,
 }
 
-PropType[0x02] = {
+PropType[0x02]={
 	name="Bool",
 	readBin=function(data,n)
-		local out={}; for i=1,n do out[i]=data:byte(i)~=0 end; return out
+		local out={};for i=1,n do out[i]=data:byte(i)~=0 end;return out
 	end,
 	writeBin=function(vals)
-		local r={}; for i,v in ipairs(vals) do r[i]=string.char(v and 1 or 0) end
+		local r={};for i,v in ipairs(vals) do r[i]=string.char(v and 1 or 0) end
 		return table.concat(r)
 	end,
 	xmlTag="bool",
@@ -407,7 +407,7 @@ PropType[0x02] = {
 	writeXml=function(v) return v and "true" or "false" end,
 }
 
-PropType[0x03] = {
+PropType[0x03]={
 	name="Int",
 	readBin=function(data,n) return deinterleaveI32(data,n) end,
 	writeBin=function(vals)  return interleaveI32(vals) end,
@@ -416,7 +416,7 @@ PropType[0x03] = {
 	writeXml=function(v) return tostring(math.floor(v or 0)) end,
 }
 
-PropType[0x04] = {
+PropType[0x04]={
 	name="Float",
 	readBin=function(data,n) return deinterleaveF32(data,n) end,
 	writeBin=function(vals)  return interleaveF32(vals) end,
@@ -425,11 +425,11 @@ PropType[0x04] = {
 	writeXml=function(v) return safeF(v) end,
 }
 
-PropType[0x05] = {
+PropType[0x05]={
 	name="Double",
 	readBin=function(data,n)
 		local out={};local p=1
-		for i=1,n do out[i],p=sunpack("<d",data,p) end; return out
+		for i=1,n do out[i],p=sunpack("<d",data,p) end;return out
 	end,
 	writeBin=function(vals)
 		local parts={}
@@ -441,12 +441,12 @@ PropType[0x05] = {
 	writeXml=function(v) return string.format("%.17g",v) end,
 }
 
-PropType[0x06] = {
+PropType[0x06]={
 	name="UDim",
 	readBin=function(data,n)
 		local sc=deinterleaveF32(data:sub(1,n*4),n)
 		local of=deinterleaveI32(data:sub(n*4+1),n)
-		local out={}; for i=1,n do out[i]={scale=sc[i],offset=of[i]} end; return out
+		local out={};for i=1,n do out[i]={scale=sc[i],offset=of[i]} end;return out
 	end,
 	writeBin=function(vals)
 		local sc,of={},{}
@@ -460,7 +460,7 @@ PropType[0x06] = {
 	writeXml=function(v) return ("<S>%g</S><O>%d</O>"):format(v.scale,v.offset) end,
 }
 
-PropType[0x07] = {
+PropType[0x07]={
 	name="UDim2",
 	readBin=function(data,n)
 		local xs=deinterleaveF32(data:sub(1,n*4),n)
@@ -487,7 +487,7 @@ PropType[0x07] = {
 	end,
 }
 
-PropType[0x08] = {
+PropType[0x08]={
 	name="Ray",
 	readBin=function(data,n)
 		local out={};local p=1
@@ -496,13 +496,13 @@ PropType[0x08] = {
 			ox,p=sunpack("<f",data,p);oy,p=sunpack("<f",data,p);oz,p=sunpack("<f",data,p)
 			dx,p=sunpack("<f",data,p);dy,p=sunpack("<f",data,p);dz,p=sunpack("<f",data,p)
 			out[i]={ox=ox,oy=oy,oz=oz,dx=dx,dy=dy,dz=dz}
-		end; return out
+		end;return out
 	end,
 	writeBin=function(vals)
 		local parts={}
 		for _,v in ipairs(vals) do
 			parts[#parts+1]=spack("<ffffff",v.ox,v.oy,v.oz,v.dx,v.dy,v.dz)
-		end; return table.concat(parts)
+		end;return table.concat(parts)
 	end,
 	xmlTag="Ray",
 	readXml=function(_,sub)
@@ -518,18 +518,18 @@ PropType[0x08] = {
 	end,
 }
 
-PropType[0x09] = {
+PropType[0x09]={
 	name="Faces",
-	readBin=function(data,n) local out={}; for i=1,n do out[i]=data:byte(i) end; return out end,
+	readBin=function(data,n) local out={};for i=1,n do out[i]=data:byte(i) end;return out end,
 	writeBin=function(vals)
-		local r={}; for i,v in ipairs(vals) do r[i]=string.char((v or 0)%256) end; return table.concat(r)
+		local r={};for i,v in ipairs(vals) do r[i]=string.char((v or 0)%256) end;return table.concat(r)
 	end,
 	xmlTag="Faces",
 	readXml=function(_,sub)
 		local v=0
-		if sub.Right=="true"  then v+=1  end; if sub.Top=="true"    then v+=2  end
-		if sub.Back=="true"   then v+=4  end; if sub.Left=="true"   then v+=8  end
-		if sub.Bottom=="true" then v+=16 end; if sub.Front=="true"  then v+=32 end
+		if sub.Right=="true"  then v+=1  end;if sub.Top=="true"    then v+=2  end
+		if sub.Back=="true"   then v+=4  end;if sub.Left=="true"   then v+=8  end
+		if sub.Bottom=="true" then v+=16 end;if sub.Front=="true"  then v+=32 end
 		return v
 	end,
 	writeXml=function(v)
@@ -540,11 +540,11 @@ PropType[0x09] = {
 	end,
 }
 
-PropType[0x0A] = {
+PropType[0x0A]={
 	name="Axes",
-	readBin=function(data,n) local out={}; for i=1,n do out[i]=data:byte(i) end; return out end,
+	readBin=function(data,n) local out={};for i=1,n do out[i]=data:byte(i) end;return out end,
 	writeBin=function(vals)
-		local r={}; for i,v in ipairs(vals) do r[i]=string.char((v or 0)%256) end; return table.concat(r)
+		local r={};for i,v in ipairs(vals) do r[i]=string.char((v or 0)%256) end;return table.concat(r)
 	end,
 	xmlTag="Axes",
 	readXml=function(_,sub)
@@ -560,7 +560,7 @@ PropType[0x0A] = {
 	end,
 }
 
-PropType[0x0B] = {
+PropType[0x0B]={
 	name="BrickColor",
 	readBin=function(data,n) return deinterleaveU32(data,n) end,
 	writeBin=function(vals)  return interleaveU32(vals) end,
@@ -569,13 +569,13 @@ PropType[0x0B] = {
 	writeXml=function(v) return tostring(math.floor(v or 0)) end,
 }
 
-PropType[0x0C] = {
+PropType[0x0C]={
 	name="Color3",
 	readBin=function(data,n)
 		local rs=deinterleaveF32(data:sub(1,n*4),n)
 		local gs=deinterleaveF32(data:sub(n*4+1,n*8),n)
 		local bs=deinterleaveF32(data:sub(n*8+1),n)
-		local out={}; for i=1,n do out[i]={r=rs[i],g=gs[i],b=bs[i]} end; return out
+		local out={};for i=1,n do out[i]={r=rs[i],g=gs[i],b=bs[i]} end;return out
 	end,
 	writeBin=function(vals)
 		local rs,gs,bs={},{},{}
@@ -589,18 +589,18 @@ PropType[0x0C] = {
 		end
 		local packed=tonumber(s) or 0
 		return {r=b32.band(b32.rshift(packed,16),0xFF)/255,
-		        g=b32.band(b32.rshift(packed, 8),0xFF)/255,
+		        g=b32.band(b32.rshift(packed,8),0xFF)/255,
 		        b=b32.band(packed,0xFF)/255}
 	end,
 	writeXml=function(v) return ("<R>%.9g</R><G>%.9g</G><B>%.9g</B>"):format(v.r,v.g,v.b) end,
 }
 
-PropType[0x0D] = {
+PropType[0x0D]={
 	name="Vector2",
 	readBin=function(data,n)
 		local xs=deinterleaveF32(data:sub(1,n*4),n)
 		local ys=deinterleaveF32(data:sub(n*4+1),n)
-		local out={}; for i=1,n do out[i]={x=xs[i],y=ys[i]} end; return out
+		local out={};for i=1,n do out[i]={x=xs[i],y=ys[i]} end;return out
 	end,
 	writeBin=function(vals)
 		local xs,ys={},{}
@@ -612,13 +612,13 @@ PropType[0x0D] = {
 	writeXml=function(v) return ("<X>%.9g</X><Y>%.9g</Y>"):format(v.x,v.y) end,
 }
 
-PropType[0x0E] = {
+PropType[0x0E]={
 	name="Vector3",
 	readBin=function(data,n)
 		local xs=deinterleaveF32(data:sub(1,n*4),n)
 		local ys=deinterleaveF32(data:sub(n*4+1,n*8),n)
 		local zs=deinterleaveF32(data:sub(n*8+1),n)
-		local out={}; for i=1,n do out[i]={x=xs[i],y=ys[i],z=zs[i]} end; return out
+		local out={};for i=1,n do out[i]={x=xs[i],y=ys[i],z=zs[i]} end;return out
 	end,
 	writeBin=function(vals)
 		local xs,ys,zs={},{},{}
@@ -632,13 +632,13 @@ PropType[0x0E] = {
 	writeXml=function(v) return ("<X>"..safeF(v.x).."</X><Y>"..safeF(v.y).."</Y><Z>"..safeF(v.z).."</Z>") end,
 }
 
-PropType[0x10] = {
+PropType[0x10]={
 	name="CFrame",
 	readBin=function(data,n)
 		local p=1
 		local rotations={}
 		for i=1,n do
-			local spec=data:byte(p); p+=1
+			local spec=data:byte(p);p+=1
 			if spec==0 then
 				local r={}
 				for j=1,9 do r[j],p=sunpack("<f",data,p) end
@@ -668,7 +668,7 @@ PropType[0x10] = {
 				for j=1,9 do rParts[#rParts+1]=spack("<f",r[j] or 0) end
 				perInst[i]=table.concat(rParts)
 			end
-			xs[i]=v.x or 0; ys[i]=v.y or 0; zs[i]=v.z or 0
+			xs[i]=v.x or 0;ys[i]=v.y or 0;zs[i]=v.z or 0
 		end
 		return table.concat(perInst)
 		       ..interleaveF32(xs)..interleaveF32(ys)..interleaveF32(zs)
@@ -693,7 +693,7 @@ PropType[0x10] = {
 	end,
 }
 
-PropType[0x12] = {
+PropType[0x12]={
 	name="Enum",
 	readBin=function(data,n) return deinterleaveU32(data,n) end,
 	writeBin=function(vals)  return interleaveU32(vals) end,
@@ -702,21 +702,21 @@ PropType[0x12] = {
 	writeXml=function(v) return tostring(math.floor(v or 0)) end,
 }
 
-PropType[0x13] = {
+PropType[0x13]={
 	name="Referent",
 	readBin=function(data,n) return deinterleaveRef(data,n) end,
 	writeBin=function(vals)  return interleaveRef(vals) end,
 	xmlTag="Ref",
 	readXml=function(s)
 		if not s or s=="null" or s=="" then return -1 end
-		local hex = s:match("^RBX(%x+)$")
+		local hex=s:match("^RBX(%x+)$")
 		if hex then return tonumber(hex,16) end
 		return tonumber(s) or -1
 	end,
 	writeXml=function(v) return (not v or v==-1 or v<0) and "null" or ("RBX"..string.format("%08X",v)) end,
 }
 
-PropType[0x14] = {
+PropType[0x14]={
 	name="Vector3int16",
 	readBin=function(data,n)
 		local out={};local p=1
@@ -724,7 +724,7 @@ PropType[0x14] = {
 			local x,y,z
 			x,p=sunpack("<i2",data,p);y,p=sunpack("<i2",data,p);z,p=sunpack("<i2",data,p)
 			out[i]={x=x,y=y,z=z}
-		end; return out
+		end;return out
 	end,
 	writeBin=function(vals)
 		local parts={}
@@ -738,7 +738,7 @@ PropType[0x14] = {
 	writeXml=function(v) return ("<X>%d</X><Y>%d</Y><Z>%d</Z>"):format(v.x,v.y,v.z) end,
 }
 
-PropType[0x15] = {
+PropType[0x15]={
 	name="NumberSequence",
 	readBin=function(data,n)
 		local out={};local p=1
@@ -751,21 +751,21 @@ PropType[0x15] = {
 				kps[j]={t=t,v=v,e=e}
 			end
 			out[i]=kps
-		end; return out
+		end;return out
 	end,
 	writeBin=function(vals)
 		local parts={}
 		for _,kps in ipairs(vals) do
 			parts[#parts+1]=spack("<I4",#kps)
 			for _,kp in ipairs(kps) do parts[#parts+1]=spack("<fff",kp.t,kp.v,kp.e) end
-		end; return table.concat(parts)
+		end;return table.concat(parts)
 	end,
 	xmlTag="NumberSequence",
 	readXml=function(s)
 		local kps={}
 		for t,v,e in (s.." "):gmatch("(%S+)%s+(%S+)%s+(%S+)%s+") do
 			kps[#kps+1]={t=tonumber(t),v=tonumber(v),e=tonumber(e)}
-		end; return kps
+		end;return kps
 	end,
 	writeXml=function(v)
 		local parts={}
@@ -774,7 +774,7 @@ PropType[0x15] = {
 	end,
 }
 
-PropType[0x16] = {
+PropType[0x16]={
 	name="ColorSequence",
 	readBin=function(data,n)
 		local out={};local p=1
@@ -788,21 +788,21 @@ PropType[0x16] = {
 				kps[j]={t=t,r=r,g=g,b=bb,e=e}
 			end
 			out[i]=kps
-		end; return out
+		end;return out
 	end,
 	writeBin=function(vals)
 		local parts={}
 		for _,kps in ipairs(vals) do
 			parts[#parts+1]=spack("<I4",#kps)
 			for _,kp in ipairs(kps) do parts[#parts+1]=spack("<fffff",kp.t,kp.r,kp.g,kp.b,kp.e) end
-		end; return table.concat(parts)
+		end;return table.concat(parts)
 	end,
 	xmlTag="ColorSequence",
 	readXml=function(s)
 		local kps={}
 		for t,r,g,b,e in (s.." "):gmatch("(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+") do
 			kps[#kps+1]={t=tonumber(t),r=tonumber(r),g=tonumber(g),b=tonumber(b),e=tonumber(e)}
-		end; return kps
+		end;return kps
 	end,
 	writeXml=function(v)
 		local parts={}
@@ -811,14 +811,14 @@ PropType[0x16] = {
 	end,
 }
 
-PropType[0x17] = {
+PropType[0x17]={
 	name="NumberRange",
 	readBin=function(data,n)
 		local out={};local p=1
 		for i=1,n do
 			local mn,mx;mn,p=sunpack("<f",data,p);mx,p=sunpack("<f",data,p)
 			out[i]={min=mn,max=mx}
-		end; return out
+		end;return out
 	end,
 	writeBin=function(vals)
 		local parts={}
@@ -833,7 +833,7 @@ PropType[0x17] = {
 	writeXml=function(v) return string.format("%g %g ",v.min,v.max) end,
 }
 
-PropType[0x18] = {
+PropType[0x18]={
 	name="Rect",
 	readBin=function(data,n)
 		local mnx=deinterleaveF32(data:sub(1,n*4),n)
@@ -862,7 +862,7 @@ PropType[0x18] = {
 	end,
 }
 
-PropType[0x19] = {
+PropType[0x19]={
 	name="PhysicalProperties",
 	readBin=function(data,n)
 		local out={};local p=1
@@ -876,7 +876,7 @@ PropType[0x19] = {
 			else
 				out[i]={custom=false}
 			end
-		end; return out
+		end;return out
 	end,
 	writeBin=function(vals)
 		local parts={}
@@ -886,7 +886,7 @@ PropType[0x19] = {
 			else
 				parts[#parts+1]="\x00"
 			end
-		end; return table.concat(parts)
+		end;return table.concat(parts)
 	end,
 	xmlTag="PhysicalProperties",
 	readXml=function(_,sub)
@@ -908,7 +908,7 @@ PropType[0x19] = {
 	end,
 }
 
-PropType[0x1A] = {
+PropType[0x1A]={
 	name="Color3uint8",
 	readBin=function(data,n)
 		local out={}
@@ -929,7 +929,7 @@ PropType[0x1A] = {
 	writeXml=function(v) return ("<R>%d</R><G>%d</G><B>%d</B>"):format(v.r,v.g,v.b) end,
 }
 
-PropType[0x1B] = {
+PropType[0x1B]={
 	name="Int64",
 	readBin=function(data,n)
 		local out={}
@@ -941,21 +941,21 @@ PropType[0x1B] = {
 			local combined=hi*0x100000000+lo
 			if b32.band(lo,1)==0 then out[i]=math.floor(combined/2)
 			else out[i]=-math.floor((combined+1)/2) end
-		end; return out
+		end;return out
 	end,
 	writeBin=function(vals)
 		local n=#vals
-		local by={}; for k=0,7 do by[k]=table.create(n) end
+		local by={};for k=0,7 do by[k]=table.create(n) end
 		for i,v in ipairs(vals) do
 			local raw=v>=0 and v*2 or -v*2-1
 			local lo=raw%0x100000000
 			local hi=math.floor(raw/0x100000000)
 			by[0][i]=string.char(b32.rshift(hi,24)%256);by[1][i]=string.char(b32.rshift(hi,16)%256)
-			by[2][i]=string.char(b32.rshift(hi, 8)%256);by[3][i]=string.char(hi%256)
+			by[2][i]=string.char(b32.rshift(hi,8)%256);by[3][i]=string.char(hi%256)
 			by[4][i]=string.char(b32.rshift(lo,24)%256);by[5][i]=string.char(b32.rshift(lo,16)%256)
-			by[6][i]=string.char(b32.rshift(lo, 8)%256);by[7][i]=string.char(lo%256)
+			by[6][i]=string.char(b32.rshift(lo,8)%256);by[7][i]=string.char(lo%256)
 		end
-		local parts={}; for k=0,7 do parts[#parts+1]=table.concat(by[k]) end
+		local parts={};for k=0,7 do parts[#parts+1]=table.concat(by[k]) end
 		return table.concat(parts)
 	end,
 	xmlTag="int64",
@@ -963,7 +963,7 @@ PropType[0x1B] = {
 	writeXml=function(v) return tostring(math.floor(v or 0)) end,
 }
 
-PropType[0x1C] = {
+PropType[0x1C]={
 	name="SharedString",
 	readBin=function(data,n) return deinterleaveU32(data,n) end,
 	writeBin=function(vals)  return interleaveU32(vals) end,
@@ -972,101 +972,101 @@ PropType[0x1C] = {
 	writeXml=function(v) return v or "" end,
 }
 
-local b64chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-local b64enc = {}
-for i = 0, 63 do b64enc[i] = b64chars:sub(i+1,i+1) end
-local b64dec = {}
-for i = 0, 63 do b64dec[b64chars:byte(i+1)] = i end
+local b64chars="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+local b64enc={}
+for i=0,63 do b64enc[i]=b64chars:sub(i+1,i+1) end
+local b64dec={}
+for i=0,63 do b64dec[b64chars:byte(i+1)]=i end
 
 local function base64Encode(s)
-	local out = {}
-	local n = #s
-	for i = 1, n, 3 do
-		local a = s:byte(i) or 0
-		local b = s:byte(i+1) or 0
-		local c = s:byte(i+2) or 0
-		local v = a*65536 + b*256 + c
-		out[#out+1] = b64enc[b32.rshift(v,18)]
-		out[#out+1] = b64enc[b32.band(b32.rshift(v,12),63)]
-		out[#out+1] = i+1<=n and b64enc[b32.band(b32.rshift(v,6),63)] or "="
-		out[#out+1] = i+2<=n and b64enc[b32.band(v,63)]                or "="
+	local out={}
+	local n=#s
+	for i=1,n,3 do
+		local a=s:byte(i) or 0
+		local b=s:byte(i+1) or 0
+		local c=s:byte(i+2) or 0
+		local v=a*65536+b*256+c
+		out[#out+1]=b64enc[b32.rshift(v,18)]
+		out[#out+1]=b64enc[b32.band(b32.rshift(v,12),63)]
+		out[#out+1]=i+1<=n and b64enc[b32.band(b32.rshift(v,6),63)] or "="
+		out[#out+1]=i+2<=n and b64enc[b32.band(v,63)]                or "="
 	end
 	return table.concat(out)
 end
 
 local function base64Decode(s)
-	s = s:gsub("[^A-Za-z0-9+/=]","")
-	local out = {}
-	local i = 1
-	while i <= #s do
-		local a = b64dec[s:byte(i)]   or 0; i += 1
-		local b = b64dec[s:byte(i)]   or 0; i += 1
-		local c = b64dec[s:byte(i)]   or 0; i += 1
-		local d = b64dec[s:byte(i)]   or 0; i += 1
-		local v = a*262144 + b*4096 + c*64 + d
-		out[#out+1] = string.char(b32.rshift(v,16))
-		if s:byte(i-2) ~= 61 then out[#out+1] = string.char(b32.band(b32.rshift(v,8),255)) end
-		if s:byte(i-1) ~= 61 then out[#out+1] = string.char(b32.band(v,255)) end
+	s=s:gsub("[^A-Za-z0-9+/=]","")
+	local out={}
+	local i=1
+	while i<=#s do
+		local a=b64dec[s:byte(i)]   or 0;i+=1
+		local b=b64dec[s:byte(i)]   or 0;i+=1
+		local c=b64dec[s:byte(i)]   or 0;i+=1
+		local d=b64dec[s:byte(i)]   or 0;i+=1
+		local v=a*262144+b*4096+c*64+d
+		out[#out+1]=string.char(b32.rshift(v,16))
+		if s:byte(i-2) ~= 61 then out[#out+1]=string.char(b32.band(b32.rshift(v,8),255)) end
+		if s:byte(i-1) ~= 61 then out[#out+1]=string.char(b32.band(v,255)) end
 	end
 	return table.concat(out)
 end
 
-PropType[0x1E] = {
+PropType[0x1E]={
 	name="OptionalCFrame",
 	readBin=function(data,n)
-		local p = 2
+		local p=2
 
-		local specs = table.create(n)
-		local rots  = table.create(n)
-		for i = 1, n do
-			local s = data:byte(p) or 0;  p += 1
-			specs[i] = s
-			if s == 0 then
-				local r = {sunpack("<9f", data, p)}
-				table.remove(r, #r)
-				p += 36
-				rots[i] = r
+		local specs=table.create(n)
+		local rots=table.create(n)
+		for i=1,n do
+			local s=data:byte(p) or 0;p+=1
+			specs[i]=s
+			if s==0 then
+				local r={sunpack("<9f",data,p)}
+				table.remove(r,#r)
+				p+=36
+				rots[i]=r
 			else
-				rots[i] = CF_SPECIAL[s] or CF_IDENTITY
+				rots[i]=CF_SPECIAL[s] or CF_IDENTITY
 			end
 		end
 
-		local xs = deinterleaveF32(data:sub(p, p+n*4-1), n); p += n*4
-		local ys = deinterleaveF32(data:sub(p, p+n*4-1), n); p += n*4
-		local zs = deinterleaveF32(data:sub(p, p+n*4-1), n); p += n*4
+		local xs=deinterleaveF32(data:sub(p,p+n*4-1),n);p+=n*4
+		local ys=deinterleaveF32(data:sub(p,p+n*4-1),n);p+=n*4
+		local zs=deinterleaveF32(data:sub(p,p+n*4-1),n);p+=n*4
 
-		p += 1
-		local present = table.create(n)
-		for i = 1, n do present[i] = (data:byte(p+i-1) or 0) ~= 0 end
+		p+=1
+		local present=table.create(n)
+		for i=1,n do present[i]=(data:byte(p+i-1) or 0) ~= 0 end
 
-		local out = table.create(n)
-		for i = 1, n do
+		local out=table.create(n)
+		for i=1,n do
 			if present[i] then
-				out[i] = {r=rots[i], x=xs[i], y=ys[i], z=zs[i]}
+				out[i]={r=rots[i],x=xs[i],y=ys[i],z=zs[i]}
 			else
-				out[i] = nil
+				out[i]=nil
 			end
 		end
 		return out
 	end,
 	writeBin=function(vals)
-		local n = #vals
-		local boolBytes = table.create(n)
-		local cfParts   = {}
-		local xs = table.create(n); local ys = table.create(n); local zs = table.create(n)
-		for i = 1, n do
-			local v  = vals[i]
-			local cf = v or {r=CF_IDENTITY, x=0, y=0, z=0}
-			boolBytes[i] = string.char(v and 1 or 0)
-			local r = cf.r or CF_IDENTITY
-			local specId = findCFSpecial(r)
+		local n=#vals
+		local boolBytes=table.create(n)
+		local cfParts={}
+		local xs=table.create(n);local ys=table.create(n);local zs=table.create(n)
+		for i=1,n do
+			local v=vals[i]
+			local cf=v or {r=CF_IDENTITY,x=0,y=0,z=0}
+			boolBytes[i]=string.char(v and 1 or 0)
+			local r=cf.r or CF_IDENTITY
+			local specId=findCFSpecial(r)
 			if specId then
-				cfParts[#cfParts+1] = string.char(specId)
+				cfParts[#cfParts+1]=string.char(specId)
 			else
-				cfParts[#cfParts+1] = "\x00"
-				for j = 1, 9 do cfParts[#cfParts+1] = spack("<f", r[j] or 0) end
+				cfParts[#cfParts+1]="\x00"
+				for j=1,9 do cfParts[#cfParts+1]=spack("<f",r[j] or 0) end
 			end
-			xs[i] = cf.x or 0;  ys[i] = cf.y or 0;  zs[i] = cf.z or 0
+			xs[i]=cf.x or 0;ys[i]=cf.y or 0;zs[i]=cf.z or 0
 		end
 		return "\x10"
 		       .. table.concat(cfParts)
@@ -1077,14 +1077,14 @@ PropType[0x1E] = {
 	xmlTag="OptionalCoordinateFrame",
 	readXml=function(_,sub)
 		if not sub or not sub.CFrame then return nil end
-		local cf = sub.CFrame
+		local cf=sub.CFrame
 		local function v(k) return tonumber(type(cf)=="table" and cf[k] or nil) or 0 end
-		return {r={v"R00",v"R01",v"R02", v"R10",v"R11",v"R12", v"R20",v"R21",v"R22"},
-		        x=v"X", y=v"Y", z=v"Z"}
+		return {r={v"R00",v"R01",v"R02",v"R10",v"R11",v"R12",v"R20",v"R21",v"R22"},
+		        x=v"X",y=v"Y",z=v"Z"}
 	end,
 	writeXml=function(v)
 		if not v then return "" end
-		local r = v.r or CF_IDENTITY
+		local r=v.r or CF_IDENTITY
 		return ("<CFrame>"
 		       .."<X>"..safeF(v.x).."</X><Y>"..safeF(v.y).."</Y><Z>"..safeF(v.z).."</Z>"
 		       .."<R00>"..safeF(r[1]).."</R00><R01>"..safeF(r[2]).."</R01><R02>"..safeF(r[3]).."</R02>"
@@ -1094,14 +1094,14 @@ PropType[0x1E] = {
 	end,
 }
 
-PropType[0x1F] = {
+PropType[0x1F]={
 	name="ProtectedString",
 	readBin=function(data,n)
 		local out={};local p=1
 		for i=1,n do
 			local len,np=sunpack("<I4",data,p);p=np
 			out[i]=data:sub(p,p+len-1);p+=len
-		end; return out
+		end;return out
 	end,
 	writeBin=function(vals)
 		local parts={}
@@ -1113,10 +1113,10 @@ PropType[0x1F] = {
 	writeXml=function(v) return tostring(v or "") end,
 }
 
-PropType[0x20] = {
+PropType[0x20]={
 	name="Font",
 	readBin=function(data,n)
-		local out={}; local p=1
+		local out={};local p=1
 		for i=1,n do
 			local flen,np=sunpack("<I4",data,p);p=np
 			local family=data:sub(p,p+flen-1);p+=flen
@@ -1125,7 +1125,7 @@ PropType[0x20] = {
 			local clen,np3=sunpack("<I4",data,p);p=np3
 			local cached=data:sub(p,p+clen-1);p+=clen
 			out[i]={family=family,weight=weight,style=style,cachedFaceId=cached}
-		end; return out
+		end;return out
 	end,
 	writeBin=function(vals)
 		local parts={}
@@ -1136,7 +1136,7 @@ PropType[0x20] = {
 			                ..spack("<I2",v.weight or 400)
 			                ..string.char(v.style or 0)
 			                ..spack("<I4",#cac)..cac
-		end; return table.concat(parts)
+		end;return table.concat(parts)
 	end,
 	xmlTag="Font",
 	readXml=function(_,sub)
@@ -1158,15 +1158,15 @@ PropType[0x20] = {
 	end,
 }
 
-PropType[0x21] = {
+PropType[0x21]={
 	name="SecurityCapabilities",
 	readBin=function(data,n)
-		local out={}; local p=1
+		local out={};local p=1
 		for i=1,n do
 			local lo,hi
-			lo,p=sunpack("<I4",data,p); hi,p=sunpack("<I4",data,p)
-			out[i]=lo + hi*0x100000000
-		end; return out
+			lo,p=sunpack("<I4",data,p);hi,p=sunpack("<I4",data,p)
+			out[i]=lo+hi*0x100000000
+		end;return out
 	end,
 	writeBin=function(vals)
 		local parts={}
@@ -1175,7 +1175,7 @@ PropType[0x21] = {
 			local lo=v%0x100000000
 			local hi=math.floor(v/0x100000000)%0x100000000
 			parts[#parts+1]=spack("<I4",lo)..spack("<I4",hi)
-		end; return table.concat(parts)
+		end;return table.concat(parts)
 	end,
 	xmlTag="SecurityCapabilities",
 	readXml=function(s) return tonumber(s) or 0 end,
@@ -1196,22 +1196,22 @@ local function getType(id)
 	}
 end
 
-local CONTENT_PROPS = {
+local CONTENT_PROPS={
 	SoundId=true,
-	Image=true, HoverImage=true, PressedImage=true,
+	Image=true,HoverImage=true,PressedImage=true,
 	Texture=true,
 	LinkedSource=true,
-	MeshId=true, TextureId=true, TextureID=true,
-	SkyboxBk=true, SkyboxDn=true, SkyboxFt=true,
-	SkyboxLf=true, SkyboxRt=true, SkyboxUp=true,
+	MeshId=true,TextureId=true,TextureID=true,
+	SkyboxBk=true,SkyboxDn=true,SkyboxFt=true,
+	SkyboxLf=true,SkyboxRt=true,SkyboxUp=true,
 	AnimationId=true,
-	ShirtTemplate=true, PantsTemplate=true,
-	ContentId=true, GraphicId=true,
-	OverlayTextureId=true, BaseTextureId=true, NormalMap=true,
+	ShirtTemplate=true,PantsTemplate=true,
+	ContentId=true,GraphicId=true,
+	OverlayTextureId=true,BaseTextureId=true,NormalMap=true,
 	VideoSource=true,
 }
 
-local BINARY_STRING_PROPS = {
+local BINARY_STRING_PROPS={
 	AttributesSerialize=true,
 	Tags=true,
 	PhysicsData=true,
@@ -1228,7 +1228,7 @@ local BINARY_STRING_PROPS = {
 }
 
 local function parseBinary(data)
-	assert(data:sub(1,16)==RBX_MAGIC, "Not a valid .rbxm binary file")
+	assert(data:sub(1,16)==RBX_MAGIC,"Not a valid .rbxm binary file")
 	local pos=17
 	local _,np2=sunpack("<I4",data,pos);pos=np2
 	local _,np3=sunpack("<I4",data,pos);pos=np3
@@ -1236,45 +1236,45 @@ local function parseBinary(data)
 
 	local typeMap={};local instMap={};local sharedStrs={};local roots={}
 
-	while pos <= #data do
-		if pos + 15 > #data then break end
+	while pos<=#data do
+		if pos+15>#data then break end
 
-		local chunkName = data:sub(pos, pos+3);          pos = pos + 4
-		local cLen      = sunpack("<I4", data, pos);     pos = pos + 4
-		local uLen      = sunpack("<I4", data, pos);     pos = pos + 4
-		pos = pos + 4
+		local chunkName=data:sub(pos,pos+3);    pos=pos+4
+		local cLen=sunpack("<I4",data,pos);pos=pos+4
+		local uLen=sunpack("<I4",data,pos);pos=pos+4
+		pos=pos+4
 
 		if type(cLen)~="number" or type(uLen)~="number" or cLen<0 or uLen<0
-		   or cLen > #data or uLen > #data * 8 then
+		   or cLen>#data or uLen>#data*8 then
 			break
 		end
 
-		if chunkName:sub(1,3) == "END" then break end
+		if chunkName:sub(1,3)=="END" then break end
 
-		local payload = nil
+		local payload=nil
 
-		if cLen == 0 then
-			if pos + uLen - 1 <= #data then
-				payload = data:sub(pos, pos + uLen - 1)
+		if cLen==0 then
+			if pos+uLen-1<=#data then
+				payload=data:sub(pos,pos+uLen-1)
 			end
-			pos = math.min(pos + uLen, #data + 1)
+			pos=math.min(pos+uLen,#data+1)
 		else
-			if pos + cLen - 1 <= #data then
-				local ok_lz4, result = pcall(lz4Decompress, data:sub(pos, pos+cLen-1), uLen)
+			if pos+cLen-1<=#data then
+				local ok_lz4,result=pcall(lz4Decompress,data:sub(pos,pos+cLen-1),uLen)
 				if ok_lz4 then
-					payload = result
+					payload=result
 				end
 			end
-			pos = math.min(pos + cLen, #data + 1)
+			pos=math.min(pos+cLen,#data+1)
 		end
 
-		if payload == nil then end
+		if payload==nil then end
 
 		if payload ~= nil then
 
-		if chunkName == "META" then
+		if chunkName=="META" then
 
-		elseif chunkName == "SSTR" then
+		elseif chunkName=="SSTR" then
 			pcall(function()
 				local sp=1
 				local _,np=sunpack("<I4",payload,sp);sp=np
@@ -1286,11 +1286,11 @@ local function parseBinary(data)
 				end
 			end)
 
-		elseif chunkName == "INST" then
+		elseif chunkName=="INST" then
 			pcall(function()
 				local sp=1
 				local typeIdx,np1=sunpack("<I4",payload,sp);sp=np1
-				local cnLen,  np2=sunpack("<I4",payload,sp);sp=np2
+				local cnLen, np2=sunpack("<I4",payload,sp);sp=np2
 				local className=payload:sub(sp,sp+cnLen-1);sp+=cnLen
 				local isService=payload:byte(sp)~=0;sp+=1
 				local count,np3=sunpack("<I4",payload,sp);sp=np3
@@ -1304,11 +1304,11 @@ local function parseBinary(data)
 				end
 			end)
 
-		elseif chunkName == "PROP" then
+		elseif chunkName=="PROP" then
 			pcall(function()
 				local sp=1
 				local typeIdx,np1=sunpack("<I4",payload,sp);sp=np1
-				local pnLen,  np2=sunpack("<I4",payload,sp);sp=np2
+				local pnLen, np2=sunpack("<I4",payload,sp);sp=np2
 				local propName=payload:sub(sp,sp+pnLen-1);sp+=pnLen
 				local typeId=payload:byte(sp);sp+=1
 				if typeId==0x01 and CONTENT_PROPS[propName] then typeId=0x22 end
@@ -1329,14 +1329,14 @@ local function parseBinary(data)
 				end
 			end)
 
-		elseif chunkName == "PRNT" then
+		elseif chunkName=="PRNT" then
 			pcall(function()
 				local sp=2
 				local count,np=sunpack("<I4",payload,sp);sp=np
-				local childRefs =deinterleaveRef(payload:sub(sp,         sp+count*4-1),count)
-				local parentRefs=deinterleaveParentRef(payload:sub(sp+count*4, sp+count*8-1),count)
+				local childRefs=deinterleaveRef(payload:sub(sp,        sp+count*4-1),count)
+				local parentRefs=deinterleaveParentRef(payload:sub(sp+count*4,sp+count*8-1),count)
 				for i=1,count do
-					local child =instMap[childRefs[i]]
+					local child=instMap[childRefs[i]]
 					local parent=instMap[parentRefs[i]]
 					if child then
 						child.parent=parent
@@ -1350,32 +1350,32 @@ local function parseBinary(data)
 		end
 	end
 
-	if #roots == 0 and next(instMap) then
-		for _, inst in pairs(instMap) do
-			if inst.parent == nil then
-				table.insert(roots, inst)
+	if #roots==0 and next(instMap) then
+		for _,inst in pairs(instMap) do
+			if inst.parent==nil then
+				table.insert(roots,inst)
 			end
 		end
 	end
 
-	if #roots == 0 and next(instMap) then
-		local isChild = {}
-		for _, inst in pairs(instMap) do
-			for _, child in ipairs(inst.children) do
-				isChild[child.referent] = true
+	if #roots==0 and next(instMap) then
+		local isChild={}
+		for _,inst in pairs(instMap) do
+			for _,child in ipairs(inst.children) do
+				isChild[child.referent]=true
 			end
 		end
-		for _, inst in pairs(instMap) do
+		for _,inst in pairs(instMap) do
 			if not isChild[inst.referent] then
-				table.insert(roots, inst)
+				table.insert(roots,inst)
 			end
 		end
 	end
 
-	if #roots == 0 and next(instMap) then
-		for _, inst in pairs(instMap) do
-			inst.children = {}
-			table.insert(roots, inst)
+	if #roots==0 and next(instMap) then
+		for _,inst in pairs(instMap) do
+			inst.children={}
+			table.insert(roots,inst)
 		end
 	end
 
@@ -1388,77 +1388,77 @@ local function parseBinary(data)
 end
 
 local function tokenize(xml)
-	local tokens = {}
-	local pos    = 1
-	local n      = #xml
-	local byte   = string.byte
-	local find   = string.find
-	local sub    = string.sub
+	local tokens={}
+	local pos=1
+	local n=#xml
+	local byte=string.byte
+	local find=string.find
+	local sub=string.sub
 
-	while pos <= n do
-		local c = byte(xml, pos)
+	while pos<=n do
+		local c=byte(xml,pos)
 
 		if c ~= 60 then
-			local e    = find(xml, "<", pos, true)
-			local text = sub(xml, pos, e and e-1 or n)
-			pos = e or n+1
-			if find(text, "%S") then
-				if find(text, "&", 1, true) then text = xmlUnescape(text) end
-				tokens[#tokens+1] = {type="text", text=text}
+			local e=find(xml,"<",pos,true)
+			local text=sub(xml,pos,e and e-1 or n)
+			pos=e or n+1
+			if find(text,"%S") then
+				if find(text,"&",1,true) then text=xmlUnescape(text) end
+				tokens[#tokens+1]={type="text",text=text}
 			end
 
 		else
-			local c2 = byte(xml, pos+1)
+			local c2=byte(xml,pos+1)
 
-			if c2 == 33 then
-				local c3 = byte(xml, pos+2)
-				if c3 == 45 and byte(xml, pos+3) == 45 then
-					local e = find(xml, "-->", pos+4, true)
-					pos = e and e+3 or n+1
+			if c2==33 then
+				local c3=byte(xml,pos+2)
+				if c3==45 and byte(xml,pos+3)==45 then
+					local e=find(xml,"-->",pos+4,true)
+					pos=e and e+3 or n+1
 
-				elseif c3 == 91 and sub(xml, pos, pos+8) == "<![CDATA[" then
-					local e = find(xml, "]]>", pos+9, true)
+				elseif c3==91 and sub(xml,pos,pos+8)=="<![CDATA[" then
+					local e=find(xml,"]]>",pos+9,true)
 					if e then
-						tokens[#tokens+1] = {type="text", text=sub(xml, pos+9, e-1)}
-						pos = e+3
+						tokens[#tokens+1]={type="text",text=sub(xml,pos+9,e-1)}
+						pos=e+3
 					else
-						pos = n+1
+						pos=n+1
 					end
 
 				else
-					local e = find(xml, ">", pos+2, true)
-					pos = e and e+1 or n+1
+					local e=find(xml,">",pos+2,true)
+					pos=e and e+1 or n+1
 				end
 
-			elseif c2 == 63 then
-				local e = find(xml, "?>", pos+2, true)
-				pos = e and e+2 or n+1
+			elseif c2==63 then
+				local e=find(xml,"?>",pos+2,true)
+				pos=e and e+2 or n+1
 
-			elseif c2 == 47 then
-				local e = find(xml, ">", pos+2, true)
+			elseif c2==47 then
+				local e=find(xml,">",pos+2,true)
 				if not e then break end
-				local name = sub(xml, pos+2, e-1):match("^%s*([%w:_%.%-]*)%s*")
-				tokens[#tokens+1] = {type="close", name=name}
-				pos = e+1
+				local name=sub(xml,pos+2,e-1):match("^%s*([%w:_%.%-]*)%s*")
+				tokens[#tokens+1]={type="close",name=name}
+				pos=e+1
 
 			else
-				local e = find(xml, ">", pos+1, true)
+				local e=find(xml,">",pos+1,true)
 				if not e then break end
-				local tag = sub(xml, pos+1, e-1)
-				pos = e+1
-				local selfClose = byte(tag, #tag) == 47
-				if selfClose then tag = sub(tag, 1, -2) end
-				local tname = tag:match("^%s*([%w:_%.%-]+)")
+				local tag=sub(xml,pos+1,e-1)
+				pos=e+1
+				local selfClose=byte(tag,#tag)==47
+				if selfClose then tag=sub(tag,1,-2) end
+				local tname=tag:match("^%s*([%w:_%.%-]+)")
 				if tname then
-					local attrs = {}
+					local attrs={}
 					for k,v in tag:gmatch('%s+([%w:_%-]+)%s*=%s*"([^"]*)"') do
-						attrs[k] = find(v,"&",1,true) and xmlUnescape(v) or v
+						attrs[k]=find(v,"&",1,true) and xmlUnescape(v) or v
 					end
 					for k,v in tag:gmatch("%s+([%w:_%-]+)%s*=%s*'([^']*)'") do
-						attrs[k] = find(v,"&",1,true) and xmlUnescape(v) or v
+						attrs[k]=find(v,"&",1,true) and xmlUnescape(v) or v
 					end
-					tokens[#tokens+1] = {type=selfClose and "selfclose" or "open",
-					                     name=tname, attrs=attrs}
+					tokens[#tokens+1]={type=selfClose and "selfclose" or "open",
+					                     name=tname,attrs=attrs}
 				end
 			end
 		end
@@ -1467,20 +1467,20 @@ local function tokenize(xml)
 end
 
 local function parseElement(tokens,ti,closeName)
-	local text=""; local sub={}
+	local text="";local sub={}
 	while ti<=#tokens do
 		local tok=tokens[ti]
 		if tok.type=="close" and tok.name==closeName then
 			return text:match("^%s*(.-)%s*$"),sub,ti+1
 		elseif tok.type=="text" then
-			text..=tok.text; ti+=1
+			text..=tok.text;ti+=1
 		elseif tok.type=="open" then
-			local childName=tok.name; ti+=1
+			local childName=tok.name;ti+=1
 			local childText,childSub,newTi=parseElement(tokens,ti,childName)
 			ti=newTi
 			sub[childName]=next(childSub) and childSub or childText
 		elseif tok.type=="selfclose" then
-			sub[tok.name]=""; ti+=1
+			sub[tok.name]="";ti+=1
 		else ti+=1 end
 	end
 	return text:match("^%s*(.-)%s*$"),sub,ti
@@ -1500,7 +1500,7 @@ local function parseProperties(tokens,ti)
 				ti+=1
 			else
 				ti+=1
-				local text,sub,newTi=parseElement(tokens,ti,propTag); ti=newTi
+				local text,sub,newTi=parseElement(tokens,ti,propTag);ti=newTi
 				if propName then props[propName]={xmlTag=propTag,text=text,sub=sub} end
 			end
 		else ti+=1 end
@@ -1509,58 +1509,58 @@ local function parseProperties(tokens,ti)
 end
 
 local parseXmlItems
-parseXmlItems = function(tokens, ti, refCounter, stopTag)
-	stopTag = stopTag or "roblox"
-	local nodes = {}
-	while ti <= #tokens do
-		local tok = tokens[ti]
+parseXmlItems=function(tokens,ti,refCounter,stopTag)
+	stopTag=stopTag or "roblox"
+	local nodes={}
+	while ti<=#tokens do
+		local tok=tokens[ti]
 
-		if tok.type == "close" then
-			if tok.name == stopTag then
-				return nodes, ti
+		if tok.type=="close" then
+			if tok.name==stopTag then
+				return nodes,ti
 			else
-				ti += 1
+				ti+=1
 			end
 
-		elseif tok.type == "open" and tok.name == "Item" then
-			local className = tok.attrs and tok.attrs.class or "Unknown"
-			local xmlRef = tok.attrs and tok.attrs.referent or nil
-			refCounter[1] += 1
-			local ref  = refCounter[1]
-			local node = {referent=ref, className=className, xmlRef=xmlRef,
-			              properties={}, children={}, parent=nil}
-			ti += 1
+		elseif tok.type=="open" and tok.name=="Item" then
+			local className=tok.attrs and tok.attrs.class or "Unknown"
+			local xmlRef=tok.attrs and tok.attrs.referent or nil
+			refCounter[1]+=1
+			local ref=refCounter[1]
+			local node={referent=ref,className=className,xmlRef=xmlRef,
+			              properties={},children={},parent=nil}
+			ti+=1
 
-			while ti <= #tokens do
-				local inner = tokens[ti]
-				if inner.type == "close" and inner.name == "Item" then
-					ti += 1; break
+			while ti<=#tokens do
+				local inner=tokens[ti]
+				if inner.type=="close" and inner.name=="Item" then
+					ti+=1;break
 
-				elseif inner.type == "open" and inner.name == "Properties" then
-					ti += 1
-					local props, newTi = parseProperties(tokens, ti)
-					ti = newTi
-					node.properties = props
+				elseif inner.type=="open" and inner.name=="Properties" then
+					ti+=1
+					local props,newTi=parseProperties(tokens,ti)
+					ti=newTi
+					node.properties=props
 
-				elseif inner.type == "open" and inner.name == "Item" then
-					local children, newTi = parseXmlItems(tokens, ti, refCounter, "Item")
-					ti = newTi
-					for _, child in ipairs(children) do
-						child.parent = node
-						table.insert(node.children, child)
+				elseif inner.type=="open" and inner.name=="Item" then
+					local children,newTi=parseXmlItems(tokens,ti,refCounter,"Item")
+					ti=newTi
+					for _,child in ipairs(children) do
+						child.parent=node
+						table.insert(node.children,child)
 					end
 
 				else
-					ti += 1
+					ti+=1
 				end
 			end
-			nodes[#nodes + 1] = node
+			nodes[#nodes+1]=node
 
 		else
-			ti += 1
+			ti+=1
 		end
 	end
-	return nodes, ti
+	return nodes,ti
 end
 
 local function parseXml(xml)
@@ -1581,14 +1581,14 @@ local function parseXml(xml)
 			tmpTi+=1
 			while tmpTi<=#tokens do
 				local t=tokens[tmpTi]
-				if t.type=="close" and t.name=="SharedStrings" then tmpTi+=1; break end
+				if t.type=="close" and t.name=="SharedStrings" then tmpTi+=1;break end
 				if t.type=="open" and t.name=="SharedString" then
 					local key=t.attrs and t.attrs.md5 or ""
 					tmpTi+=1
 					local content=""
 					while tmpTi<=#tokens do
 						local t2=tokens[tmpTi]
-						if t2.type=="close" and t2.name=="SharedString" then tmpTi+=1; break end
+						if t2.type=="close" and t2.name=="SharedString" then tmpTi+=1;break end
 						if t2.type=="text" then content=content..t2.text end
 						tmpTi+=1
 					end
@@ -1606,34 +1606,34 @@ local function parseXml(xml)
 	end
 
 	local roots,_=parseXmlItems(tokens,ti,refCounter,"roblox")
-	return roots, xmlSharedStrings
+	return roots,xmlSharedStrings
 end
 
 local xmlTagToTypeId={}
 for id,info in pairs(PropType) do
 	if info.xmlTag then xmlTagToTypeId[info.xmlTag]=id end
 end
-xmlTagToTypeId["string"]           = 0x01
-xmlTagToTypeId["bool"]             = 0x02
-xmlTagToTypeId["int"]              = 0x03
-xmlTagToTypeId["float"]            = 0x04
-xmlTagToTypeId["double"]           = 0x05
-xmlTagToTypeId["BinaryString"]     = 0x1E2
-xmlTagToTypeId["ProtectedString"]  = 0x1F
-xmlTagToTypeId["Font"]             = 0x20
-xmlTagToTypeId["SecurityCapabilities"] = 0x21
-xmlTagToTypeId["OptionalCoordinateFrame"] = 0x1E
+xmlTagToTypeId["string"]=0x01
+xmlTagToTypeId["bool"]=0x02
+xmlTagToTypeId["int"]=0x03
+xmlTagToTypeId["float"]=0x04
+xmlTagToTypeId["double"]=0x05
+xmlTagToTypeId["BinaryString"]=0x1E2
+xmlTagToTypeId["ProtectedString"]=0x1F
+xmlTagToTypeId["Font"]=0x20
+xmlTagToTypeId["SecurityCapabilities"]=0x21
+xmlTagToTypeId["OptionalCoordinateFrame"]=0x1E
 
-xmlTagToTypeId["Content"] = 0x22
+xmlTagToTypeId["Content"]=0x22
 
-PropType[0x1E2] = {
+PropType[0x1E2]={
 	name="BinaryString",
 	readBin=function(data,n)
 		local out={};local p=1
 		for i=1,n do
 			local len,np=sunpack("<I4",data,p);p=np
 			out[i]=data:sub(p,p+len-1);p+=len
-		end; return out
+		end;return out
 	end,
 	writeBin=function(vals)
 		local parts={}
@@ -1644,31 +1644,31 @@ PropType[0x1E2] = {
 	readXml=function(s) return base64Decode(s or "") end,
 	writeXml=function(v) return base64Encode(v or "") end,
 }
-PropType[0x22] = {
+PropType[0x22]={
 	name="Content",
 	readBin=function(data,n)
 		local out={};local p=1
 		for i=1,n do
 			local len,np=sunpack("<I4",data,p);p=np
 			local raw=data:sub(p,p+len-1);p+=len
-			if len >= 8
+			if len>=8
 			and raw:byte(1)==0x01 and raw:byte(2)==0x00
 			and raw:byte(3)==0x00 and raw:byte(4)==0x00 then
-				local slen = sunpack("<I4", raw, 5)
-				out[i] = raw:sub(9, 8 + slen)
-			elseif len >= 1 and raw:byte(1)==0x00 then
-				out[i] = ""
+				local slen=sunpack("<I4",raw,5)
+				out[i]=raw:sub(9,8+slen)
+			elseif len>=1 and raw:byte(1)==0x00 then
+				out[i]=""
 			else
-				out[i] = raw
+				out[i]=raw
 			end
-		end; return out
+		end;return out
 	end,
 	writeBin=function(vals)
 		local parts={}
 		for _,v in ipairs(vals) do
 			v=tostring(v or "")
 			parts[#parts+1]=spack("<I4",#v)..v
-		end; return table.concat(parts)
+		end;return table.concat(parts)
 	end,
 	xmlTag="Content",
 	readXml=function(text,sub)
@@ -1685,7 +1685,7 @@ PropType[0x22] = {
 	end,
 }
 
-local function serializeBinary(roots, xmlSharedStrings)
+local function serializeBinary(roots,xmlSharedStrings)
 	local allInsts={}
 	local function collect(node)
 		table.insert(allInsts,node)
@@ -1749,7 +1749,7 @@ local function serializeBinary(roots, xmlSharedStrings)
 		for pname in pairs(inst.properties) do propNames[cn][pname]=true end
 	end
 
-	local PROTECTED_STRING_PROPS = {}
+	local PROTECTED_STRING_PROPS={}
 
 	local propChunks={}
 	for ti,className in ipairs(typeOrder) do
@@ -1772,23 +1772,23 @@ local function serializeBinary(roots, xmlSharedStrings)
 						local tid=xmlTagToTypeId[prop.xmlTag] or 0x01
 						if not typeId then typeId=tid end
 						local ti2=getType(tid)
-						local v=ti2.readXml(prop.text or "", prop.sub or {})
+						local v=ti2.readXml(prop.text or "",prop.sub or {})
 						if v~=nil then
 							if tid==0x1C then
 								local key=prop.text or ""
 								local idx=sstrKeyToIdx[key]
 								if idx==nil then
-									idx=#sstrBlobs; sstrBlobs[idx+1]=""
+									idx=#sstrBlobs;sstrBlobs[idx+1]=""
 									sstrKeyToIdx[key]=idx
 								end
 								vals[i]=idx
 							elseif tid==0x13 and v and v ~= -1 then
-								local refStr = prop.text or ""
-								local refNode = xmlRefNodeMap[refStr]
+								local refStr=prop.text or ""
+								local refNode=xmlRefNodeMap[refStr]
 								if refNode then
-									vals[i] = refMap[refNode]
+									vals[i]=refMap[refNode]
 								else
-									vals[i] = v
+									vals[i]=v
 								end
 							else
 								vals[i]=v
@@ -1900,7 +1900,7 @@ local function serializeXml(roots,sharedStrs,sharedKeys)
 	local sharedBlobByMd5={}
 	local function collectSharedBlobs(node)
 		for _,prop in pairs(node.properties) do
-			local tid = type(prop)=="table" and prop.typeId or nil
+			local tid=type(prop)=="table" and prop.typeId or nil
 			if tid==0x1C then
 				local idx=prop.value
 				if type(idx)=="number" and sharedStrs and sharedStrs[idx] then
@@ -1980,7 +1980,7 @@ local function serializeXml(roots,sharedStrs,sharedKeys)
 						encoded=base64Encode(sv) tag="BinaryString"
 					else encoded=xmlEscape(sv) end
 				else
-					encoded = inner
+					encoded=inner
 				end
 				lines[#lines+1]=tab.."\t\t<"..tag..' name="'..xmlEscape(pname)..'">'
 				                ..encoded
@@ -2005,17 +2005,17 @@ end
 function Converter.XMLToBinary(xmlString)
 	assert(type(xmlString)=="string" and #xmlString>0,
 		"XMLToBinary: expected a non-empty XML string")
-	local roots, xmlSharedStrings = parseXml(xmlString)
-	assert(#roots > 0, "XMLToBinary: no instances found in XML string")
-	return serializeBinary(roots, xmlSharedStrings)
+	local roots,xmlSharedStrings=parseXml(xmlString)
+	assert(#roots>0,"XMLToBinary: no instances found in XML string")
+	return serializeBinary(roots,xmlSharedStrings)
 end
 
 function Converter.BinaryToXML(binaryString)
 	assert(type(binaryString)=="string" and #binaryString>0,
 		"BinaryToXML: expected a non-empty binary string")
-	local roots, sharedStrs, sharedKeys = parseBinary(binaryString)
-	assert(#roots > 0, "BinaryToXML: no instances found in binary string")
-	return serializeXml(roots, sharedStrs, sharedKeys)
+	local roots,sharedStrs,sharedKeys=parseBinary(binaryString)
+	assert(#roots>0,"BinaryToXML: no instances found in binary string")
+	return serializeXml(roots,sharedStrs,sharedKeys)
 end
 
 return Converter
