@@ -779,6 +779,7 @@ local function serializeBinary(roots,xmlSharedStrings)local allInsts={}local fun
 			end
 			if not typeId then continue end
 			if CLASS_STRING_PROPS[className]and CLASS_STRING_PROPS[className][pname]and not CONTENT_PROPS[pname]then typeId=0x01 end
+			if className=="UnionOperation" and pname=="AssetId" then typeId=0x01 end
 			local typeInfo=getType(typeId)for i=1,ng do
 				if vals[i]==nil then
 					if typeId==0x01 then vals[i]=""
