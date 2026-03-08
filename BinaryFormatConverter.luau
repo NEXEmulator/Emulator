@@ -520,7 +520,6 @@ PropType[0x1E3]={name="NetAssetRef",readBin=function(data,n)return deinterleaveU
 				local propName=ssub(payload,sp,sp+pnLen-1);sp+=pnLen
 				local typeId=sbyte(payload,sp);sp+=1
 				local ti=typeMap[typeIdx]
-				if typeId==0x01 and CONTENT_PROPS[propName]then typeId=0x22 end
 				if typeId==0x01 and BINARY_STRING_PROPS[propName]then typeId=0x1E2 end
 				if typeId==0x1C and NETASSET_PROPS[propName]then typeId=0x1E3 end
 				if not ti then return end
@@ -755,6 +754,7 @@ local function serializeBinary(roots,xmlSharedStrings)local allInsts={}local fun
 						vals[i]=prop.value
 					elseif prop.xmlTag then
 						local tid=xmlTagToTypeId[prop.xmlTag]or 0x01
+						if tid==0x01 and CONTENT_PROPS[pname]then tid=0x22 end
 						if not typeId then typeId=tid end
 						local v=getType(tid).readXml(prop.text or "",prop.sub or{})if v~=nil then
 							if tid==0x1C then
@@ -778,7 +778,7 @@ local function serializeBinary(roots,xmlSharedStrings)local allInsts={}local fun
 				end
 			end
 			if not typeId then continue end
-			if CLASS_STRING_PROPS[className]and CLASS_STRING_PROPS[className][pname]then typeId=0x01 end
+			if CLASS_STRING_PROPS[className]and CLASS_STRING_PROPS[className][pname]and not CONTENT_PROPS[pname]then typeId=0x01 end
 			local typeInfo=getType(typeId)for i=1,ng do
 				if vals[i]==nil then
 					if typeId==0x01 then vals[i]=""
@@ -869,6 +869,7 @@ local function serializeXml(roots,sharedStrs,sharedKeys)local lc=0;local lines={
 			elseif type(prop)=="table" and prop.xmlTag then
 				typeId=xmlTagToTypeId[prop.xmlTag]or 0x01
 				value=getType(typeId).readXml(prop.text,prop.sub or{})else continue end
+			if typeId==0x01 and CONTENT_PROPS[pname]then typeId=0x22 end
 			if typeId==0x1C or typeId==0x1E3 then
 				local idx=type(value)=="number" and value or tonumber(value)or 0
 				local blob=sharedStrs and sharedStrs[idx]or ""
