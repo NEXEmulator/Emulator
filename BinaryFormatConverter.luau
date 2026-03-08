@@ -1,3 +1,4 @@
+--ai was used for optimization here
 local Converter={NEX_Version="1.0.2"}local b32=bit32
 local spack,sunpack=string.pack,string.unpack
 local tconc,tcreat,tsort,tunpack=table.concat,table.create,table.sort,table.unpack
@@ -170,7 +171,7 @@ if ok then return id end
 end
 end
 local function xmlUnescape(s)return(s:gsub("&amp;","&"):gsub("&lt;","<"):gsub("&gt;",">"):gsub("&quot;",'"'):gsub("&apos;","'"))end
-local function xmlEscape(s)return(tostring(s):gsub("&","&amp;"):gsub("<","&lt;"):gsub(">","&gt;"):gsub('"',"&quot;"))end
+local function xmlEscape(s)return(tostring(s):gsub("&","&amp;"):gsub("<","&lt;"):gsub(">","&gt;"))end
 local function safeF(v)if type(v)~="number" or v~=v or mabs(v)==HUGE then return "0" end
 return sfmt("%.9g",v)end
 local PropType={}PropType[0x01]={name="String",readBin=function(data,n)local out=tcreat(n);local p=1
