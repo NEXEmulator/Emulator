@@ -469,7 +469,7 @@ PropType[0x1E3]={name="NetAssetRef",readBin=function(data,n)return deinterleaveU
 			if sub.null~=nil then return "" end
 		end
 		return text or ""
-	end,writeXml=function(v)v=tostring(v or "")return v=="" and "<null></null>" or "<uri>"..xmlEscape(v).."</uri>"
+	end,writeXml=function(v)v=tostring(v or "")return v=="" and "<null></null>" or "<url>"..xmlEscape(v).."</url>"
 	end,}local function parseBinary(data)assert(ssub(data,1,16)==RBX_MAGIC,"Not a valid .rbxm binary file")local pos=17
 	local _,np2=sunpack("<I4",data,pos);pos=np2
 	local _,np3=sunpack("<I4",data,pos);pos=np3
