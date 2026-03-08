@@ -239,7 +239,8 @@ local function getproperties(x)
   return props
 end
 local XMLEnabled=settings.XMLEnabled
-local requestinternal=clonefunc(index(HttpService,"RequestInternal"))
+local ind=pcall(index,HttpService,"RequestInternal")
+local requestinternal=ind and clonef(ind) or error
 local interfunc
 if woahc(requestinternal,{Url="https://example.com",Method="GET"}) then
   interfunc=function(x)
