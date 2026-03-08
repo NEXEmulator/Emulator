@@ -754,7 +754,7 @@ local function serializeBinary(roots,xmlSharedStrings)local allInsts={}local fun
 						vals[i]=prop.value
 					elseif prop.xmlTag then
 						local tid=xmlTagToTypeId[prop.xmlTag]or 0x01
-						if tid==0x01 and CONTENT_PROPS[pname]and not(pname=="AssetId" and className=="UnionOperation")then tid=0x22 end
+						if tid==0x01 and CONTENT_PROPS[pname]and not(CLASS_STRING_PROPS[className]and CLASS_STRING_PROPS[className][pname])then tid=0x22 end
 						if not typeId then typeId=tid end
 						local v=getType(tid).readXml(prop.text or "",prop.sub or{})if v~=nil then
 							if tid==0x1C then
@@ -778,8 +778,8 @@ local function serializeBinary(roots,xmlSharedStrings)local allInsts={}local fun
 				end
 			end
 			if not typeId then continue end
-			if CLASS_STRING_PROPS[className]and CLASS_STRING_PROPS[className][pname]and not CONTENT_PROPS[pname]then typeId=0x01 end
-			if className=="UnionOperation" and pname=="AssetId" then typeId=0x01 end
+			if CLASS_STRING_PROPS[className]and CLASS_STRING_PROPS[className][pname]then typeId=0x01 end
+			if typeId==0x22 and CLASS_STRING_PROPS[className]and CLASS_STRING_PROPS[className][pname]then typeId=0x01 end
 			local typeInfo=getType(typeId)for i=1,ng do
 				if vals[i]==nil then
 					if typeId==0x01 then vals[i]=""
