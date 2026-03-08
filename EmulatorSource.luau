@@ -483,7 +483,9 @@ nv.roblox={XML=nv.tclone(nv.XML),GetAssetSource=nv.cppf(nv.GetAssetSource),Binar
     XMLToBinary=nv.XMLToBinary,
     BinaryToXML=nv.BinaryToXML,
     XMLType=nv.cppf(nv.robloxtype)
-}}
+},FixStudioXMl=nv.cppf(function(x)
+      return nv.gsub(nv.gsub(x,'<Item class="Workspace"','<Item class="Model"'),'<Item class="Terrain"','<Item class="Folder"')
+    end)}
 nv.genv.GetProperties=nv.cppf(nv.getproperties)
 nv.genv.GetLocalObjects=function(x)
   local id=nv.oldti()
