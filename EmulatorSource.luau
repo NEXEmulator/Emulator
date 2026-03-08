@@ -1099,21 +1099,15 @@ local threadf=info(v,1,'f')
 local env=getf(threadf)
 local envm=rawmt(env)
 local envmm=rawmt(envm) or examplet
-if iro(envmm) then
+local envmi=envm.__index
+local indr=rawmt(envmi)
+if iro(envmm) or iro(envm) then
 if debugm then
 rwarn(`Came across an abnormal thread! ({env.script})`)
       end
     else
-local envmi=envm.__index
-local indr=rawmt(envmi)
 if indr then
 local oindrmt=indr.__metatable
-if iro(indr) then
-          if debugm then
-              rwarn(`Came across an abnormal thread! ({env.script})`)
-            end
-            sro(indr,false)
-          end
 indr.__metatable=nil
 local newind=tclone(envmi)
 envm.__index=newind
