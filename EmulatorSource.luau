@@ -1108,6 +1108,12 @@ local envmi=envm.__index
 local indr=rawmt(envmi)
 if indr then
 local oindrmt=indr.__metatable
+if iro(indr) then
+          if debugm then
+              rwarn(`Came across an abnormal thread! ({env.script})`)
+            end
+            sro(indr,false)
+          end
 indr.__metatable=nil
 local newind=tclone(envmi)
 envm.__index=newind
