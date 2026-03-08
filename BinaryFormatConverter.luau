@@ -779,7 +779,6 @@ local function serializeBinary(roots,xmlSharedStrings)local allInsts={}local fun
 			end
 			if not typeId then continue end
 			if CLASS_STRING_PROPS[className]and CLASS_STRING_PROPS[className][pname]then typeId=0x01 end
-			if typeId==0x22 and CLASS_STRING_PROPS[className]and CLASS_STRING_PROPS[className][pname]then typeId=0x01 end
 			local typeInfo=getType(typeId)for i=1,ng do
 				if vals[i]==nil then
 					if typeId==0x01 then vals[i]=""
@@ -796,7 +795,7 @@ local function serializeBinary(roots,xmlSharedStrings)local allInsts={}local fun
 			end
 			local binData=typeInfo.writeBin(vals)if binData and#binData>0 then
 				local binTypeId
-				if typeId==0x22 then binTypeId=0x22
+				if typeId==0x22 and not(CLASS_STRING_PROPS[className]and CLASS_STRING_PROPS[className][pname])then binTypeId=0x22
 				elseif typeId==0x1E2 then binTypeId=0x01
 				elseif typeId==0x1E3 then binTypeId=0x1C
 				elseif typeId==0x1E4 and not PROTECTED_STRING_PROPS[pname]then binTypeId=0x01
