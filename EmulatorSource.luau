@@ -283,7 +283,7 @@ end
 end
 nv.loadxml = function(x)
 if nv.XMLEnabled then
-return nv.DeserializeInstance(nv.SerializationService,nv.bufferstring(x))[1]
+return nv.DeserializeInstance(nv.SerializationService,nv.bufferstring(x))
 else
   nv.rwarn("XML permissions denied.")
 end
