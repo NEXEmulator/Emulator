@@ -3,6 +3,7 @@
 --!nocheck
 --!optimize 3
 local nv={}
+nv.select=clonefunction(select)
 nv.game,nv.workspace=cloneref(game),cloneref(workspace) --this is not to stop detection from weaktables, this is just so replications to the Instance metatable dont replicate to these instances for better security, I might be just paranoid, but better safe than sorry.
 nv.NEXRequire = function(x)
 return request({Url=`https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/{x}`,Method="GET"}).Body
@@ -242,7 +243,7 @@ nv.getproperties = function(x)
   return props
 end
 nv.XMLEnabled=nv.settings.XMLEnabled
-nv.ind=select(2,pcall(nv.index,nv.HttpService,"RequestInternal"))
+nv.ind=nv.select(2,pcall(nv.index,nv.HttpService,"RequestInternal"))
 nv.requestinternal=nv.ind and nv.clonef(nv.ind) or error
 if nv.woahc(nv.requestinternal,{Url="https://example.com",Method="GET"}) then
   nv.interfunc=function(x)
