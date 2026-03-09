@@ -144,7 +144,7 @@ nv.rrequire=nv.grenv.require
 nv.exstr="hi"
 nv.find,nv.sub=nv.clonef(nv.exstr.find),nv.clonef(nv.exstr.sub)
 nv.foundationimage=function(x)
-return nv.find(x,"://")~=nil
+return nv.find(x,"://")==nil
 end
 if nv.settings.RobloxScriptRequire then
 nv.genv.Rrequire=nv.rrequire
