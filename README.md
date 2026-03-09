@@ -1,6 +1,6 @@
 # NEX Emulator
 
-NEX Emulator is a tool that allows Roblox games to use extra functionality with more flexibility. It is completely **free** and **open source**.
+NEX Emulator is a tool that allows Roblox games to use extra functionality with more flexibility. It is completely **free** and **open source**. It also contains tools and function improvements found nowhere else.
 
 ## Advertisements
 
@@ -9,7 +9,7 @@ NEX Emulator is a tool that allows Roblox games to use extra functionality with 
 
 ## Safety and Security
 
-NEX Emulation has been tested for vulnerabilities and is completely safe. It can be used on executors, but it is preferred to be used on the official NEX Emulator for safety and efficiency.
+NEX Emulation has been tested for vulnerabilities that have not been found yet and is completely safe. It can be used on executors, but it is preferred to be used on the official NEX Emulator for safety and efficiency.
 
 ## Showcase Game
 
@@ -19,5 +19,4 @@ Check out one of the featured NEX Emulation games here:
 ## Credits
 
 - **Secment (secment)** - Main Developer (Coded the entirety of NEX Emulation)
-- **Realm (v00ccx)** - Site & Application Developer (Created the documentation site as well as the external applications)
-- **Mugfin (moofin_man)** - Creator of the official NEX Emulation Showcase game
+- **Realm (v00ccx)** - Site (Created the documentation sit
