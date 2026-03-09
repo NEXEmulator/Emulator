@@ -479,13 +479,15 @@ nv.robloxtype = function(x)
     return "unknown"
   end
 end
+nv.FixStudioXML=nv.cppf(function(x)
+  return nv.gsub(nv.gsub(x,'<Item class="Workspace"','<Item class="Model"'),'<Item class="Terrain"','<Item class="Folder"')
+end)
 nv.roblox={XML=nv.tclone(nv.XML),GetAssetSource=nv.cppf(nv.GetAssetSource),BinaryFormat={
     XMLToBinary=nv.XMLToBinary,
     BinaryToXML=nv.BinaryToXML,
-    XMLType=nv.cppf(nv.robloxtype)
-},FixStudioXML=nv.cppf(function(x)
-      return nv.gsub(nv.gsub(x,'<Item class="Workspace"','<Item class="Model"'),'<Item class="Terrain"','<Item class="Folder"')
-    end)}
+    XMLType=nv.cppf(nv.robloxtype),
+    FixStudioXML=nv.FixStudioXML
+}}
 nv.genv.GetProperties=nv.cppf(nv.getproperties)
 nv.genv.GetLocalObjects=function(x)
   local id=nv.oldti()
@@ -493,7 +495,7 @@ nv.genv.GetLocalObjects=function(x)
   nv.oldset(3)
   nv.def(nv.oldset,id)
   end
-    return nv.DeserializeInstance(nv.SerializationService,nv.bufferstring(nv.rf(`{nv.behave}{x}`)))
+    return nv.DeserializeInstance(nv.SerializationService,nv.bufferstring(nv.FixStudioXML(nv.rf(`{nv.behave}{x}`))))
 end
 nv.genv.GetObjects=function(x)
   local id=nv.oldti()
@@ -503,7 +505,7 @@ nv.genv.GetObjects=function(x)
   end
   local assetid=nv.match(x,"%d+")
   if assetid then
-    return nv.DeserializeInstance(nv.SerializationService,nv.bufferstring(nv.GetAssetSource(assetid)))
+    return nv.DeserializeInstance(nv.SerializationService,nv.bufferstring(nv.FixStudioXML(nv.GetAssetSource(assetid))))
   else
     nv.err("Invalid asset id.")
   end
