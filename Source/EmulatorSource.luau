@@ -1113,4 +1113,5 @@ Title=nv.NEXTitle,
 Text=`NEX Emulation finished in {nv.ot()-nv.t}`
 })
 nv.tw(0.01)
-nv.cdef(function()nv.nexify()nv.tclose(nv.currentthread)end)
+nv.cdef(function()nv.nexify()nv.tclose(nv.currentthread)end) 
+You're probably wondering how this script still works even with this non-luau line...
