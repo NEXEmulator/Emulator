@@ -12,8 +12,8 @@ nv.ImportToFolder = function(x,y)
 for i,v in next,y do
 if not isfile(`{x}/{i}`) then
 writefile(`{x}/{i}`,nv.NEXRequire(v))
-            end
-    end
+						end
+		end
 end
 if not isfolder(".icons") then
 makefolder(".icons")
@@ -41,16 +41,16 @@ __metatable="The metatable is locked.",
 __newindex=nv.cppf(function()nv.err"attempt to modify a protected metatable"end)
 }
 nv.sro=nv.clonef(setreadonly) or nv.cppf(function(x,y)
-  if y then
-    nv.rawsmt(x,{nv.srot})
-  else
-    nv.rawsmt(x,{})
-  end
+	if y then
+		nv.rawsmt(x,{nv.srot})
+	else
+		nv.rawsmt(x,{})
+	end
 end)
 nv.tablepc=nv.cppf(function(x)
-  local ta=nv.tclone(x)
-  nv.sro(ta,true)
-  return ta
+	local ta=nv.tclone(x)
+	nv.sro(ta,true)
+	return ta
 end)
 nv.cclose,nv.info,nv.genv,nv.index,nv.newindex=coroutine.close,debug.info,loadstring(nv.NEXRequire("AllowedFunctions.luau"))()
 xpcall(function()nv.workspace[nil]()end,function()nv.index=nv.clonef(nv.info(2,'f'))end)xpcall(function()nv.workspace.woahs=1 end,function()nv.newindex=nv.clonef(nv.info(2,'f'))end)
@@ -112,9 +112,9 @@ nv.settings=nv.SettingsExist and nv.s and nv.settingst or nv.JsonDecode(nv.HttpS
 if not isfile("._NEXVERSION") or readfile("._NEXVERSION")==nv.lastversion then
 writefile("._NEXVERSION",nv.version)
 for i,v in next,nv.origs do
-  if nv.settings[i]==nil then
-    nv.settings[i]=v
-  end
+	if nv.settings[i]==nil then
+		nv.settings[i]=v
+	end
 end
 nv.stjson=nv.JsonEncode(nv.HttpService,nv.settings)
 writefile("StarterSettings.json",nv.stjson)
@@ -136,7 +136,10 @@ nv.bufferstring=nv.clonef(buffer.fromstring)
 nv.SetStateEnabled=nv.clonef(Instance.new"Humanoid".SetStateEnabled)
 nv.rnexists=`{nv.SettingsPrefix}.rootname`
 if not isfile(nv.rnexists) then
-writefile(nv.RootName,' ')
+	print(nv.RootName)
+if not pcall(writefile,nv.RootName,' ') then
+		writefile(nv.RootName:gsub(" ",""),'')
+	end
 writefile(nv.rnexists,' ')
 end
 nv.grenv=getrenv()
@@ -199,7 +202,7 @@ local id=nv.oldti()
 if id<3 then
 nv.oldset(3)
 nv.def(nv.oldset,id)
-    end
+		end
 local ticon=x.Icon
 x.Icon=(nv.foundationimage(ticon) and nil) or ticon
 return nv.SendNotification(nv.GuiService,x)
@@ -214,14 +217,14 @@ nv.match=nv.clonef(string.match)
 nv.convertgit = function(x)
 local owner,repo,folder=nv.match(x,nv.gitpattern)
 if owner and repo then
-    if folder and folder ~= "" then
-        folder = folder:gsub("^/", "")
-        return string.format(nv.apipattern, owner, repo, folder),repo
-    else
-        return string.format(nv.apiwpattern, owner, repo),repo
-    end
+		if folder and folder ~= "" then
+				folder = folder:gsub("^/", "")
+				return string.format(nv.apipattern, owner, repo, folder),repo
+		else
+				return string.format(nv.apiwpattern, owner, repo),repo
+		end
 else
-    return nil
+		return nil
 end
 end
 nv.df,nv.dfo=nv.clonef(delfile),nv.clonef(delfolder)
@@ -234,35 +237,35 @@ nv.HttpGet=nv.index(nv.game,"HttpGet")
 nv.RFS=nv.GetService(nv.game,"ReflectionService")
 nv.GPOC=nv.clonef(nv.index(nv.RFS,"GetPropertiesOfClass"))
 nv.getproperties = function(x)
-  local props={}
-  for _,v in nv.GPOC(nv.RFS,nv.index(x,"ClassName")) do
-    if v.Permits.Read then
-      props[v.Name]=nv.index(x,v.Name)
-    end
-  end
-  return props
+	local props={}
+	for _,v in nv.GPOC(nv.RFS,nv.index(x,"ClassName")) do
+		if v.Permits.Read then
+			props[v.Name]=nv.index(x,v.Name)
+		end
+	end
+	return props
 end
 nv.XMLEnabled=nv.settings.XMLEnabled
 nv.ind=nv.select(2,pcall(nv.index,nv.HttpService,"RequestInternal"))
 nv.requestinternal=nv.ind and nv.clonef(nv.ind) or error
 if nv.woahc(nv.requestinternal,{Url="https://example.com",Method="GET"}) then
-  nv.interfunc=function(x)
-    local id=nv.oldti()
-    if id<3 then
-      nv.oldset(3)
-      nv.def(nv.oldset,id)
-    end
-    return nv.requestinternal(nv.HttpService,{Url=x,Method="GET"})
-  end
+	nv.interfunc=function(x)
+		local id=nv.oldti()
+		if id<3 then
+			nv.oldset(3)
+			nv.def(nv.oldset,id)
+		end
+		return nv.requestinternal(nv.HttpService,{Url=x,Method="GET"})
+	end
 else
-  nv.interfunc=function(x)
-    local id=nv.oldti()
-    if id<3 then
-      nv.oldset(3)
-      nv.def(nv.oldset,id)
-    end
-    return nv.HttpGet(nv.game,x)
-  end
+	nv.interfunc=function(x)
+		local id=nv.oldti()
+		if id<3 then
+			nv.oldset(3)
+			nv.def(nv.oldset,id)
+		end
+		return nv.HttpGet(nv.game,x)
+	end
 end
 nv.GetAssetSource = function(x)
 return nv.interfunc("https://assetdelivery.roblox.com/v1/asset/?id="..x)
@@ -270,22 +273,22 @@ end
 nv.xmlobject = function(x,y)
 if nv.XMLEnabled then
 local instancexml=[[<roblox version="4">
-    <Item class="]]..x..[[">
-    </Item>
-    </roblox>
-    ]]
+		<Item class="]]..x..[[">
+		</Item>
+		</roblox>
+		]]
 local instance=nv.DeserializeInstance(nv.SerializationService,nv.bufferstring(instancexml))[1]
 nv.newindex(instance,"Parent",y)
-    return instance
+		return instance
 else
-  nv.rwarn("XML permissions denied.")
+	nv.rwarn("XML permissions denied.")
 end
 end
 nv.loadxml = function(x)
 if nv.XMLEnabled then
 return nv.DeserializeInstance(nv.SerializationService,nv.bufferstring(x))
 else
-  nv.rwarn("XML permissions denied.")
+	nv.rwarn("XML permissions denied.")
 end
 end
 nv.sf,nv.gsub,nv.gmatch=nv.clonef(string.format),nv.clonef(string.gsub),nv.clonef(string.gmatch)
@@ -325,64 +328,64 @@ scan(root)
 if root.SharedStrings then local sb={} for h,c in next,root.SharedStrings do if uss[h] then nv.ti(sb,nv.sf('<SharedString md5="%s">%s</SharedString>',h,c)) end end if #sb>0 then nv.ti(out,"\n<SharedStrings>") nv.ti(out,"\n"..tc(sb,"\n")) nv.ti(out,"\n</SharedStrings>") end end
 local refmap,refcnt={},0
 local function remap_refs(t)
-  local it={} for k,v in next,t do if nv.typo(k)=="string" and k:find("^Item") then nv.ti(it,{k,v}) end end
-  nv.tsort(it,function(a,b) return (nv.ton(nv.match(a[1],"%d+"))or 0)<(nv.ton(nv.match(b[1],"%d+"))or 0) end)
-  for _,pair in ipairs(it) do
-    local d=pair[2]
-    refcnt=refcnt+1
-    local oldRef=d.Referent
-    local newRef=nv.sf("NEX%d",refcnt)
-    if oldRef then refmap[oldRef]=newRef end
-    d.Referent=newRef
-    remap_refs(d)
-  end
+	local it={} for k,v in next,t do if nv.typo(k)=="string" and k:find("^Item") then nv.ti(it,{k,v}) end end
+	nv.tsort(it,function(a,b) return (nv.ton(nv.match(a[1],"%d+"))or 0)<(nv.ton(nv.match(b[1],"%d+"))or 0) end)
+	for _,pair in ipairs(it) do
+		local d=pair[2]
+		refcnt=refcnt+1
+		local oldRef=d.Referent
+		local newRef=nv.sf("NEX%d",refcnt)
+		if oldRef then refmap[oldRef]=newRef end
+		d.Referent=newRef
+		remap_refs(d)
+	end
 end
 remap_refs(root)
 local function proc(t)
-  local it={} for k,v in next,t do if nv.typo(k)=="string" and k:find("^Item") then nv.ti(it,{k,v}) end end
-  nv.tsort(it,function(a,b) return (nv.ton(nv.match(a[1],"%d+"))or 0)<(nv.ton(nv.match(b[1],"%d+"))or 0) end)
-  for _,pair in ipairs(it) do
-    local d,ref=pair[2],pair[2].Referent
-    nv.ti(out,nv.sf('\n<Item class="%s" referent="%s">',d.ClassName or "Part",ref)) nv.ti(out,"\n<Properties>")
-    for pn,pw in next,d do
-      if pn~="ClassName" and pn~="Referent" and not pn:find("^Item") and nv.typo(pw)=="table" and pw.Tag then
-        local tag,logic=pw.Tag,nv.typemap[pw.Tag]
-        if tag=="Ref" then 
-          local v = pw.Value
-          if v and refmap[v] then v=refmap[v] end
-          nv.ti(out,nv.sf('\n<Ref name="%s">%s</Ref>',pn,(v==nil)and"null"or nv.tos(v)))
-        elseif tag=="BinaryString" or tag=="ProtectedString" or tag=="string" then nv.ti(out,nv.sf('\n<%s name="%s"><![CDATA[%s]]></%s>',tag,pn,pw.Value,tag))
-        elseif logic then local val=logic.enc(pw) nv.ti(out,nv.sf('\n<%s name="%s">%s</%s>',tag,pn,(val=="null")and"null"or val,tag))
-        elseif tag=="UniqueId" or tag=="SharedString" then nv.ti(out,nv.sf('\n<%s name="%s">%s</%s>',tag,pn,pw.Value,tag))
-        elseif tag=="bool" then nv.ti(out,nv.sf('\n<bool name="%s">%s</bool>',pn,nv.tos(pw.Value)))
-        elseif tag=="int" or tag=="int64" then nv.ti(out,nv.sf('\n<%s name="%s">%d</%s>',tag,pn,pw.Value,tag))
-        elseif tag=="float" or tag=="double" then nv.ti(out,nv.sf('\n<%s name="%s">%g</%s>',tag,pn,pw.Value,tag))
-        elseif tag=="token" then nv.ti(out,nv.sf('\n<%s name="%s">%d</%s>',tag,pn,nv.mfloor(pw.Value+0.5),tag))
-        else nv.ti(out,nv.sf('\n<%s name="%s">%s</%s>',tag,pn,nv.tos(pw.Value),tag)) end
-      end end
-    nv.ti(out,"\n</Properties>") proc(d) nv.ti(out,"\n</Item>")
-  end end
+	local it={} for k,v in next,t do if nv.typo(k)=="string" and k:find("^Item") then nv.ti(it,{k,v}) end end
+	nv.tsort(it,function(a,b) return (nv.ton(nv.match(a[1],"%d+"))or 0)<(nv.ton(nv.match(b[1],"%d+"))or 0) end)
+	for _,pair in ipairs(it) do
+		local d,ref=pair[2],pair[2].Referent
+		nv.ti(out,nv.sf('\n<Item class="%s" referent="%s">',d.ClassName or "Part",ref)) nv.ti(out,"\n<Properties>")
+		for pn,pw in next,d do
+			if pn~="ClassName" and pn~="Referent" and not pn:find("^Item") and nv.typo(pw)=="table" and pw.Tag then
+				local tag,logic=pw.Tag,nv.typemap[pw.Tag]
+				if tag=="Ref" then 
+					local v = pw.Value
+					if v and refmap[v] then v=refmap[v] end
+					nv.ti(out,nv.sf('\n<Ref name="%s">%s</Ref>',pn,(v==nil)and"null"or nv.tos(v)))
+				elseif tag=="BinaryString" or tag=="ProtectedString" or tag=="string" then nv.ti(out,nv.sf('\n<%s name="%s"><![CDATA[%s]]></%s>',tag,pn,pw.Value,tag))
+				elseif logic then local val=logic.enc(pw) nv.ti(out,nv.sf('\n<%s name="%s">%s</%s>',tag,pn,(val=="null")and"null"or val,tag))
+				elseif tag=="UniqueId" or tag=="SharedString" then nv.ti(out,nv.sf('\n<%s name="%s">%s</%s>',tag,pn,pw.Value,tag))
+				elseif tag=="bool" then nv.ti(out,nv.sf('\n<bool name="%s">%s</bool>',pn,nv.tos(pw.Value)))
+				elseif tag=="int" or tag=="int64" then nv.ti(out,nv.sf('\n<%s name="%s">%d</%s>',tag,pn,pw.Value,tag))
+				elseif tag=="float" or tag=="double" then nv.ti(out,nv.sf('\n<%s name="%s">%g</%s>',tag,pn,pw.Value,tag))
+				elseif tag=="token" then nv.ti(out,nv.sf('\n<%s name="%s">%d</%s>',tag,pn,nv.mfloor(pw.Value+0.5),tag))
+				else nv.ti(out,nv.sf('\n<%s name="%s">%s</%s>',tag,pn,nv.tos(pw.Value),tag)) end
+			end end
+		nv.ti(out,"\n</Properties>") proc(d) nv.ti(out,"\n</Item>")
+	end end
 proc(root) nv.ti(out,"\n</roblox>") return nv.tc(out)
 end
 nv.xmltotable = function(xml)
 local ss={} for h,b in nv.gmatch(xml,'<SharedString md5="([^"]+)">([^<]*)</SharedString>') do ss[h]=b end
 local function parse(s)
-  local res,idx,pos={},1,1
-  while true do
-    local b,e,cls,ref=s:find('<Item class="([^"]*)" referent="([^"]*)"[^>]*>',pos)
-    if not b then b,e,cls=s:find('<Item class="([^"]*)"[^>]*>',pos) end if not b then break end
-    local d,ce=1,e+1
-    while d>0 do local no,nc=s:find('<Item%s',ce),s:find('</Item>',ce) if nc and(not no or nc<no) then d-=1 ce=nc+7 elseif no then d+=1 ce=no+6 else break end end
-    local idat={ClassName=cls,Referent=ref} local body=s:sub(b,ce) local ps,pe,pc=body:find("<Properties>"),nil,body:find("</Properties>")
-    if ps and pc then pe=ps+11 local px=body:sub(pe+1,pc-1)
-      for tag,n,c in nv.gmatch(px,"<([^%s>]+) name=\"([^\"]+)\">(.-)</%1>") do
-        local v=c if tag=="BinaryString" or tag=="ProtectedString" or tag=="string" then v=nv.gsub(c,"<!%[CDATA%[(.-)%]%]>","%1")
-        elseif tag=="bool" then v=(c=="true") elseif tag=="int" or tag=="float" or tag=="double" or tag=="token" or tag=="int64" then v=nv.ton(c)
-        elseif tag=="Ref" then v=(c~="null"and c)or nil elseif nv.typemap[tag] then v=nv.typemap[tag].dec(c) elseif tag=="SharedString" then v=c end
-        idat[n]={Tag=tag,Value=v} end end
-    local chi=parse(body:sub((pc or 0)+13,#body-7)) for k,v in next,chi do idat[k]=v end
-    res["Item"..idx]=idat idx+=1 pos=ce
-  end return res end
+	local res,idx,pos={},1,1
+	while true do
+		local b,e,cls,ref=s:find('<Item class="([^"]*)" referent="([^"]*)"[^>]*>',pos)
+		if not b then b,e,cls=s:find('<Item class="([^"]*)"[^>]*>',pos) end if not b then break end
+		local d,ce=1,e+1
+		while d>0 do local no,nc=s:find('<Item%s',ce),s:find('</Item>',ce) if nc and(not no or nc<no) then d-=1 ce=nc+7 elseif no then d+=1 ce=no+6 else break end end
+		local idat={ClassName=cls,Referent=ref} local body=s:sub(b,ce) local ps,pe,pc=body:find("<Properties>"),nil,body:find("</Properties>")
+		if ps and pc then pe=ps+11 local px=body:sub(pe+1,pc-1)
+			for tag,n,c in nv.gmatch(px,"<([^%s>]+) name=\"([^\"]+)\">(.-)</%1>") do
+				local v=c if tag=="BinaryString" or tag=="ProtectedString" or tag=="string" then v=nv.gsub(c,"<!%[CDATA%[(.-)%]%]>","%1")
+				elseif tag=="bool" then v=(c=="true") elseif tag=="int" or tag=="float" or tag=="double" or tag=="token" or tag=="int64" then v=nv.ton(c)
+				elseif tag=="Ref" then v=(c~="null"and c)or nil elseif nv.typemap[tag] then v=nv.typemap[tag].dec(c) elseif tag=="SharedString" then v=c end
+				idat[n]={Tag=tag,Value=v} end end
+		local chi=parse(body:sub((pc or 0)+13,#body-7)) for k,v in next,chi do idat[k]=v end
+		res["Item"..idx]=idat idx+=1 pos=ce
+	end return res end
 local fin=parse(xml) fin.SharedStrings=ss return fin
 end
 nv.req=nv.clonef(request)
@@ -393,13 +396,13 @@ local url,repo=nv.convertgit(x)
 local tab=nv.JsonDecode(nv.HttpService,nv.req({Url=url,Method="GET"}).Body)
 local newtable={}
 for _,v in tab do
-    newtable[v.name]={
-        path=v.path,
-        url=v.html_url,
-        rawurl=v.download_url,
-        type=v.type,
-        self=v.url
-    }
+		newtable[v.name]={
+				path=v.path,
+				url=v.html_url,
+				rawurl=v.download_url,
+				type=v.type,
+				self=v.url
+		}
 end
 return newtable,repo
 end
@@ -411,55 +414,55 @@ local s=xml
 local h=nv.match(xml,"(<roblox[^>]*>)") or '<roblox version="4">'
 local ss={}
 for hash,data in nv.gmatch(xml,'<SharedString md5="([^"]+)">([^<]*)</SharedString>') do
-  ss[hash]=data
+	ss[hash]=data
 end
 if nv.find(s,"^<roblox")then s=nv.reverse(nv.gsub(nv.reverse(nv.gsub(s,"^<roblox[^>]*>","")),">xolbor/<","",1))
 end
 if nv.find(s,"^%s*<Item")then
-  s=nv.gsub(s,"^%s*","")
-  local _,p=nv.find(s,"<Properties>.-</Properties>")
-  if not p then _,p=nv.find(s,"^<Item[^>]*>")end
-  s=nv.reverse(nv.gsub(nv.reverse(nv.sub(s,p+1)),">metI/<","",1))
+	s=nv.gsub(s,"^%s*","")
+	local _,p=nv.find(s,"<Properties>.-</Properties>")
+	if not p then _,p=nv.find(s,"^<Item[^>]*>")end
+	s=nv.reverse(nv.gsub(nv.reverse(nv.sub(s,p+1)),">metI/<","",1))
 end
 local cur=1
 while true do
-  local b,e,c=nv.find(s,'<Item class="([^"]+)"[^>]*>',cur)
-  if not b then break end
-  local d,p,f=1,e+1,nil
-  while d>0 do
-    local ns,ne=nv.find(s,'<Item%s',p)
-    local cs,ce=nv.find(s,'</Item>',p)
-    if cs and(not ns or cs<ns)then
-      d=d-1
-      f=ce
-      p=ce+1
-    elseif ns then
-      d=d+1
-      p=ne+1
-    else break end
-  end
-  if f then
-    local x=nv.sub(s,b,f)
-    if y then
-      local needed={}
-      for hash in nv.gmatch(x,'<SharedString name="[^"]*">([^<]+)</SharedString>') do
-        if ss[hash] and not needed[hash] then
-          needed[hash]=true
-        end
-      end
-      local ssblock=""
-      local sb={}
-      for hash in next,needed do
-        nv.ti(sb,nv.sf('<SharedString md5="%s">%s</SharedString>',hash,ss[hash]))
-      end
-      if #sb>0 then
-        ssblock="\n<SharedStrings>\n"..tc(sb,"\n").."\n</SharedStrings>"
-      end
-      x=h..ssblock..x..'</roblox>'
-    end
-    nv.ti(res,{Class=c,XML=x})
-    cur=f+1
-  else cur=e+1 end
+	local b,e,c=nv.find(s,'<Item class="([^"]+)"[^>]*>',cur)
+	if not b then break end
+	local d,p,f=1,e+1,nil
+	while d>0 do
+		local ns,ne=nv.find(s,'<Item%s',p)
+		local cs,ce=nv.find(s,'</Item>',p)
+		if cs and(not ns or cs<ns)then
+			d=d-1
+			f=ce
+			p=ce+1
+		elseif ns then
+			d=d+1
+			p=ne+1
+		else break end
+	end
+	if f then
+		local x=nv.sub(s,b,f)
+		if y then
+			local needed={}
+			for hash in nv.gmatch(x,'<SharedString name="[^"]*">([^<]+)</SharedString>') do
+				if ss[hash] and not needed[hash] then
+					needed[hash]=true
+				end
+			end
+			local ssblock=""
+			local sb={}
+			for hash in next,needed do
+				nv.ti(sb,nv.sf('<SharedString md5="%s">%s</SharedString>',hash,ss[hash]))
+			end
+			if #sb>0 then
+				ssblock="\n<SharedStrings>\n"..tc(sb,"\n").."\n</SharedStrings>"
+			end
+			x=h..ssblock..x..'</roblox>'
+		end
+		nv.ti(res,{Class=c,XML=x})
+		cur=f+1
+	else cur=e+1 end
 end
 return res
 end
@@ -471,44 +474,44 @@ XMLToTable=nv.cppf(nv.xmltotable),
 SplitXML=nv.cppf(nv.splitxml)
 }
 nv.robloxtype = function(x)
-  if nv.sub(x,1, 8) == "<roblox!" then
-    return "binary"
-  elseif nv.sub(x,1, 7) == "<roblox" then
-    return "xml"
-  else
-    return "unknown"
-  end
+	if nv.sub(x,1, 8) == "<roblox!" then
+		return "binary"
+	elseif nv.sub(x,1, 7) == "<roblox" then
+		return "xml"
+	else
+		return "unknown"
+	end
 end
 nv.FixStudioXML=nv.cppf(function(x)
-  return nv.gsub(nv.gsub(x,'<Item class="Workspace"','<Item class="Model"'),'<Item class="Terrain"','<Item class="Folder"')
+	return nv.gsub(nv.gsub(x,'<Item class="Workspace"','<Item class="Model"'),'<Item class="Terrain"','<Item class="Folder"')
 end)
 nv.roblox={XML=nv.tclone(nv.XML),GetAssetSource=nv.cppf(nv.GetAssetSource),BinaryFormat={
-    XMLToBinary=nv.XMLToBinary,
-    BinaryToXML=nv.BinaryToXML,
-    XMLType=nv.cppf(nv.robloxtype),
-    FixStudioXML=nv.FixStudioXML
+		XMLToBinary=nv.XMLToBinary,
+		BinaryToXML=nv.BinaryToXML,
+		XMLType=nv.cppf(nv.robloxtype),
+		FixStudioXML=nv.FixStudioXML
 }}
 nv.genv.GetProperties=nv.cppf(nv.getproperties)
 nv.genv.GetLocalObjects=function(x)
-  local id=nv.oldti()
-  if id<3 then
-  nv.oldset(3)
-  nv.def(nv.oldset,id)
-  end
-    return nv.DeserializeInstance(nv.SerializationService,nv.bufferstring(nv.FixStudioXML(nv.rf(`{nv.behave}{x}`))))
+	local id=nv.oldti()
+	if id<3 then
+	nv.oldset(3)
+	nv.def(nv.oldset,id)
+	end
+		return nv.DeserializeInstance(nv.SerializationService,nv.bufferstring(nv.FixStudioXML(nv.rf(`{nv.behave}{x}`))))
 end
 nv.genv.GetObjects=function(x)
-  local id=nv.oldti()
-  if id<3 then
-  nv.oldset(3)
-  nv.def(nv.oldset,id)
-  end
-  local assetid=nv.match(x,"%d+")
-  if assetid then
-    return nv.DeserializeInstance(nv.SerializationService,nv.bufferstring(nv.FixStudioXML(nv.GetAssetSource(assetid))))
-  else
-    nv.err("Invalid asset id.")
-  end
+	local id=nv.oldti()
+	if id<3 then
+	nv.oldset(3)
+	nv.def(nv.oldset,id)
+	end
+	local assetid=nv.match(x,"%d+")
+	if assetid then
+		return nv.DeserializeInstance(nv.SerializationService,nv.bufferstring(nv.FixStudioXML(nv.GetAssetSource(assetid))))
+	else
+		nv.err("Invalid asset id.")
+	end
 end
 nv.genv.LoadLocalAsset=function(x)
 if nv.FilesEnabled then
@@ -682,9 +685,9 @@ return self.installedsize
 end)}
 if nv.canhead then
 ext.size=nv.req{Url=url,Method='HEAD'}['Content-Length']
-  else
+	else
 ext.size="0"
-  end
+	end
 nv.cr(nv.cc(function()
 chunksize=(chunksize and 1024*chunksize) or nv.precalculatedsize
 local start,Headers,body,bodysize=0,{}
@@ -700,7 +703,7 @@ ext.finished=true
 end))
 return ext
 else
-    nv.rwarn("File permissions denied.")
+		nv.rwarn("File permissions denied.")
 end
 end
 nv.streamget = function(url,chunksize)
@@ -728,47 +731,47 @@ ext.finished=true
 end))
 return ext
 else
-    nv.rwarn("HTTP permissions denied.")
+		nv.rwarn("HTTP permissions denied.")
 end
 end
 nv.nd=nv.cppf(nv.clonef(nv.download))
 nv.git={
 getgit=nv.cppf(nv.getgit),
 clone=nv.cppf(function(x)
-        if nv.FilesEnabled then
+				if nv.FilesEnabled then
 local tab,repo=nv.getgit(x)
 local rep=`{nv.behave}{repo}/`
 nv.mf(rep)
-            local function check(i,v)
-                if v.type=="file" then
-                    nv.nd(v.rawurl,`{repo}/{v.path}`)
-                else
-                nv.mf(`{rep}{v.path}`)
-                local newtab=nv.getgit(`{x}/{v.path}`)
-                for i,v in next,newtab do
-                        check(i,v)
-                    end
-                end
-            end
+						local function check(i,v)
+								if v.type=="file" then
+										nv.nd(v.rawurl,`{repo}/{v.path}`)
+								else
+								nv.mf(`{rep}{v.path}`)
+								local newtab=nv.getgit(`{x}/{v.path}`)
+								for i,v in next,newtab do
+												check(i,v)
+										end
+								end
+						end
 for i,v in next,tab do
 check(i,v)
 end
-        else
-            nv.rwarn("File permissions denied.")
-        end
-    end)
+				else
+						nv.rwarn("File permissions denied.")
+				end
+		end)
 }
 nv.NEXHttp.download=nv.cppf(nv.download)
 nv.roblox.DownloadAsset=nv.cppf(function(x,y)
-    if nv.FilesEnabled then
-      local id=nv.oldti()
-      if id<3 then
-        nv.oldset(3)
-        nv.def(nv.oldset,id)
-      end
-      nv.wf(`{nv.behave}{y}`,nv.GetAssetSource(x))
-    end
-  end)
+		if nv.FilesEnabled then
+			local id=nv.oldti()
+			if id<3 then
+				nv.oldset(3)
+				nv.def(nv.oldset,id)
+			end
+			nv.wf(`{nv.behave}{y}`,nv.GetAssetSource(x))
+		end
+	end)
 nv.renv.roblox=nv.tclone(nv.roblox)
 nv.NEXHttp.streamget=nv.cppf(nv.streamget)
 nv.renv.git=nv.tclone(nv.git)
@@ -781,7 +784,7 @@ nv.utf8 = function(x)
 local res={}
 for i=1,#x do
 res[i]=nv.format(nv.sillystring,nv.byte(x,i))
-  end
+	end
 return nv.tc(res)
 end
 nv.seriousstring = '\\x(%x%x)'
@@ -805,61 +808,61 @@ options.Url=x
 options.Method="GET"
 return nv.retq(nv.req(options),x)
 else
-  nv.err("HTTP Permissions Denied.")
+	nv.err("HTTP Permissions Denied.")
 end
 end)
 nv.requests.post=nv.cppf(function(x,options)
 if nv.HttpEnabled then
-  options.Url=x
-  options.Method="POST"
-  return nv.retq(nv.req(options),x)
+	options.Url=x
+	options.Method="POST"
+	return nv.retq(nv.req(options),x)
 else
-  nv.err("HTTP Permissions Denied.")
+	nv.err("HTTP Permissions Denied.")
 end
 end)
 nv.requests.options=nv.cppf(function(x,options)
 if nv.HttpEnabled then
-  options.Url=x
-  options.Method="OPTIONS"
-  return nv.retq(nv.req(options),x)
+	options.Url=x
+	options.Method="OPTIONS"
+	return nv.retq(nv.req(options),x)
 else
-  nv.err("HTTP Permissions Denied.")
+	nv.err("HTTP Permissions Denied.")
 end
 end)
 nv.requests.patch=nv.cppf(function(x,options)
 if nv.HttpEnabled then
-  options.Url=x
-  options.Method="PATCH"
-  return nv.retq(nv.req(options),x)
+	options.Url=x
+	options.Method="PATCH"
+	return nv.retq(nv.req(options),x)
 else
-  nv.err("HTTP Permissions Denied.")
+	nv.err("HTTP Permissions Denied.")
 end
 end)
 nv.requests.put=nv.cppf(function(x,options)
 if nv.HttpEnabled then
-  options.Url=x
-  options.Method="PUT"
-  return nv.retq(nv.req(options),x)
+	options.Url=x
+	options.Method="PUT"
+	return nv.retq(nv.req(options),x)
 else
-  nv.err("HTTP Permissions Denied.")
+	nv.err("HTTP Permissions Denied.")
 end
 end)
 nv.requests.delete=nv.cppf(function(x,options)
 if nv.HttpEnabled then
-  options.Url=x
-  options.Method="DELETE"
-  return nv.retq(nv.req(options),x)
+	options.Url=x
+	options.Method="DELETE"
+	return nv.retq(nv.req(options),x)
 else
-  nv.err("HTTP Permissions Denied.")
+	nv.err("HTTP Permissions Denied.")
 end
 end)
 nv.requests.post=nv.cppf(function(x,options)
 if nv.HttpEnabled then
-  options.Url=x
-  options.Method="POST"
-  return nv.retq(nv.req(options),x)
+	options.Url=x
+	options.Method="POST"
+	return nv.retq(nv.req(options),x)
 else
-  nv.err("HTTP Permissions Denied.")
+	nv.err("HTTP Permissions Denied.")
 end
 end)
 nv.encrypt={
@@ -878,14 +881,14 @@ nv.renv.typefile=nv.cppf(function(x)
 if nv.FilesEnabled then
 if nv.isf(`{nv.behave}{x}`) then
 return "file"
-    elseif nv.isfl(`{nv.behave}{x}`) then
+		elseif nv.isfl(`{nv.behave}{x}`) then
 return "folder"
-    else
-      nv.err("File doesnt exist!")
+		else
+			nv.err("File doesnt exist!")
 end
-    else
-        nv.rwarn("File permissions denied.")
-    end
+		else
+				nv.rwarn("File permissions denied.")
+		end
 end)
 nv.split=nv.clonef(nv.exstr.split)
 nv.writeline = function(path,line,content) 
@@ -929,7 +932,7 @@ for _,v in nv.lf(`{nv.behave}{x}`) do
 t[#t+1]=v
 if typefile(v)=="folder" then
 check(v)
-        end
+				end
 end
 end
 nv.globalgd=nv.cppf(function(self)
@@ -939,9 +942,9 @@ return t
 end)
 nv.globaldestroy=nv.cppf(function(self)
 if self.Type=="file" then
-        nv.df(`{nv.behave}{self.Path}`)
+				nv.df(`{nv.behave}{self.Path}`)
 else
-        nv.dfo(`{nv.behave}{self.Path}`)
+				nv.dfo(`{nv.behave}{self.Path}`)
 end
 end)
 nv.globalgc=nv.cppf(function(self) 
@@ -950,19 +953,19 @@ end)
 nv.OpenFile = function(x)
 if x then
 if not nv.isf(`{nv.behave}{x}`) then
-  nv.wf(`{nv.behave}{x}`,'')
+	nv.wf(`{nv.behave}{x}`,'')
 end
 else
 x="unnamed"
 if not nv.isf(`{nv.behave}{x}`) then --Why would any sane person even do this, just use the path argument!
 nv.wf(`{nv.behave}{x}`,'')
-  else
+	else
 local newstr=`{nv.behave}{x} (1)`
 local count=1
 while nv.isf(newstr) do
 count+=1
 newstr=`{nv.behave}{x} ({count})`
-  end
+	end
 nv.wf(newstr,'')
 end
 end
@@ -975,7 +978,7 @@ GetChildren=nv.cppf(function(self)
 return {}
 end),
 GetDescendants=nv.cppf(function(self)
-  return {}
+	return {}
 end)
 }
 if FileData.Type=="file" then
@@ -993,11 +996,11 @@ __namecall=nv.cppf(function(x,...)
 local method=getnamecallmethod()
 local methf=x[method]
 if not methf then
-            nv.err("Attempted to call a non-existent method!")
-        else
+						nv.err("Attempted to call a non-existent method!")
+				else
 return methf(x,...)
-        end
-    end),
+				end
+		end),
 __type="File",
 __tostring=nv.cppf(function() return FileData.Name end),
 __index=FileData,
@@ -1008,18 +1011,18 @@ l:Destroy()
 elseif y=="Name" then
 nv.wf(`{nv.behave}{x:gsub(FileData.Name,'')}{z}`,l:Read())
 l:Destroy()
-    elseif y=="Type" then
+		elseif y=="Type" then
 l:Destroy()
 if z=="folder" then
 nv.mf(`{nv.behave}{x}`)
-      elseif z=="file" then
+			elseif z=="file" then
 nv.wf(`{nv.behave}{x}`,'')
-      else
+			else
 nv.err(`Cannot change the type of File to {z}`)
-      end
-    else
+			end
+		else
 nv.err(`Cannot modify the {y} of File.`)
-  end
+	end
 end),
 __metatable="The metatable is locked."
 }
@@ -1042,7 +1045,7 @@ newfi[i]=nv.gsub(v,nv.behave,'')
 end
 return newfi
 else
-    nv.rwarn("File permissions denied.")
+		nv.rwarn("File permissions denied.")
 end
 end)
 nv.renv.NEXHttp=nv.tclone(nv.NEXHttp)
@@ -1064,8 +1067,8 @@ local indr=nv.rawmt(envmi)
 if nv.iro(envmm) or nv.iro(envm) then
 if nv.debugm then
 nv.rwarn(`Came across an abnormal thread! ({env.script})`)
-      end
-    else
+			end
+		else
 if indr then
 local oindrmt=indr.__metatable
 indr.__metatable=nil
@@ -1078,13 +1081,13 @@ local envtenex=envte
 if env and env.Protected_Environment then
 if nv.debugm or env.ForceDebuggedEnvironment then
 nv.rwarn(`{env.script} IS PROTECTED`)
-                    end
-            else
+										end
+						else
 if env.NEXLuau then
 nv.nex(env)
 envte=nv.nexenv.std.NEXFunctions
 envtenex=nv.nexenv
-                    end
+										end
 if env.ExternalThread then
 nv.tclose(v)
 nv.tw()
@@ -1097,9 +1100,9 @@ for i,x in next,nv.renv do
 envte[i]=x
 end
 envtenex.NEX_Loaded=true
-                    if nv.debugm or env.ForceDebuggedEnvironment then
-                    nv.rwarn(`NEX LOADED IN {env.script}`)
-                    end
+										if nv.debugm or env.ForceDebuggedEnvironment then
+										nv.rwarn(`NEX LOADED IN {env.script}`)
+										end
 end
 end
 end
