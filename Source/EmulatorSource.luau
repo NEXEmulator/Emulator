@@ -483,6 +483,9 @@ nv.robloxtype = function(x)
 	end
 end
 nv.FixStudioXML=nv.cppf(function(x)
+	if nv.robloxtype(x)=="binary" then
+			x=nv.BinaryToXML(x)
+	end
 	return nv.gsub(nv.gsub(x,'<Item class="Workspace"','<Item class="Model"'),'<Item class="Terrain"','<Item class="Folder"')
 end)
 nv.roblox={XML=nv.tclone(nv.XML),GetAssetSource=nv.cppf(nv.GetAssetSource),BinaryFormat={
@@ -492,15 +495,21 @@ nv.roblox={XML=nv.tclone(nv.XML),GetAssetSource=nv.cppf(nv.GetAssetSource),Binar
 		FixStudioXML=nv.FixStudioXML
 }}
 nv.genv.GetProperties=nv.cppf(nv.getproperties)
-nv.genv.GetLocalObjects=function(x)
+nv.genv.GetLocalObjects=function(x,fixstudio)
 	local id=nv.oldti()
 	if id<3 then
 	nv.oldset(3)
 	nv.def(nv.oldset,id)
 	end
-		return nv.DeserializeInstance(nv.SerializationService,nv.bufferstring(nv.FixStudioXML(nv.rf(`{nv.behave}{x}`))))
+	local source
+	if fixstudio then
+		source=nv.FixStudioXML(nv.rf(`{nv.behave}{x}`))
+	else
+		source=nv.rf(`{nv.behave}{x}`)
+	end
+		return nv.DeserializeInstance(nv.SerializationService,nv.bufferstring(source))
 end
-nv.genv.GetObjects=function(x)
+nv.genv.GetObjects=function(x,fixstudio)
 	local id=nv.oldti()
 	if id<3 then
 	nv.oldset(3)
@@ -508,7 +517,13 @@ nv.genv.GetObjects=function(x)
 	end
 	local assetid=nv.match(x,"%d+")
 	if assetid then
-		return nv.DeserializeInstance(nv.SerializationService,nv.bufferstring(nv.FixStudioXML(nv.GetAssetSource(assetid))))
+		local assetsource
+		if fixstudio then
+		assetsource=nv.fixstudioxml(nv.GetAssetSource(assetid))
+		else
+			assetsource=nv.GetAssetSource(assetid)
+		end
+		return nv.DeserializeInstance(nv.SerializationService,nv.bufferstring(assetsource))
 	else
 		nv.err("Invalid asset id.")
 	end
