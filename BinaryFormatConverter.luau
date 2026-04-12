@@ -1,5 +1,5 @@
 --ai was used for optimization here
-local Converter={NEX_Version="1.0.2",ReferentPrefix="NEX"}local b32=bit32
+local Converter={NEX_Version="1.0.2",ReferentPrefix="RBX"}local b32=bit32
 local spack,sunpack=string.pack,string.unpack
 local tconc,tcreat,tsort,tunpack=table.concat,table.create,table.sort,table.unpack
 local mfloor,mabs,mceil,mmin=math.floor,math.abs,math.ceil,math.min
@@ -162,13 +162,14 @@ return name..spack("<I4",#compressed)..spack("<I4",n)..spack("<I4",0)..compresse
 end
 return name..spack("<I4",0)..spack("<I4",n)..spack("<I4",0)..payload
 end
-local CF_IDENTITY={1,0,0,0,1,0,0,0,1}local CF_SPECIAL={[0x02]={1,0,0,0,1,0,0,0,1},[0x03]={1,0,0,0,0,-1,0,1,0},[0x05]={1,0,0,0,-1,0,0,0,-1},[0x06]={1,0,0,0,0,1,0,-1,0},[0x07]={0,1,0,1,0,0,0,0,-1},[0x09]={0,0,1,1,0,0,0,1,0},[0x0A]={0,-1,0,1,0,0,0,0,1},[0x0C]={0,0,-1,1,0,0,0,-1,0},[0x0D]={0,1,0,0,0,1,1,0,0},[0x0E]={0,0,-1,0,1,0,1,0,0},[0x10]={0,-1,0,0,0,-1,1,0,0},[0x11]={0,0,1,0,-1,0,1,0,0},[0x14]={-1,0,0,0,1,0,0,0,-1},[0x15]={-1,0,0,0,0,1,0,1,0},[0x17]={-1,0,0,0,-1,0,0,0,1},[0x18]={-1,0,0,0,0,-1,0,-1,0},[0x19]={0,1,0,-1,0,0,0,0,1},[0x1B]={0,0,-1,-1,0,0,0,1,0},[0x1C]={0,-1,0,-1,0,0,0,0,-1},[0x1E]={0,0,1,-1,0,0,0,-1,0},[0x1F]={0,1,0,0,0,-1,-1,0,0},[0x20]={0,0,1,0,1,0,-1,0,0},[0x22]={0,-1,0,0,0,1,-1,0,0},[0x23]={0,0,-1,0,-1,0,-1,0,0},}local function findCFSpecial(r)for id,sr in pairs(CF_SPECIAL)do
-local ok=true
-for j=1,9 do
-if mabs((r[j]or 0)-sr[j])>1e-4 then ok=false;break end
+local CF_IDENTITY={1,0,0,0,1,0,0,0,1}local CF_SPECIAL={[0x02]={1,0,0,0,1,0,0,0,1},[0x03]={1,0,0,0,0,-1,0,1,0},[0x05]={1,0,0,0,-1,0,0,0,-1},[0x06]={1,0,0,0,0,1,0,-1,0},[0x07]={0,1,0,1,0,0,0,0,-1},[0x09]={0,0,1,1,0,0,0,1,0},[0x0A]={0,-1,0,1,0,0,0,0,1},[0x0C]={0,0,-1,1,0,0,0,-1,0},[0x0D]={0,1,0,0,0,1,1,0,0},[0x0E]={0,0,-1,0,1,0,1,0,0},[0x10]={0,-1,0,0,0,-1,1,0,0},[0x11]={0,0,1,0,-1,0,1,0,0},[0x14]={-1,0,0,0,1,0,0,0,-1},[0x15]={-1,0,0,0,0,1,0,1,0},[0x17]={-1,0,0,0,-1,0,0,0,1},[0x18]={-1,0,0,0,0,-1,0,-1,0},[0x19]={0,1,0,-1,0,0,0,0,1},[0x1B]={0,0,-1,-1,0,0,0,1,0},[0x1C]={0,-1,0,-1,0,0,0,0,-1},[0x1E]={0,0,1,-1,0,0,0,-1,0},[0x1F]={0,1,0,0,0,-1,-1,0,0},[0x20]={0,0,1,0,1,0,-1,0,0},[0x22]={0,-1,0,0,0,1,-1,0,0},[0x23]={0,0,-1,0,-1,0,-1,0,0},}local CF_SPECIAL_LOOKUP={}do
+local function key(r)return sfmt("%d%d%d%d%d%d%d%d%d",r[1],r[2],r[3],r[4],r[5],r[6],r[7],r[8],r[9])end
+for id,r in pairs(CF_SPECIAL)do CF_SPECIAL_LOOKUP[key(r)]=id end
 end
-if ok then return id end
-end
+local function findCFSpecial(r)local r1,r2,r3,r4,r5,r6,r7,r8,r9=r[1]or 0,r[2]or 0,r[3]or 0,r[4]or 0,r[5]or 0,r[6]or 0,r[7]or 0,r[8]or 0,r[9]or 0
+local ri1,ri2,ri3,ri4,ri5,ri6,ri7,ri8,ri9=mfloor(r1+0.5),mfloor(r2+0.5),mfloor(r3+0.5),mfloor(r4+0.5),mfloor(r5+0.5),mfloor(r6+0.5),mfloor(r7+0.5),mfloor(r8+0.5),mfloor(r9+0.5)
+if mabs(r1-ri1)>1e-4 or mabs(r2-ri2)>1e-4 or mabs(r3-ri3)>1e-4 or mabs(r4-ri4)>1e-4 or mabs(r5-ri5)>1e-4 or mabs(r6-ri6)>1e-4 or mabs(r7-ri7)>1e-4 or mabs(r8-ri8)>1e-4 or mabs(r9-ri9)>1e-4 then return nil end
+return CF_SPECIAL_LOOKUP[sfmt("%d%d%d%d%d%d%d%d%d",ri1,ri2,ri3,ri4,ri5,ri6,ri7,ri8,ri9)]
 end
 local function xmlUnescape(s)return(s:gsub("&amp;","&"):gsub("&lt;","<"):gsub("&gt;",">"):gsub("&quot;",'"'):gsub("&apos;","'"))end
 local function xmlEscape(s)return(tostring(s):gsub("&","&amp;"):gsub("<","&lt;"):gsub(">","&gt;"))end
@@ -330,7 +331,7 @@ oc+=1;out[oc]=b64enc[b32rsh(v,18)]oc+=1;out[oc]=b64enc[b32band(b32rsh(v,12),63)]
 oc+=1;out[oc]=i+2<=n and b64enc[b32band(v,63)]or "="
 end
 return tconc(out)end
-local function base64Decode(s)s=s:gsub("[^A-Za-z0-9+/=]","")local n=#s
+local function base64Decode(s)if sfind(s,"[^A-Za-z0-9+/=]")then s=s:gsub("[^A-Za-z0-9+/=]","")end;local n=#s
 local oc=0;local out=tcreat(mceil(n/4)*3)local i=1
 while i<=n do
 local a=b64dec[sbyte(s,i)]or 0;i+=1
@@ -609,12 +610,12 @@ end
 end
 return tokens
 end
-local function parseElement(tokens,ti,closeName)local text="";local sub={}local nt=#tokens
+local function parseElement(tokens,ti,closeName)local textParts={};local tpc=0;local sub={}local nt=#tokens
 while ti<=nt do
 local tok=tokens[ti]if tok.type=="close" and tok.name==closeName then
-return text:match("^%s*(.-)%s*$"),sub,ti+1
+local text=tpc==1 and textParts[1] or tconc(textParts)return text:match("^%s*(.-)%s*$"),sub,ti+1
 elseif tok.type=="text" then
-text..=tok.text;ti+=1
+tpc+=1;textParts[tpc]=tok.text;ti+=1
 elseif tok.type=="open" then
 local childName=tok.name;ti+=1
 local childText,childSub,newTi=parseElement(tokens,ti,childName)ti=newTi
@@ -623,7 +624,7 @@ elseif tok.type=="selfclose" then
 sub[tok.name]="";ti+=1
 else ti+=1 end
 end
-return text:match("^%s*(.-)%s*$"),sub,ti
+local text=tpc==1 and textParts[1] or tconc(textParts)return text:match("^%s*(.-)%s*$"),sub,ti
 end
 local function parseProperties(tokens,ti)local props={}local nt=#tokens
 while ti<=nt do
@@ -756,7 +757,8 @@ elseif prop.xmlTag then
 local tid=xmlTagToTypeId[prop.xmlTag]or 0x01
 if tid==0x01 and CONTENT_PROPS[pname]and not(CLASS_STRING_PROPS[className]and CLASS_STRING_PROPS[className][pname])then tid=0x22 end
 if not typeId then typeId=tid end
-local v=getType(tid).readXml(prop.text or "",prop.sub or{})if v~=nil then
+local v=prop._cached~=nil and prop._cached or getType(tid).readXml(prop.text or "",prop.sub or{})prop._cached=v
+if v~=nil then
 if tid==0x1C then
 local key=prop.text or ""
 local idx=sstrKeyToIdx[key]if idx==nil then
@@ -764,8 +766,8 @@ sc+=1;sstrBlobs[sc]="";sstrKeyToIdx[key]=sc-1;idx=sc-1
 end
 vals[i]=idx
 elseif tid==0x1E3 then
-local blob=base64Decode(prop.text or "")local idx=sstrKeyToIdx[blob]if idx==nil then
-sc+=1;sstrBlobs[sc]=blob;sstrKeyToIdx[blob]=sc-1;idx=sc-1
+local key=prop.text or ""local idx=sstrKeyToIdx[key]if idx==nil then
+local blob=base64Decode(key)sc+=1;sstrBlobs[sc]=blob;sstrKeyToIdx[key]=sc-1;idx=sc-1
 end
 vals[i]=idx
 elseif tid==0x13 and v and v~=-1 then
