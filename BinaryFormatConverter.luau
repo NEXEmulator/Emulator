@@ -1,5 +1,5 @@
 --ai was used for optimization here
-local Converter={NEX_Version="1.0.2"}local b32=bit32
+local Converter={NEX_Version="1.0.2",ReferentPrefix="NEX"}local b32=bit32
 local spack,sunpack=string.pack,string.unpack
 local tconc,tcreat,tsort,tunpack=table.concat,table.create,table.sort,table.unpack
 local mfloor,mabs,mceil,mmin=math.floor,math.abs,math.ceil,math.min
@@ -244,9 +244,8 @@ end
 return tconc(perInst,"",1,pc)..interleaveF32(xs)..interleaveF32(ys)..interleaveF32(zs)end,xmlTag="CoordinateFrame",readXml=function(_,sub)return{x=tonumber(sub.X or"0"),y=tonumber(sub.Y or"0"),z=tonumber(sub.Z or"0"),r={tonumber(sub.R00 or"1"),tonumber(sub.R01 or"0"),tonumber(sub.R02 or"0"),tonumber(sub.R10 or"0"),tonumber(sub.R11 or"1"),tonumber(sub.R12 or"0"),tonumber(sub.R20 or"0"),tonumber(sub.R21 or"0"),tonumber(sub.R22 or"1")},}end,writeXml=function(v)local r=v.r or CF_IDENTITY
 return "<X>"..safeF(v.x).."</X><Y>"..safeF(v.y).."</Y><Z>"..safeF(v.z).."</Z>".."<R00>"..safeF(r[1]).."</R00><R01>"..safeF(r[2]).."</R01><R02>"..safeF(r[3]).."</R02>".."<R10>"..safeF(r[4]).."</R10><R11>"..safeF(r[5]).."</R11><R12>"..safeF(r[6]).."</R12>".."<R20>"..safeF(r[7]).."</R20><R21>"..safeF(r[8]).."</R21><R22>"..safeF(r[9]).."</R22>"
 end,}PropType[0x12]={name="Enum",readBin=function(data,n)return deinterleaveU32(data,n)end,writeBin=function(vals)return interleaveU32(vals)end,xmlTag="token",readXml=function(s)return tonumber(s)or 0 end,writeXml=function(v)return tostring(mfloor(v or 0))end,}PropType[0x13]={name="Referent",readBin=function(data,n)return deinterleaveRef(data,n)end,writeBin=function(vals)return interleaveRef(vals)end,xmlTag="Ref",readXml=function(s)if not s or s=="null" or s=="" then return-1 end
-local hex=s:match("^RBX(%x+)$")if hex then return tonumber(hex,16)end
 return tonumber(s)or-1
-end,writeXml=function(v)return(not v or v==-1 or v<0)and "null" or("RBX"..sfmt("%08X",v))end,}PropType[0x14]={name="Vector3int16",readBin=function(data,n)local out=tcreat(n);local p=1
+end,writeXml=function(v)return(not v or v==-1 or v<0)and "null" or(Converter.ReferentPrefix..tostring(v))end,}PropType[0x14]={name="Vector3int16",readBin=function(data,n)local out=tcreat(n);local p=1
 for i=1,n do
 local x,y,z
 x,p=sunpack("<i2",data,p);y,p=sunpack("<i2",data,p);z,p=sunpack("<i2",data,p)out[i]={x=x,y=y,z=z}end;return out
@@ -859,7 +858,7 @@ lc+=1;lines[lc]="\t</SharedStrings>"
 end
 local tabCache=tcreat(8)for d=0,7 do tabCache[d]=srep("\t",d)end
 local function getTab(d)return tabCache[d]or srep("\t",d)end
-local function writeNode(node,indent)local tab=getTab(indent)local tab1=getTab(indent+1)local tab2=getTab(indent+2)lc+=1;lines[lc]=tab..'<Item class="'..xmlEscape(node.className)..'" referent="RBX'..sfmt("%08X",node.referent)..'">'
+local function writeNode(node,indent)local tab=getTab(indent)local tab1=getTab(indent+1)local tab2=getTab(indent+2)lc+=1;lines[lc]=tab..'<Item class="'..xmlEscape(node.className)..'" referent="'..Converter.ReferentPrefix..node.referent..'">'
 lc+=1;lines[lc]=tab1.."<Properties>"
 local pnames={};local pnc=0
 for pname in pairs(node.properties)do pnc+=1;pnames[pnc]=pname end
