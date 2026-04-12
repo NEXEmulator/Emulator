@@ -1,5 +1,5 @@
 --ai was used for optimization here
-local Converter={NEX_Version="1.0.2",ReferentPrefix="RBX"}local b32=bit32
+local Converter={NEX_Version="1.0.2",ReferentPrefix="NEX"}local b32=bit32
 local spack,sunpack=string.pack,string.unpack
 local tconc,tcreat,tsort,tunpack=table.concat,table.create,table.sort,table.unpack
 local mfloor,mabs,mceil,mmin=math.floor,math.abs,math.ceil,math.min
