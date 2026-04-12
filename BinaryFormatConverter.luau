@@ -23,15 +23,7 @@ until e~=255
 end
 local si_end=si+ll-1
 while si<=si_end do
-local ce=mmin(si+199,si_end)local nb=ce-si+1
-if nb==1 then
 out[oi]=sbyte(src,si);oi+=1;si+=1
-elseif nb==2 then
-local a,b=sbyte(src,si,si+1)out[oi]=a;out[oi+1]=b;oi+=2;si+=2
-else
-local bytes={sbyte(src,si,ce)}for k=1,nb do out[oi]=bytes[k];oi+=1 end
-si+=nb
-end
 end
 if si>slen then break end
 local b0=sbyte(src,si)or 0;si+=1
@@ -706,7 +698,7 @@ else tmpTi+=1 end
 end
 local roots,_=parseXmlItems(tokens,ti,refCounter,"roblox")return roots,xmlSharedStrings
 end
-local function serializeBinary(roots,xmlSharedStrings)local allInsts={}local function collect(node)local ac=#allInsts+1;allInsts[ac]=node
+local function serializeBinary(roots,xmlSharedStrings)local allInsts={};local ac=0;local function collect(node)ac+=1;allInsts[ac]=node
 local ch=node.children
 for i=1,#ch do collect(ch[i])end
 end
@@ -883,7 +875,7 @@ else
 value=base64Encode(getBlobKey(blob))end
 end
 local typeInfo=getType(typeId)local tag=typeInfo.xmlTag
-local ok,inner=pcall(typeInfo.writeXml,value)if ok then
+local inner=typeInfo.writeXml(value)if inner~=nil then
 local encoded
 if typeId==0x1E4 then
 local sv=tostring(inner or "")if sv:find("[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\xFF]")then
@@ -899,7 +891,7 @@ else encoded=xmlEscape(sv)end
 else
 encoded=inner
 end
-lc+=1;lines[lc]=tab2.."<"..tag..' name="'..xmlEscape(pname)..'">'..encoded.."</"..tag..">"
+lc+=1;lines[lc]=tab2.."<"..tag..' name="'..pname..'">'..encoded.."</"..tag..">"
 end
 end
 lc+=1;lines[lc]=tab1.."</Properties>"
