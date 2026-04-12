@@ -762,8 +762,10 @@ local key=prop.text or ""local idx=sstrKeyToIdx[key]if idx==nil then
 local blob=base64Decode(key)sc+=1;sstrBlobs[sc]=blob;sstrKeyToIdx[key]=sc-1;idx=sc-1
 end
 vals[i]=idx
-elseif tid==0x13 and v and v~=-1 then
-local refNode=xmlRefNodeMap[prop.text or ""]vals[i]=refNode and refMap[refNode]or v
+elseif tid==0x13 then
+local pt=prop.text or ""if pt~="" and pt~="null" then
+local refNode=xmlRefNodeMap[pt]vals[i]=refNode and refMap[refNode]or -1
+else vals[i]=-1 end
 else
 vals[i]=v
 end
