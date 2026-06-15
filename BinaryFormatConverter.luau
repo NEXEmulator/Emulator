@@ -14,24 +14,45 @@ local apiPropTypes={}
 local chr=tcreat(256)for _i=0,255 do chr[_i]=schar(_i)end
 local function newBlobKey()local g=HttpService:GenerateGUID(false):gsub("-","")local b=tcreat(16)for i=1,16 do b[i]=schar(tonumber(g:sub(i*2-1,i*2),16))end
 return tconc(b)end
-local function loadApiDump()local ok,raw=pcall(function()return HttpService:GetAsync("https://raw.githubusercontent.com/MaximumADHD/Roblox-Client-Tracker/roblox/API-Dump.json")end)
-if not ok or not raw then warn("NEXConverter: failed to fetch API dump, falling back to manual type lists")return end
-local ok2,dump=pcall(HttpService.JSONDecode,HttpService,raw)if not ok2 or not dump or not dump.Classes then warn("NEXConverter: failed to parse API dump")return end
-local direct={};local parents={}for _,class in ipairs(dump.Classes)do
-parents[class.Name]=class.Superclass;local props={}for _,member in ipairs(class.Members or {})do
-if member.MemberType=="Property" and member.ValueType then props[member.Name]={n=member.ValueType.Name,c=member.ValueType.Category}end
-end;direct[class.Name]=props
-end
-local resolved={}local function resolve(cn,depth)if not cn or cn=="<<<ROOT>>>" or depth>32 then return {} end
-if resolved[cn] then return resolved[cn] end;resolved[cn]={}
-local r={};local par=parents[cn]if par then for k,v in pairs(resolve(par,depth+1))do r[k]=v end end
-for pname,vt in pairs(direct[cn]or {})do
-local tid;if vt.c=="Enum" then tid=0x12 elseif vt.c=="Class" then tid=0x13 else tid=VALUE_TYPE_TO_BIN[vt.n] end
-if tid then r[pname]=tid end
-end;resolved[cn]=r;return r
-end
-for _,class in ipairs(dump.Classes)do resolve(class.Name,0)end
-for cn,props in pairs(resolved)do apiPropTypes[cn]=props end
+local function loadApiDump()
+	local ok,classes=pcall(function()return game:GetService("ReflectionService"):GetClasses()end)
+	if not ok or not classes then warn("NEXConverter: failed to get class data, falling back to manual type lists")return end
+	local direct={};local parents={}
+	for _,class in ipairs(classes)do
+		parents[class.Name]=class.Superclass
+		local props={}
+		for _,member in ipairs(class.Members or {})do
+			if member.MemberType=="Property" and member.ValueType then
+				local vt=member.ValueType
+				local vtName,vtCat
+				if type(vt)=="table" then
+					vtName=vt.Name;vtCat=vt.Category
+				elseif type(vt)=="string" then
+					vtName=vt;vtCat="Primitive"
+				end
+				if vtName then props[member.Name]={n=vtName,c=vtCat}end
+			end
+		end
+		direct[class.Name]=props
+	end
+	local resolved={}
+	local function resolve(cn,depth)
+		if not cn or cn=="<<<ROOT>>>" or depth>32 then return {} end
+		if resolved[cn] then return resolved[cn] end
+		resolved[cn]={}
+		local r={};local par=parents[cn]
+		if par then for k,v in pairs(resolve(par,depth+1))do r[k]=v end end
+		for pname,vt in pairs(direct[cn]or {})do
+			local tid
+			if vt.c=="Enum" then tid=0x12
+			elseif vt.c=="Class" then tid=0x13
+			else tid=VALUE_TYPE_TO_BIN[vt.n]end
+			if tid then r[pname]=tid end
+		end
+		resolved[cn]=r;return r
+	end
+	for _,class in ipairs(classes)do resolve(class.Name,0)end
+	for cn,props in pairs(resolved)do apiPropTypes[cn]=props end
 end
 local function resolveTypeId(className,propName,xmlTagTypeId)local classMap=apiPropTypes[className]if classMap then local apiTid=classMap[propName]if apiTid then return apiTid end end
 if CLASS_STRING_PROPS and CLASS_STRING_PROPS[className]and CLASS_STRING_PROPS[className][propName]then return 0x01 end
@@ -810,7 +831,18 @@ elseif typeId==0x0C then vals[i]={r=0,g=0,b=0}elseif typeId==0x0E then vals[i]={
 elseif typeId==0x1E then vals[i]=false
 elseif typeId==0x1E2 or typeId==0x1E4 then vals[i]=""
 elseif typeId==0x1F then vals[i]=("\0"):rep(16)
-elseif typeId==0x20 then vals[i]={family="",weight=400,style=0,cachedFaceId=""}elseif typeId==0x21 then vals[i]=0 elseif typeId==0x22 then vals[i]=""
+elseif typeId==0x20 then vals[i]={family="",weight=400,style=0,cachedFaceId=""}elseif typeId==0x06 then vals[i]={scale=0,offset=0}
+elseif typeId==0x07 then vals[i]={xScale=0,yScale=0,xOffset=0,yOffset=0}
+elseif typeId==0x08 then vals[i]={ox=0,oy=0,oz=0,dx=0,dy=0,dz=0}
+elseif typeId==0x0D then vals[i]={x=0,y=0}
+elseif typeId==0x14 then vals[i]={x=0,y=0,z=0}
+elseif typeId==0x15 then vals[i]={}
+elseif typeId==0x16 then vals[i]={}
+elseif typeId==0x17 then vals[i]={min=0,max=1}
+elseif typeId==0x18 then vals[i]={minX=0,minY=0,maxX=0,maxY=0}
+elseif typeId==0x19 then vals[i]={custom=false}
+elseif typeId==0x1A then vals[i]={r=0,g=0,b=0}
+elseif typeId==0x21 then vals[i]=0 elseif typeId==0x22 then vals[i]=""
 else vals[i]=0 end
 end
 end
