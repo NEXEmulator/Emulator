@@ -8,9 +8,36 @@ local schar,sfmt,sfind,ssub,sbyte=string.char,string.format,string.find,string.s
 local srep=string.rep
 local b32rsh,b32band,b32bor,b32lsh=b32.rshift,b32.band,b32.bor,b32.lshift
 local pairs,ipairs,next,pcall,type,tonumber,tostring=pairs,ipairs,next,pcall,type,tonumber,tostring
-local HttpService=game:GetService("HttpService")local chr=tcreat(256)for _i=0,255 do chr[_i]=schar(_i)end
+local HttpService=game:GetService("HttpService")
+local VALUE_TYPE_TO_BIN={string=0x01,bool=0x02,int=0x03,float=0x04,double=0x05,UDim=0x06,UDim2=0x07,Ray=0x08,Faces=0x09,Axes=0x0A,BrickColor=0x0B,Color3=0x0C,Vector2=0x0D,Vector3=0x0E,CFrame=0x10,Vector3int16=0x14,NumberSequence=0x15,ColorSequence=0x16,NumberRange=0x17,Rect2D=0x18,PhysicalProperties=0x19,Color3uint8=0x1A,int64=0x1B,OptionalCFrame=0x1E,ProtectedString=0x1E4,UniqueId=0x1F,Font=0x20,SecurityCapabilities=0x21,Content=0x22,BinaryString=0x1E2,}
+local apiPropTypes={}
+local chr=tcreat(256)for _i=0,255 do chr[_i]=schar(_i)end
 local function newBlobKey()local g=HttpService:GenerateGUID(false):gsub("-","")local b=tcreat(16)for i=1,16 do b[i]=schar(tonumber(g:sub(i*2-1,i*2),16))end
 return tconc(b)end
+local function loadApiDump()local ok,raw=pcall(function()return HttpService:GetAsync("https://raw.githubusercontent.com/MaximumADHD/Roblox-Client-Tracker/roblox/API-Dump.json")end)
+if not ok or not raw then warn("NEXConverter: failed to fetch API dump, falling back to manual type lists")return end
+local ok2,dump=pcall(HttpService.JSONDecode,HttpService,raw)if not ok2 or not dump or not dump.Classes then warn("NEXConverter: failed to parse API dump")return end
+local direct={};local parents={}for _,class in ipairs(dump.Classes)do
+parents[class.Name]=class.Superclass;local props={}for _,member in ipairs(class.Members or {})do
+if member.MemberType=="Property" and member.ValueType then props[member.Name]={n=member.ValueType.Name,c=member.ValueType.Category}end
+end;direct[class.Name]=props
+end
+local resolved={}local function resolve(cn,depth)if not cn or cn=="<<<ROOT>>>" or depth>32 then return {} end
+if resolved[cn] then return resolved[cn] end;resolved[cn]={}
+local r={};local par=parents[cn]if par then for k,v in pairs(resolve(par,depth+1))do r[k]=v end end
+for pname,vt in pairs(direct[cn]or {})do
+local tid;if vt.c=="Enum" then tid=0x12 elseif vt.c=="Class" then tid=0x13 else tid=VALUE_TYPE_TO_BIN[vt.n] end
+if tid then r[pname]=tid end
+end;resolved[cn]=r;return r
+end
+for _,class in ipairs(dump.Classes)do resolve(class.Name,0)end
+for cn,props in pairs(resolved)do apiPropTypes[cn]=props end
+end
+local function resolveTypeId(className,propName,xmlTagTypeId)local classMap=apiPropTypes[className]if classMap then local apiTid=classMap[propName]if apiTid then return apiTid end end
+if CLASS_STRING_PROPS and CLASS_STRING_PROPS[className]and CLASS_STRING_PROPS[className][propName]then return 0x01 end
+if xmlTagTypeId==0x01 and CONTENT_PROPS and CONTENT_PROPS[propName]then return 0x22 end
+return xmlTagTypeId
+end
 local function lz4Decompress(src,uncompSize)local out=tcreat(uncompSize+64,0)local si=1
 local oi=1
 local slen=#src
@@ -422,7 +449,11 @@ end,writeBin=function(vals)local n=#vals;local pc=0;local parts=tcreat(n)for i=1
 local lo=v%0x100000000
 local hi=mfloor(v/0x100000000)%0x100000000
 pc+=1;parts[pc]=spack("<I4",lo)..spack("<I4",hi)end;return tconc(parts)end,xmlTag="SecurityCapabilities",readXml=function(s)return tonumber(s)or 0 end,writeXml=function(v)return tostring(mfloor(v or 0))end,}local function getType(id)return PropType[id]or{name="Unknown("..sfmt("0x%02X",id)..")",readBin=function()return{}end,writeBin=function()return "" end,xmlTag="BinaryString",readXml=function(s)return s end,writeXml=function(v)return tostring(v or "")end,}end
-local CONTENT_PROPS={SoundId=true,Image=true,HoverImage=true,PressedImage=true,Texture=true,LinkedSource=true,MeshId=true,TextureId=true,TextureID=true,SkyboxBk=true,SkyboxDn=true,SkyboxFt=true,SkyboxLf=true,SkyboxRt=true,SkyboxUp=true,AnimationId=true,ShirtTemplate=true,PantsTemplate=true,ContentId=true,GraphicId=true,OverlayTextureId=true,BaseTextureId=true,NormalMap=true,VideoSource=true,AssetId=true,EmissiveMaskContent=true,ColorMaskContent=true,MetalnessContent=true,RoughnessContent=true,NormalContent=true,}local BINARY_STRING_PROPS={AttributesSerialize=true,Tags=true,PhysicsData=true,PhysicsGrid=true,LevelOfDetailData=true,TerrainColors=true,TerrainMaterialColors=true,SmoothGrid=true,ClusterGrid=true,CollisionGroupData=true,MaterialColors=true,HiddenServices=true,VisibleServices=true,}local NETASSET_PROPS={SolidMeshHolder=true}local CLASS_STRING_PROPS={AudioPlayer={Asset=true},VideoFrame={Video=true},Animation={AnimationId=true},Beam={Texture=true},Decal={Texture=true,NormalMap=true},ImageButton={Image=true,HoverImage=true,PressedImage=true},ImageLabel={Image=true},LocalScript={LinkedSource=true},MaterialVariant={NormalMap=true},MeshPart={MeshId=true,TextureID=true},ModuleScript={LinkedSource=true},Pants={PantsTemplate=true},ParticleEmitter={Texture=true},Script={LinkedSource=true},Shirt={ShirtTemplate=true},Sky={SkyboxBk=true,SkyboxDn=true,SkyboxFt=true,SkyboxLf=true,SkyboxRt=true,SkyboxUp=true},Sound={SoundId=true},SpecialMesh={MeshId=true,TextureId=true},Texture={Texture=true,NormalMap=true},UnionOperation={AssetId=true},}local xmlTagToTypeId={}for id,info in pairs(PropType)do
+local CONTENT_PROPS={SoundId=true,Image=true,HoverImage=true,PressedImage=true,Texture=true,LinkedSource=true,MeshId=true,TextureId=true,TextureID=true,SkyboxBk=true,SkyboxDn=true,SkyboxFt=true,SkyboxLf=true,SkyboxRt=true,SkyboxUp=true,AnimationId=true,ShirtTemplate=true,PantsTemplate=true,ContentId=true,GraphicId=true,OverlayTextureId=true,BaseTextureId=true,NormalMap=true,VideoSource=true,AssetId=true,EmissiveMaskContent=true,ColorMaskContent=true,MetalnessContent=true,RoughnessContent=true,NormalContent=true,}
+local BINARY_STRING_PROPS={AttributesSerialize=true,Tags=true,PhysicsData=true,PhysicsGrid=true,LevelOfDetailData=true,TerrainColors=true,TerrainMaterialColors=true,SmoothGrid=true,ClusterGrid=true,CollisionGroupData=true,MaterialColors=true,HiddenServices=true,VisibleServices=true,}
+local NETASSET_PROPS={SolidMeshHolder=true}
+local CLASS_STRING_PROPS={Animation={AnimationId=true},Beam={Texture=true},Decal={Texture=true,NormalMap=true},ImageButton={Image=true,HoverImage=true,PressedImage=true},ImageLabel={Image=true},LocalScript={LinkedSource=true},MaterialVariant={NormalMap=true},MeshPart={MeshId=true,TextureID=true},ModuleScript={LinkedSource=true},Pants={PantsTemplate=true},ParticleEmitter={Texture=true},Script={LinkedSource=true},Shirt={ShirtTemplate=true},Sky={SkyboxBk=true,SkyboxDn=true,SkyboxFt=true,SkyboxLf=true,SkyboxRt=true,SkyboxUp=true},Sound={SoundId=true},SpecialMesh={MeshId=true,TextureId=true},Texture={Texture=true,NormalMap=true},UnionOperation={AssetId=true},VideoFrame={Video=true},AudioPlayer={Asset=true},}
+local xmlTagToTypeId={}for id,info in pairs(PropType)do
 if info.xmlTag then xmlTagToTypeId[info.xmlTag]=id end
 end
 xmlTagToTypeId["string"]=0x01;xmlTagToTypeId["bool"]=0x02
@@ -440,22 +471,16 @@ end;return out
 end,writeBin=function(vals)local n=#vals;local pc=0;local parts=tcreat(n*2)for i=1,n do local v=vals[i]or ""
 pc+=1;parts[pc]=spack("<I4",#v)pc+=1;parts[pc]=v
 end;return tconc(parts)end,xmlTag="BinaryString",readXml=function(s)return base64Decode(s or "")end,writeXml=function(v)return base64Encode(v or "")end,}PropType[0x22]={name="Content",readBin=function(data,n)local out=tcreat(n)
--- 1) N interleaved-i32 source types (0=None, 1=Uri, 2=Object)
 local srcTypes=deinterleaveI32(ssub(data,1,n*4),n);local p=n*4+1
--- 2) UriCount + URIs
 local uriCount;uriCount,p=sunpack("<I4",data,p)local uris=tcreat(uriCount)for i=1,uriCount do
 local ulen;ulen,p=sunpack("<I4",data,p);uris[i]=ssub(data,p,p+ulen-1);p+=ulen
 end
--- 3) ObjectCount + interleaved referent array (skip; Object-type Content unsupported)
 local objCount;objCount,p=sunpack("<I4",data,p);p+=objCount*4
--- 4) ExternalObjectCount (always 0, skip)
 p+=4
--- Distribute URIs to instances
 local ui=0 for i=1,n do if srcTypes[i]==1 then ui+=1;out[i]=uris[ui]or "" else out[i]="" end end
 return out
 end,writeBin=function(vals)local n=#vals;local srcTypeInts=tcreat(n);local uriParts={};local uc=0
 for i=1,n do local v=tostring(vals[i]or "")if v~="" then srcTypeInts[i]=1;uc+=1;uriParts[uc]=spack("<I4",#v)..v else srcTypeInts[i]=0 end end
--- 1) interleaved-i32 source types  2) UriCount+URIs  3) ObjectCount=0  4) ExternalCount=0
 return interleaveI32(srcTypeInts)..spack("<I4",uc)..tconc(uriParts)..spack("<I4",0)..spack("<I4",0)end,xmlTag="Content",readXml=function(text,sub)if type(sub)=="table" then
 if type(sub.uri)=="string" then return sub.uri end
 if type(sub.url)=="string" and sub.url~="" then return sub.url end
@@ -463,7 +488,8 @@ if sub.null~=nil then return "" end
 end
 return text or ""
 end,writeXml=function(v)v=tostring(v or "")return v=="" and "<null></null>" or "<url>"..xmlEscape(v).."</url>"
-end,}local function parseBinary(data)assert(ssub(data,1,16)==RBX_MAGIC,"Not a valid .rbxm binary file")local pos=17
+end,}
+local function parseBinary(data)assert(ssub(data,1,16)==RBX_MAGIC,"Not a valid .rbxm binary file")local pos=17
 local _,np2=sunpack("<I4",data,pos);pos=np2
 local _,np3=sunpack("<I4",data,pos);pos=np3
 pos+=8
@@ -746,8 +772,8 @@ if prop.typeId then
 if not typeId then typeId=prop.typeId end
 vals[i]=prop.value
 elseif prop.xmlTag then
-local tid=xmlTagToTypeId[prop.xmlTag]or 0x01
-if tid==0x01 and CONTENT_PROPS[pname]and not(CLASS_STRING_PROPS[className]and CLASS_STRING_PROPS[className][pname])then tid=0x22 end
+local rawTid=xmlTagToTypeId[prop.xmlTag]or 0x01
+local tid=resolveTypeId(className,pname,rawTid)
 if not typeId then typeId=tid end
 local v=prop._cached~=nil and prop._cached or getType(tid).readXml(prop.text or "",prop.sub or{})prop._cached=v
 if v~=nil then
@@ -774,7 +800,6 @@ end
 end
 end
 if not typeId then continue end
-if CLASS_STRING_PROPS[className]and CLASS_STRING_PROPS[className][pname]then typeId=0x01 end
 local typeInfo=getType(typeId)for i=1,ng do
 if vals[i]==nil then
 if typeId==0x01 then vals[i]=""
@@ -785,24 +810,13 @@ elseif typeId==0x0C then vals[i]={r=0,g=0,b=0}elseif typeId==0x0E then vals[i]={
 elseif typeId==0x1E then vals[i]=false
 elseif typeId==0x1E2 or typeId==0x1E4 then vals[i]=""
 elseif typeId==0x1F then vals[i]=("\0"):rep(16)
-elseif typeId==0x20 then vals[i]={family="",weight=400,style=0,cachedFaceId=""}elseif typeId==0x06 then vals[i]={scale=0,offset=0}
-elseif typeId==0x07 then vals[i]={xScale=0,yScale=0,xOffset=0,yOffset=0}
-elseif typeId==0x08 then vals[i]={ox=0,oy=0,oz=0,dx=0,dy=0,dz=0}
-elseif typeId==0x0D then vals[i]={x=0,y=0}
-elseif typeId==0x14 then vals[i]={x=0,y=0,z=0}
-elseif typeId==0x15 then vals[i]={}
-elseif typeId==0x16 then vals[i]={}
-elseif typeId==0x17 then vals[i]={min=0,max=1}
-elseif typeId==0x18 then vals[i]={minX=0,minY=0,maxX=0,maxY=0}
-elseif typeId==0x19 then vals[i]={custom=false}
-elseif typeId==0x1A then vals[i]={r=0,g=0,b=0}
-elseif typeId==0x21 then vals[i]=0 elseif typeId==0x22 then vals[i]=""
+elseif typeId==0x20 then vals[i]={family="",weight=400,style=0,cachedFaceId=""}elseif typeId==0x21 then vals[i]=0 elseif typeId==0x22 then vals[i]=""
 else vals[i]=0 end
 end
 end
 local binData=typeInfo.writeBin(vals)if binData and#binData>0 then
 local binTypeId
-if typeId==0x22 and not(CLASS_STRING_PROPS[className]and CLASS_STRING_PROPS[className][pname])then binTypeId=0x22
+if typeId==0x22 then binTypeId=0x22
 elseif typeId==0x1E2 then binTypeId=0x01
 elseif typeId==0x1E3 then binTypeId=0x1C
 elseif typeId==0x1E4 and not PROTECTED_STRING_PROPS[pname]then binTypeId=0x01
@@ -874,9 +888,9 @@ local pname=pnames[pi]local prop=node.properties[pname]local typeId,value
 if type(prop)=="table" and prop.typeId then
 typeId=prop.typeId;value=prop.value
 elseif type(prop)=="table" and prop.xmlTag then
-typeId=xmlTagToTypeId[prop.xmlTag]or 0x01
+local rawTid=xmlTagToTypeId[prop.xmlTag]or 0x01
+typeId=resolveTypeId(node.className,pname,rawTid)
 value=getType(typeId).readXml(prop.text,prop.sub or{})else continue end
-if typeId==0x01 and CONTENT_PROPS[pname]then typeId=0x22 end
 if typeId==0x1C or typeId==0x1E3 then
 local idx=type(value)=="number" and value or tonumber(value)or 0
 local blob=sharedStrs and sharedStrs[idx]or ""
@@ -917,4 +931,6 @@ lc+=1;lines[lc]="</roblox>"
 return tconc(lines,"\n")end
 function Converter.XMLToBinary(xmlString)assert(type(xmlString)=="string" and#xmlString>0,"XMLToBinary: expected a non-empty XML string")local roots,xmlSharedStrings=parseXml(xmlString)assert(#roots>0,"XMLToBinary: no instances found in XML string")return serializeBinary(roots,xmlSharedStrings)end
 function Converter.BinaryToXML(binaryString)assert(type(binaryString)=="string" and#binaryString>0,"BinaryToXML: expected a non-empty binary string")local roots,sharedStrs,sharedKeys=parseBinary(binaryString)assert(#roots>0,"BinaryToXML: no instances found in binary string")return serializeXml(roots,sharedStrs,sharedKeys)end
+pcall(loadApiDump)
+Converter.ReloadApiDump=loadApiDump
 return Converter
