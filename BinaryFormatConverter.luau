@@ -785,7 +785,18 @@ elseif typeId==0x0C then vals[i]={r=0,g=0,b=0}elseif typeId==0x0E then vals[i]={
 elseif typeId==0x1E then vals[i]=false
 elseif typeId==0x1E2 or typeId==0x1E4 then vals[i]=""
 elseif typeId==0x1F then vals[i]=("\0"):rep(16)
-elseif typeId==0x20 then vals[i]={family="",weight=400,style=0,cachedFaceId=""}elseif typeId==0x21 then vals[i]=0 elseif typeId==0x22 then vals[i]=""
+elseif typeId==0x20 then vals[i]={family="",weight=400,style=0,cachedFaceId=""}elseif typeId==0x06 then vals[i]={scale=0,offset=0}
+elseif typeId==0x07 then vals[i]={xScale=0,yScale=0,xOffset=0,yOffset=0}
+elseif typeId==0x08 then vals[i]={ox=0,oy=0,oz=0,dx=0,dy=0,dz=0}
+elseif typeId==0x0D then vals[i]={x=0,y=0}
+elseif typeId==0x14 then vals[i]={x=0,y=0,z=0}
+elseif typeId==0x15 then vals[i]={}
+elseif typeId==0x16 then vals[i]={}
+elseif typeId==0x17 then vals[i]={min=0,max=1}
+elseif typeId==0x18 then vals[i]={minX=0,minY=0,maxX=0,maxY=0}
+elseif typeId==0x19 then vals[i]={custom=false}
+elseif typeId==0x1A then vals[i]={r=0,g=0,b=0}
+elseif typeId==0x21 then vals[i]=0 elseif typeId==0x22 then vals[i]=""
 else vals[i]=0 end
 end
 end
