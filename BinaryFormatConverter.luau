@@ -98,7 +98,7 @@ local CLASS_STRING_PROPS={
 		BackAccessory=true,FaceAccessory=true,FrontAccessory=true,
 		HairAccessory=true,HatAccessory=true,NeckAccessory=true,
 		ShouldersAccessory=true,WaistAccessory=true,
-		Face=true,GraphicTShirt=true,Pants=true,Shirt=true,
+		GraphicTShirt=true,
 	},
 	ImageButton={Image=true,HoverImage=true,PressedImage=true},
 	ImageLabel={Image=true},
@@ -124,19 +124,29 @@ local CLASS_STRING_PROPS={
 	WrapTarget={CageMeshId=true},
 }
 
+-- CLASS_CONTENT_PROPS: per-class props that must be written as Content (0x22)
+-- even when the XML tag says <string>, because Roblox's binary format now expects Content.
+local CLASS_CONTENT_PROPS={
+	HumanoidDescription={Face=true,Pants=true,Shirt=true},
+}
+
 local function resolveTypeId(className,propName,xmlTagTypeId)
 	-- Binary-string props are always 0x1E2 no matter what
 	if BINARY_STRING_PROPS[propName] then return 0x1E2 end
+	-- Force Content for known per-class content properties
+	local classContent=CLASS_CONTENT_PROPS[className]
+	if classContent and classContent[propName] then return 0x22 end
 	-- Per-class string overrides: if the XML said <string> for a known asset-ID prop, keep it as string
 	local classStrings=CLASS_STRING_PROPS[className]
 	if classStrings and classStrings[propName] then return 0x01 end
-	-- For <string> tags: only allow API to reclassify as ProtectedString.
-	-- NEVER upgrade string→Content (0x22) from XML; if the XML wanted Content it would use <Content>.
+	-- For <string> tags: allow API to reclassify as ProtectedString or Content.
+	-- NEVER upgrade string→Content (0x22) from XML unless API explicitly says so.
 	if xmlTagTypeId==0x01 then
 		local classMap=apiPropTypes[className]
 		if classMap then
 			local apiTid=classMap[propName]
 			if apiTid==0x1E4 then return 0x1E4 end
+			if apiTid==0x22 then return 0x22 end
 		end
 	end
 	return xmlTagTypeId
