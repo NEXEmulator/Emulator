@@ -54,8 +54,9 @@ local function loadApiDump()
 	for _,class in ipairs(classes)do resolve(class.Name,0)end
 	for cn,props in pairs(resolved)do apiPropTypes[cn]=props end
 end
-local function resolveTypeId(className,propName,xmlTagTypeId)local classMap=apiPropTypes[className]if classMap then local apiTid=classMap[propName]if apiTid then return apiTid end end
+local function resolveTypeId(className,propName,xmlTagTypeId)
 if CLASS_STRING_PROPS and CLASS_STRING_PROPS[className]and CLASS_STRING_PROPS[className][propName]then return 0x01 end
+local classMap=apiPropTypes[className]if classMap then local apiTid=classMap[propName]if apiTid then return apiTid end end
 if xmlTagTypeId==0x01 and CONTENT_PROPS and CONTENT_PROPS[propName]then return 0x22 end
 return xmlTagTypeId
 end
