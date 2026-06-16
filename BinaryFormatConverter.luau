@@ -55,28 +55,87 @@ local function loadApiDump()
 	for cn,props in pairs(resolved)do apiPropTypes[cn]=props end
 end
 
--- These must be declared BEFORE resolveTypeId so they are in scope as upvalues
-local CONTENT_PROPS={SoundId=true,Image=true,HoverImage=true,PressedImage=true,Texture=true,LinkedSource=true,MeshId=true,TextureId=true,TextureID=true,SkyboxBk=true,SkyboxDn=true,SkyboxFt=true,SkyboxLf=true,SkyboxRt=true,SkyboxUp=true,AnimationId=true,ShirtTemplate=true,PantsTemplate=true,ContentId=true,GraphicId=true,OverlayTextureId=true,BaseTextureId=true,NormalMap=true,VideoSource=true,AssetId=true,EmissiveMaskContent=true,ColorMaskContent=true,MetalnessContent=true,RoughnessContent=true,NormalContent=true,}
-local BINARY_STRING_PROPS={AttributesSerialize=true,Tags=true,PhysicsData=true,PhysicsGrid=true,LevelOfDetailData=true,TerrainColors=true,TerrainMaterialColors=true,SmoothGrid=true,ClusterGrid=true,CollisionGroupData=true,MaterialColors=true,HiddenServices=true,VisibleServices=true,}
+-- CONTENT_PROPS: used in BinaryToXML to know which SharedString slots hold asset URIs
+local CONTENT_PROPS={
+	SoundId=true,Image=true,HoverImage=true,PressedImage=true,
+	Texture=true,LinkedSource=true,MeshId=true,TextureId=true,TextureID=true,
+	SkyboxBk=true,SkyboxDn=true,SkyboxFt=true,SkyboxLf=true,SkyboxRt=true,SkyboxUp=true,
+	AnimationId=true,ShirtTemplate=true,PantsTemplate=true,ContentId=true,
+	GraphicId=true,OverlayTextureId=true,BaseTextureId=true,NormalMap=true,
+	VideoSource=true,AssetId=true,
+	EmissiveMaskContent=true,ColorMaskContent=true,MetalnessContent=true,
+	RoughnessContent=true,NormalContent=true,
+	-- extended
+	Video=true,Asset=true,
+	ColorMap=true,MetalnessMap=true,RoughnessMap=true,
+	CageMeshId=true,ReferenceMeshId=true,
+	Graphic=true,
+	BackAccessory=true,FaceAccessory=true,FrontAccessory=true,
+	HairAccessory=true,HatAccessory=true,NeckAccessory=true,
+	ShouldersAccessory=true,WaistAccessory=true,
+	Face=true,GraphicTShirt=true,
+}
+
+local BINARY_STRING_PROPS={
+	AttributesSerialize=true,Tags=true,PhysicsData=true,PhysicsGrid=true,
+	LevelOfDetailData=true,TerrainColors=true,TerrainMaterialColors=true,
+	SmoothGrid=true,ClusterGrid=true,CollisionGroupData=true,
+	MaterialColors=true,HiddenServices=true,VisibleServices=true,
+}
+
 local NETASSET_PROPS={SolidMeshHolder=true}
-local CLASS_STRING_PROPS={Animation={AnimationId=true},Beam={Texture=true},Decal={Texture=true,NormalMap=true},ImageButton={Image=true,HoverImage=true,PressedImage=true},ImageLabel={Image=true},LocalScript={LinkedSource=true},MaterialVariant={NormalMap=true},MeshPart={MeshId=true,TextureID=true},ModuleScript={LinkedSource=true},Pants={PantsTemplate=true},ParticleEmitter={Texture=true},Script={LinkedSource=true},Shirt={ShirtTemplate=true},Sky={SkyboxBk=true,SkyboxDn=true,SkyboxFt=true,SkyboxLf=true,SkyboxRt=true,SkyboxUp=true},Sound={SoundId=true},SpecialMesh={MeshId=true,TextureId=true},Texture={Texture=true,NormalMap=true},UnionOperation={AssetId=true},VideoFrame={Video=true},AudioPlayer={Asset=true},}
+
+-- CLASS_STRING_PROPS: definitive per-class list of props that must stay as string (0x01)
+-- when read from XML <string> tags, regardless of what the API reflection says.
+local CLASS_STRING_PROPS={
+	Animation={AnimationId=true},
+	AudioPlayer={Asset=true},
+	Beam={Texture=true},
+	CharacterMesh={MeshId=true,BaseTextureId=true,OverlayTextureId=true},
+	Decal={Texture=true,NormalMap=true},
+	FileMesh={MeshId=true,TextureId=true},
+	HumanoidDescription={
+		BackAccessory=true,FaceAccessory=true,FrontAccessory=true,
+		HairAccessory=true,HatAccessory=true,NeckAccessory=true,
+		ShouldersAccessory=true,WaistAccessory=true,
+		Face=true,GraphicTShirt=true,Pants=true,Shirt=true,
+	},
+	ImageButton={Image=true,HoverImage=true,PressedImage=true},
+	ImageLabel={Image=true},
+	LocalScript={LinkedSource=true},
+	MaterialVariant={NormalMap=true,ColorMap=true,MetalnessMap=true,RoughnessMap=true},
+	MeshPart={MeshId=true,TextureID=true},
+	ModuleScript={LinkedSource=true},
+	Pants={PantsTemplate=true},
+	ParticleEmitter={Texture=true},
+	Script={LinkedSource=true},
+	ScrollingFrame={ContentId=true},
+	Shirt={ShirtTemplate=true},
+	ShirtGraphic={Graphic=true},
+	Sky={SkyboxBk=true,SkyboxDn=true,SkyboxFt=true,SkyboxLf=true,SkyboxRt=true,SkyboxUp=true},
+	Sound={SoundId=true},
+	SpecialMesh={MeshId=true,TextureId=true},
+	SurfaceAppearance={ColorMap=true,MetalnessMap=true,NormalMap=true,RoughnessMap=true},
+	Texture={Texture=true,NormalMap=true},
+	Trail={Texture=true},
+	UnionOperation={AssetId=true},
+	VideoFrame={Video=true},
+	WrapLayer={CageMeshId=true,ReferenceMeshId=true},
+	WrapTarget={CageMeshId=true},
+}
 
 local function resolveTypeId(className,propName,xmlTagTypeId)
-	-- Binary-string props are always 0x1E2, regardless of what the API says
+	-- Binary-string props are always 0x1E2 no matter what
 	if BINARY_STRING_PROPS[propName] then return 0x1E2 end
-	-- CLASS_STRING_PROPS explicitly marks props that must stay as plain string (0x01)
-	-- e.g. Sound.SoundId -- the XML stores these as <string>, not <Content>
+	-- Per-class string overrides: if the XML said <string> for a known asset-ID prop, keep it as string
 	local classStrings=CLASS_STRING_PROPS[className]
 	if classStrings and classStrings[propName] then return 0x01 end
-	-- Only consult the API dump when the XML tag is the ambiguous <string> (0x01).
-	-- For every other XML-declared type trust the XML exactly as written.
+	-- For <string> tags: only allow API to reclassify as ProtectedString.
+	-- NEVER upgrade string→Content (0x22) from XML; if the XML wanted Content it would use <Content>.
 	if xmlTagTypeId==0x01 then
 		local classMap=apiPropTypes[className]
 		if classMap then
 			local apiTid=classMap[propName]
-			-- Only allow the API to upgrade a string to Content if CONTENT_PROPS agrees,
-			-- or to ProtectedString. Never blindly reclassify anything else.
-			if apiTid==0x22 and CONTENT_PROPS[propName] then return 0x22 end
 			if apiTid==0x1E4 then return 0x1E4 end
 		end
 	end
