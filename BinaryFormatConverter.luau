@@ -54,12 +54,35 @@ local function loadApiDump()
 	for _,class in ipairs(classes)do resolve(class.Name,0)end
 	for cn,props in pairs(resolved)do apiPropTypes[cn]=props end
 end
+
+-- These must be declared BEFORE resolveTypeId so they are in scope as upvalues
+local CONTENT_PROPS={SoundId=true,Image=true,HoverImage=true,PressedImage=true,Texture=true,LinkedSource=true,MeshId=true,TextureId=true,TextureID=true,SkyboxBk=true,SkyboxDn=true,SkyboxFt=true,SkyboxLf=true,SkyboxRt=true,SkyboxUp=true,AnimationId=true,ShirtTemplate=true,PantsTemplate=true,ContentId=true,GraphicId=true,OverlayTextureId=true,BaseTextureId=true,NormalMap=true,VideoSource=true,AssetId=true,EmissiveMaskContent=true,ColorMaskContent=true,MetalnessContent=true,RoughnessContent=true,NormalContent=true,}
+local BINARY_STRING_PROPS={AttributesSerialize=true,Tags=true,PhysicsData=true,PhysicsGrid=true,LevelOfDetailData=true,TerrainColors=true,TerrainMaterialColors=true,SmoothGrid=true,ClusterGrid=true,CollisionGroupData=true,MaterialColors=true,HiddenServices=true,VisibleServices=true,}
+local NETASSET_PROPS={SolidMeshHolder=true}
+local CLASS_STRING_PROPS={Animation={AnimationId=true},Beam={Texture=true},Decal={Texture=true,NormalMap=true},ImageButton={Image=true,HoverImage=true,PressedImage=true},ImageLabel={Image=true},LocalScript={LinkedSource=true},MaterialVariant={NormalMap=true},MeshPart={MeshId=true,TextureID=true},ModuleScript={LinkedSource=true},Pants={PantsTemplate=true},ParticleEmitter={Texture=true},Script={LinkedSource=true},Shirt={ShirtTemplate=true},Sky={SkyboxBk=true,SkyboxDn=true,SkyboxFt=true,SkyboxLf=true,SkyboxRt=true,SkyboxUp=true},Sound={SoundId=true},SpecialMesh={MeshId=true,TextureId=true},Texture={Texture=true,NormalMap=true},UnionOperation={AssetId=true},VideoFrame={Video=true},AudioPlayer={Asset=true},}
+
 local function resolveTypeId(className,propName,xmlTagTypeId)
-if CLASS_STRING_PROPS and CLASS_STRING_PROPS[className]and CLASS_STRING_PROPS[className][propName]then return 0x01 end
-local classMap=apiPropTypes[className]if classMap then local apiTid=classMap[propName]if apiTid then return apiTid end end
-if xmlTagTypeId==0x01 and CONTENT_PROPS and CONTENT_PROPS[propName]then return 0x22 end
-return xmlTagTypeId
+	-- Binary-string props are always 0x1E2, regardless of what the API says
+	if BINARY_STRING_PROPS[propName] then return 0x1E2 end
+	-- CLASS_STRING_PROPS explicitly marks props that must stay as plain string (0x01)
+	-- e.g. Sound.SoundId -- the XML stores these as <string>, not <Content>
+	local classStrings=CLASS_STRING_PROPS[className]
+	if classStrings and classStrings[propName] then return 0x01 end
+	-- Only consult the API dump when the XML tag is the ambiguous <string> (0x01).
+	-- For every other XML-declared type trust the XML exactly as written.
+	if xmlTagTypeId==0x01 then
+		local classMap=apiPropTypes[className]
+		if classMap then
+			local apiTid=classMap[propName]
+			-- Only allow the API to upgrade a string to Content if CONTENT_PROPS agrees,
+			-- or to ProtectedString. Never blindly reclassify anything else.
+			if apiTid==0x22 and CONTENT_PROPS[propName] then return 0x22 end
+			if apiTid==0x1E4 then return 0x1E4 end
+		end
+	end
+	return xmlTagTypeId
 end
+
 local function lz4Decompress(src,uncompSize)local out=tcreat(uncompSize+64,0)local si=1
 local oi=1
 local slen=#src
@@ -471,10 +494,6 @@ end,writeBin=function(vals)local n=#vals;local pc=0;local parts=tcreat(n)for i=1
 local lo=v%0x100000000
 local hi=mfloor(v/0x100000000)%0x100000000
 pc+=1;parts[pc]=spack("<I4",lo)..spack("<I4",hi)end;return tconc(parts)end,xmlTag="SecurityCapabilities",readXml=function(s)return tonumber(s)or 0 end,writeXml=function(v)return tostring(mfloor(v or 0))end,}local function getType(id)return PropType[id]or{name="Unknown("..sfmt("0x%02X",id)..")",readBin=function()return{}end,writeBin=function()return "" end,xmlTag="BinaryString",readXml=function(s)return s end,writeXml=function(v)return tostring(v or "")end,}end
-local CONTENT_PROPS={SoundId=true,Image=true,HoverImage=true,PressedImage=true,Texture=true,LinkedSource=true,MeshId=true,TextureId=true,TextureID=true,SkyboxBk=true,SkyboxDn=true,SkyboxFt=true,SkyboxLf=true,SkyboxRt=true,SkyboxUp=true,AnimationId=true,ShirtTemplate=true,PantsTemplate=true,ContentId=true,GraphicId=true,OverlayTextureId=true,BaseTextureId=true,NormalMap=true,VideoSource=true,AssetId=true,EmissiveMaskContent=true,ColorMaskContent=true,MetalnessContent=true,RoughnessContent=true,NormalContent=true,}
-local BINARY_STRING_PROPS={AttributesSerialize=true,Tags=true,PhysicsData=true,PhysicsGrid=true,LevelOfDetailData=true,TerrainColors=true,TerrainMaterialColors=true,SmoothGrid=true,ClusterGrid=true,CollisionGroupData=true,MaterialColors=true,HiddenServices=true,VisibleServices=true,}
-local NETASSET_PROPS={SolidMeshHolder=true}
-local CLASS_STRING_PROPS={Animation={AnimationId=true},Beam={Texture=true},Decal={Texture=true,NormalMap=true},ImageButton={Image=true,HoverImage=true,PressedImage=true},ImageLabel={Image=true},LocalScript={LinkedSource=true},MaterialVariant={NormalMap=true},MeshPart={MeshId=true,TextureID=true},ModuleScript={LinkedSource=true},Pants={PantsTemplate=true},ParticleEmitter={Texture=true},Script={LinkedSource=true},Shirt={ShirtTemplate=true},Sky={SkyboxBk=true,SkyboxDn=true,SkyboxFt=true,SkyboxLf=true,SkyboxRt=true,SkyboxUp=true},Sound={SoundId=true},SpecialMesh={MeshId=true,TextureId=true},Texture={Texture=true,NormalMap=true},UnionOperation={AssetId=true},VideoFrame={Video=true},AudioPlayer={Asset=true},}
 local xmlTagToTypeId={}for id,info in pairs(PropType)do
 if info.xmlTag then xmlTagToTypeId[info.xmlTag]=id end
 end
