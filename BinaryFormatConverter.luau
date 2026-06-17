@@ -9,52 +9,9 @@ local srep=string.rep
 local b32rsh,b32band,b32bor,b32lsh=b32.rshift,b32.band,b32.bor,b32.lshift
 local pairs,ipairs,next,pcall,type,tonumber,tostring=pairs,ipairs,next,pcall,type,tonumber,tostring
 local HttpService=game:GetService("HttpService")
-local VALUE_TYPE_TO_BIN={string=0x01,bool=0x02,int=0x03,float=0x04,double=0x05,UDim=0x06,UDim2=0x07,Ray=0x08,Faces=0x09,Axes=0x0A,BrickColor=0x0B,Color3=0x0C,Vector2=0x0D,Vector3=0x0E,CFrame=0x10,Vector3int16=0x14,NumberSequence=0x15,ColorSequence=0x16,NumberRange=0x17,Rect2D=0x18,PhysicalProperties=0x19,Color3uint8=0x1A,int64=0x1B,OptionalCFrame=0x1E,ProtectedString=0x1E4,UniqueId=0x1F,Font=0x20,SecurityCapabilities=0x21,Content=0x22,BinaryString=0x1E2,}
-local apiPropTypes={}
 local chr=tcreat(256)for _i=0,255 do chr[_i]=schar(_i)end
 local function newBlobKey()local g=HttpService:GenerateGUID(false):gsub("-","")local b=tcreat(16)for i=1,16 do b[i]=schar(tonumber(g:sub(i*2-1,i*2),16))end
 return tconc(b)end
-local function loadApiDump()
-	local ok,classes=pcall(function()return game:GetService("ReflectionService"):GetClasses()end)
-	if not ok or not classes then warn("NEXConverter: failed to get class data, falling back to manual type lists")return end
-	local direct={};local parents={}
-	for _,class in ipairs(classes)do
-		parents[class.Name]=class.Superclass
-		local props={}
-		for _,member in ipairs(class.Members or {})do
-			if member.MemberType=="Property" and member.ValueType then
-				local vt=member.ValueType
-				local vtName,vtCat
-				if type(vt)=="table" then
-					vtName=vt.Name;vtCat=vt.Category
-				elseif type(vt)=="string" then
-					vtName=vt;vtCat="Primitive"
-				end
-				if vtName then props[member.Name]={n=vtName,c=vtCat}end
-			end
-		end
-		direct[class.Name]=props
-	end
-	local resolved={}
-	local function resolve(cn,depth)
-		if not cn or cn=="<<<ROOT>>>" or depth>32 then return {} end
-		if resolved[cn] then return resolved[cn] end
-		resolved[cn]={}
-		local r={};local par=parents[cn]
-		if par then for k,v in pairs(resolve(par,depth+1))do r[k]=v end end
-		for pname,vt in pairs(direct[cn]or {})do
-			local tid
-			if vt.c=="Enum" then tid=0x12
-			elseif vt.c=="Class" then tid=0x13
-			else tid=VALUE_TYPE_TO_BIN[vt.n]end
-			if tid then r[pname]=tid end
-		end
-		resolved[cn]=r;return r
-	end
-	for _,class in ipairs(classes)do resolve(class.Name,0)end
-	for cn,props in pairs(resolved)do apiPropTypes[cn]=props end
-end
-
 -- CONTENT_PROPS: used in BinaryToXML to know which SharedString slots hold asset URIs
 local CONTENT_PROPS={
 	SoundId=true,Image=true,HoverImage=true,PressedImage=true,
@@ -84,73 +41,6 @@ local BINARY_STRING_PROPS={
 }
 
 local NETASSET_PROPS={SolidMeshHolder=true}
-
--- CLASS_STRING_PROPS: definitive per-class list of props that must stay as string (0x01)
--- when read from XML <string> tags, regardless of what the API reflection says.
-local CLASS_STRING_PROPS={
-	Animation={AnimationId=true},
-	AudioPlayer={Asset=true},
-	Beam={Texture=true},
-	CharacterMesh={MeshId=true,BaseTextureId=true,OverlayTextureId=true},
-	Decal={Texture=true,NormalMap=true},
-	FileMesh={MeshId=true,TextureId=true},
-	HumanoidDescription={
-		BackAccessory=true,FaceAccessory=true,FrontAccessory=true,
-		HairAccessory=true,HatAccessory=true,NeckAccessory=true,
-		ShouldersAccessory=true,WaistAccessory=true,
-		GraphicTShirt=true,
-	},
-	ImageButton={Image=true,HoverImage=true,PressedImage=true},
-	ImageLabel={Image=true},
-	LocalScript={LinkedSource=true},
-	MaterialVariant={NormalMap=true,ColorMap=true,MetalnessMap=true,RoughnessMap=true},
-	MeshPart={MeshId=true,TextureID=true},
-	ModuleScript={LinkedSource=true},
-	Pants={PantsTemplate=true},
-	ParticleEmitter={Texture=true},
-	Script={LinkedSource=true},
-	ScrollingFrame={ContentId=true},
-	Shirt={ShirtTemplate=true},
-	ShirtGraphic={Graphic=true},
-	Sky={SkyboxBk=true,SkyboxDn=true,SkyboxFt=true,SkyboxLf=true,SkyboxRt=true,SkyboxUp=true},
-	Sound={SoundId=true},
-	SpecialMesh={MeshId=true,TextureId=true},
-	SurfaceAppearance={ColorMap=true,MetalnessMap=true,NormalMap=true,RoughnessMap=true},
-	Texture={Texture=true,NormalMap=true},
-	Trail={Texture=true},
-	UnionOperation={AssetId=true},
-	VideoFrame={Video=true},
-	WrapLayer={CageMeshId=true,ReferenceMeshId=true},
-	WrapTarget={CageMeshId=true},
-}
-
--- CLASS_CONTENT_PROPS: per-class props that must be written as Content (0x22)
--- even when the XML tag says <string>, because Roblox's binary format now expects Content.
-local CLASS_CONTENT_PROPS={
-	HumanoidDescription={Face=true,Pants=true,Shirt=true},
-}
-
-local function resolveTypeId(className,propName,xmlTagTypeId)
-	-- Binary-string props are always 0x1E2 no matter what
-	if BINARY_STRING_PROPS[propName] then return 0x1E2 end
-	-- Force Content for known per-class content properties
-	local classContent=CLASS_CONTENT_PROPS[className]
-	if classContent and classContent[propName] then return 0x22 end
-	-- Per-class string overrides: if the XML said <string> for a known asset-ID prop, keep it as string
-	local classStrings=CLASS_STRING_PROPS[className]
-	if classStrings and classStrings[propName] then return 0x01 end
-	-- For <string> tags: allow API to reclassify as ProtectedString or Content.
-	-- NEVER upgrade string→Content (0x22) from XML unless API explicitly says so.
-	if xmlTagTypeId==0x01 then
-		local classMap=apiPropTypes[className]
-		if classMap then
-			local apiTid=classMap[propName]
-			if apiTid==0x1E4 then return 0x1E4 end
-			if apiTid==0x22 then return 0x22 end
-		end
-	end
-	return xmlTagTypeId
-end
 
 local function lz4Decompress(src,uncompSize)local out=tcreat(uncompSize+64,0)local si=1
 local oi=1
@@ -883,7 +773,7 @@ if not typeId then typeId=prop.typeId end
 vals[i]=prop.value
 elseif prop.xmlTag then
 local rawTid=xmlTagToTypeId[prop.xmlTag]or 0x01
-local tid=resolveTypeId(className,pname,rawTid)
+local tid=rawTid
 if not typeId then typeId=tid end
 local v=prop._cached~=nil and prop._cached or getType(tid).readXml(prop.text or "",prop.sub or{})prop._cached=v
 if v~=nil then
@@ -1010,7 +900,7 @@ if type(prop)=="table" and prop.typeId then
 typeId=prop.typeId;value=prop.value
 elseif type(prop)=="table" and prop.xmlTag then
 local rawTid=xmlTagToTypeId[prop.xmlTag]or 0x01
-typeId=resolveTypeId(node.className,pname,rawTid)
+typeId=rawTid
 value=getType(typeId).readXml(prop.text,prop.sub or{})else continue end
 if typeId==0x1C or typeId==0x1E3 then
 local idx=type(value)=="number" and value or tonumber(value)or 0
@@ -1052,6 +942,4 @@ lc+=1;lines[lc]="</roblox>"
 return tconc(lines,"\n")end
 function Converter.XMLToBinary(xmlString)assert(type(xmlString)=="string" and#xmlString>0,"XMLToBinary: expected a non-empty XML string")local roots,xmlSharedStrings=parseXml(xmlString)assert(#roots>0,"XMLToBinary: no instances found in XML string")return serializeBinary(roots,xmlSharedStrings)end
 function Converter.BinaryToXML(binaryString)assert(type(binaryString)=="string" and#binaryString>0,"BinaryToXML: expected a non-empty binary string")local roots,sharedStrs,sharedKeys=parseBinary(binaryString)assert(#roots>0,"BinaryToXML: no instances found in binary string")return serializeXml(roots,sharedStrs,sharedKeys)end
-pcall(loadApiDump)
-Converter.ReloadApiDump=loadApiDump
 return Converter
