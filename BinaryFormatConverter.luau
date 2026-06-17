@@ -42,6 +42,83 @@ local BINARY_STRING_PROPS={
 
 local NETASSET_PROPS={SolidMeshHolder=true}
 
+-- SERVICE_CLASSES: Roblox classes tagged "Service" in the official reflection database.
+-- This is structural instance metadata (which classes are root-level singleton services),
+-- not a property-type guess. The XML format has no field for this at all (a service Item
+-- looks identical to any other Item), so XMLToBinary has no way to recover it except by
+-- knowing the Roblox class hierarchy. Without this, services round-trip through binary as
+-- ordinary non-service instances, which is what caused the duplicated-services/empty-Workspace bug.
+local SERVICE_CLASSES={
+	AccountService=true,AchievementService=true,ActivityHistoryEventService=true,AdService=true,AnalyticsService=true,
+	AnimationClipProvider=true,AnimationFromVideoCreatorService=true,AnimationFromVideoCreatorStudioService=true,
+	AnnotationsService=true,AppAgeSignalsService=true,AppLifecycleObserverService=true,AppRatingPromptService=true,
+	AppStorageService=true,AppUpdateService=true,AssetCounterService=true,AssetDeliveryProxy=true,AssetImportService=true,
+	AssetManagerService=true,AssetQualityService=true,AssetService=true,AudioFocusService=true,AuroraScriptService=true,
+	AuroraService=true,AvatarChatService=true,AvatarCreationService=true,AvatarEditorService=true,AvatarImportService=true,
+	AvatarSettings=true,BadgeService=true,BrowserService=true,BugReporterService=true,BulkImportService=true,
+	CSGDictionaryService=true,CacheableContentProvider=true,CalloutService=true,CaptureService=true,ChangeHistoryService=true,
+	ChangeHistoryStreamingService=true,Chat=true,CloudCRUDService=true,CloudExecutionService=true,ClusterPacketCache=true,
+	CollaboratorsService=true,CollectionService=true,CommerceService=true,ConfigService=true,ConfigureServerService=true,
+	ConnectivityService=true,ContentProvider=true,ContextActionService=true,ControllerService=true,CookiesService=true,
+	CoreGui=true,CoreGuiConfiguration=true,CorePackages=true,CoreScriptDebuggingManagerHelper=true,CoreScriptSyncService=true,
+	CreationDBService=true,CreatorStoreService=true,CrossDMScriptChangeListener=true,DataModelPatchService=true,
+	DataStoreService=true,Debris=true,DebugSettings=true,DebuggablePluginWatcher=true,DebuggerConnectionManager=true,
+	DebuggerManager=true,DebuggerUIService=true,DeferredAssetManagerService=true,DesignFoundationsService=true,
+	DeviceIdService=true,DraftsService=true,DraggerService=true,EditableService=true,EncodingService=true,
+	EventIngestService=true,ExampleV2Service=true,ExperienceAuthService=true,ExperienceNotificationService=true,
+	ExperienceService=true,ExperienceStateCaptureService=true,ExperienceStateRecordingService=true,ExplorerServiceVisibilityService=true,
+	FaceAnimatorService=true,FacialAgeEstimationService=true,FacialAnimationRecordingService=true,FacialAnimationStreamingServiceV2=true,
+	FeatureRestrictionManager=true,FileManagerService=true,FileSyncReplicationService=true,FlagStandService=true,
+	FlyweightService=true,FriendService=true,GamePassService=true,GameSettings=true,GamepadService=true,GenerationService=true,
+	GenericChallengeService=true,Geometry=true,GeometryService=true,GongService=true,GroupService=true,GuiService=true,
+	GuidRegistryService=true,HSRDataContentProvider=true,HapticService=true,HarmonyService=true,HeapProfilerService=true,
+	HeatmapQueryService=true,HeatmapService=true,HeightmapImporterService=true,Hopper=true,HttpRbxApiService=true,
+	HttpService=true,ILegacyStudioBridge=true,IXPService=true,ImageScreenCaptureService=true,IncrementalPatchBuilder=true,
+	InsertService=true,InstanceExtensionsService=true,InstanceFileSyncService=true,InternalMessagingService=true,
+	InternalMessagingServiceVerifier=true,InternalSyncService=true,JointsService=true,KeyboardService=true,
+	KeyframeSequenceProvider=true,LSPFileSyncService=true,LanguageService=true,LegacyStudioBridge=true,Lighting=true,
+	LinkingService=true,LiveScriptingService=true,LiveSyncService=true,LocalStorageService=true,LocalizationService=true,
+	LodDataService=true,LogReporterService=true,LogService=true,LoginService=true,LuaSettings=true,LuaWebService=true,
+	LuauScriptAnalyzerService=true,MLModelDeliveryService=true,MLService=true,MarketplaceService=true,MatchmakingService=true,
+	MaterialGenerationService=true,MaterialService=true,MemStorageService=true,MemoryStoreService=true,MeshContentProvider=true,
+	MessageBusService=true,MessagingService=true,MetaBreakpointManager=true,MicroProfilerService=true,ModerationService=true,
+	MouseService=true,NetworkClient=true,NetworkServer=true,NetworkSettings=true,NonReplicatedCSGDictionaryService=true,
+	NotificationService=true,OmniRecommendationsService=true,OpenCloudService=true,PackageService=true,PackageUIService=true,
+	Packages=true,PartyEmulatorService=true,PatchBundlerFileWatch=true,PathfindingService=true,PerformanceControlService=true,
+	PermissionsService=true,PhysicsService=true,PhysicsSettings=true,PlaceAssetIdsService=true,PlaceStatsService=true,
+	PlacesService=true,PlatformCloudStorageService=true,PlatformFriendsService=true,PlatformLibraries=true,
+	PlayerDataService=true,PlayerEmulatorService=true,PlayerHydrationService=true,PlayerViewService=true,
+	Players=true,PluginConnectionService=true,PluginDebugService=true,PluginGuiService=true,PluginManagementService=true,
+	PluginPolicyService=true,PointsService=true,PolicyService=true,Preloaded=true,ProceduralBehaviorSchedulerService=true,
+	ProcessInstancePhysicsService=true,ProximityPromptService=true,PublishService=true,RbxAnalyticsService=true,
+	RecommendationService=true,ReflectionService=true,RemoteCommandService=true,RemoteCursorService=true,
+	RemoteDebuggerServer=true,RenderSettings=true,ReplicatedFirst=true,ReplicatedStorage=true,RibbonNotificationService=true,
+	RobloxPluginGuiService=true,RobloxReplicatedStorage=true,RobloxServerStorage=true,RolloutValidationService=true,
+	RomarkRbxAnalyticsService=true,RomarkService=true,RtMessagingService=true,RunService=true,RuntimeContentService=true,
+	RuntimeScriptService=true,SafetyService=true,SceneAnalysisService=true,ScriptChangeService=true,ScriptCloneWatcher=true,
+	ScriptCloneWatcherHelper=true,ScriptCommitService=true,ScriptContext=true,ScriptDebuggerService=true,
+	ScriptEditorService=true,ScriptProfilerService=true,ScriptRegistrationService=true,ScriptService=true,
+	Selection=true,SelectionHighlightManager=true,SerializationService=true,ServerScriptService=true,ServerStorage=true,
+	ServiceVisibilityService=true,SessionCheckService=true,SessionService=true,SharedTableRegistry=true,SlimAnimationReplicationService=true,
+	SlimContentProvider=true,SlimDebugSettings=true,SlimReplicationService=true,SlimService=true,SmoothVoxelsUpgraderService=true,
+	SnippetService=true,SocialService=true,SolidModelContentProvider=true,SoundService=true,SoundShimService=true,
+	SpawnerService=true,StartPageService=true,StarterGui=true,StarterPack=true,StarterPlayer=true,StartupMessageService=true,
+	Stats=true,StopWatchReporter=true,Studio=true,StudioAssetService=true,StudioCameraService=true,StudioCaptureService=true,
+	StudioData=true,StudioDeviceEmulatorService=true,StudioDeviceSimulatorService=true,StudioPublishService=true,
+	StudioScriptDebugEventListener=true,StudioSdkService=true,StudioService=true,StudioTestService=true,StudioUserService=true,
+	StudioWidgetsService=true,StylingService=true,SystemThemeService=true,TaskScheduler=true,TeamCreateData=true,
+	TeamCreatePublishService=true,TeamCreateService=true,Teams=true,TelemetryService=true,TeleportService=true,
+	TemporaryCageMeshProvider=true,TemporaryScriptService=true,TestService=true,TextBoxService=true,TextChatService=true,
+	TextService=true,TextureGenerationService=true,ThirdPartyUserService=true,TimerService=true,ToastNotificationService=true,
+	TouchInputService=true,TraceRouteService=true,TracerService=true,TutorialService=true,TweenService=true,
+	UGCAvatarService=true,UGCValidationService=true,UIDragDetectorService=true,UniqueIdLookupService=true,
+	UnvalidatedAssetService=true,UserGameSettings=true,UserInputService=true,UserService=true,UserStorageService=true,
+	VRService=true,VRStatusService=true,VersionControlService=true,VideoCaptureService=true,VideoScreenCaptureService=true,
+	VideoService=true,VirtualInputManager=true,VirtualUser=true,VisibilityCheckDispatcher=true,Visit=true,
+	VisualizationModeService=true,VoiceChatInternal=true,VoiceChatService=true,WebSocketService=true,WebViewService=true,
+	Workspace=true,WrapDeformMeshProvider=true,
+}
+
 local function lz4Decompress(src,uncompSize)local out=tcreat(uncompSize+64,0)local si=1
 local oi=1
 local slen=#src
@@ -755,7 +832,13 @@ g[#g+1]=allInsts[i]end
 local ic=0;local instChunks=tcreat(toc)for ti=1,toc do
 local className=typeOrder[ti]local group=classGroups[className]local ng=#group
 local refs=tcreat(ng)for i=1,ng do refs[i]=refMap[group[i]]end
-local payload=spack("<I4",ti-1)..spack("<I4",#className)..className.."\x00"..spack("<I4",ng)..interleaveRef(refs)ic+=1;instChunks[ic]=makeChunk("INST",payload)end
+local isService=SERVICE_CLASSES[className]or false
+local payload=spack("<I4",ti-1)..spack("<I4",#className)..className..(isService and "\x01" or "\x00")..spack("<I4",ng)..interleaveRef(refs)
+if isService then
+local rootedParts=tcreat(ng)for i=1,ng do rootedParts[i]="\x01" end
+payload=payload..tconc(rootedParts)
+end
+ic+=1;instChunks[ic]=makeChunk("INST",payload)end
 local propNames={}for i=1,na do
 local inst=allInsts[i];local cn=inst.className
 local pm=propNames[cn]if not pm then pm={};propNames[cn]=pm end
@@ -902,7 +985,9 @@ elseif type(prop)=="table" and prop.xmlTag then
 local rawTid=xmlTagToTypeId[prop.xmlTag]or 0x01
 typeId=rawTid
 value=getType(typeId).readXml(prop.text,prop.sub or{})else continue end
-if typeId==0x1C or typeId==0x1E3 then
+if typeId==0x01 and CONTENT_PROPS[pname] then
+typeId=0x22
+elseif typeId==0x1C or typeId==0x1E3 then
 local idx=type(value)=="number" and value or tonumber(value)or 0
 local blob=sharedStrs and sharedStrs[idx]or ""
 if CONTENT_PROPS[pname]then
