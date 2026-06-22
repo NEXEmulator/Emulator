@@ -1043,4 +1043,105 @@ lc+=1;lines[lc]="</roblox>"
 return tconc(lines,"\n")end
 function Converter.XMLToBinary(xmlString)assert(type(xmlString)=="string" and#xmlString>0,"XMLToBinary: expected a non-empty XML string")local roots,xmlSharedStrings=parseXml(xmlString)assert(#roots>0,"XMLToBinary: no instances found in XML string")return serializeBinary(roots,xmlSharedStrings)end
 function Converter.BinaryToXML(binaryString)assert(type(binaryString)=="string" and#binaryString>0,"BinaryToXML: expected a non-empty binary string")local roots,sharedStrs,sharedKeys=parseBinary(binaryString)assert(#roots>0,"BinaryToXML: no instances found in binary string")return serializeXml(roots,sharedStrs,sharedKeys)end
+-- FixStudioXml: strips service class identity from any rbxmx/rbxm so it can be
+-- safely inserted into a live DataModel without colliding with existing services.
+-- For binary: patches only INST chunks (class name + isService flag), all other
+-- chunks (PROP, SSTR, PRNT, META, END) are kept byte-for-byte identical.
+-- For XML:    scans and rewrites <Item class="ServiceName" tags in markup only,
+--             skipping <![CDATA[...]]> blocks so script source is never touched.
+function Converter.FixStudioXml(input)
+	assert(type(input)=="string" and #input>0,"FixStudioXml: expected a non-empty string")
+	local isBinary=ssub(input,1,16)==RBX_MAGIC
+	if isBinary then
+		-- Binary path: walk chunks, patch INST payloads where className is a service
+		local parts={};local pc=0
+		-- header = 16-byte magic + I4 typeCount + I4 instCount + 8 reserved = 32 bytes
+		local headerSize=32
+		pc+=1;parts[pc]=ssub(input,1,headerSize)
+		local pos=headerSize+1
+		local n=#input
+		while pos<=n do
+			if pos+15>n then pc+=1;parts[pc]=ssub(input,pos);break end
+			local chunkName=ssub(input,pos,pos+3)
+			local cLen=sunpack("<I4",input,pos+4)
+			local uLen=sunpack("<I4",input,pos+8)
+			local dataPos=pos+16
+			local dataSize=cLen>0 and cLen or uLen
+			local nextPos=dataPos+dataSize
+			if ssub(chunkName,1,3)=="END" then pc+=1;parts[pc]=ssub(input,pos);break end
+			local patched=false
+			if chunkName=="INST" then
+				local payload
+				if cLen>0 then
+					local ok,r=pcall(lz4Decompress,ssub(input,dataPos,dataPos+cLen-1),uLen)
+					if ok then payload=r end
+				else payload=ssub(input,dataPos,dataPos+uLen-1)end
+				if payload then
+					local sp=1
+					local typeIdx;typeIdx,sp=sunpack("<I4",payload,sp)
+					local cnLen;cnLen,sp=sunpack("<I4",payload,sp)
+					local className=ssub(payload,sp,sp+cnLen-1);sp+=cnLen
+					-- sp now points at the isService byte; sp+1 starts the referent array
+					if SERVICE_CLASSES[className]then
+						local rest=ssub(payload,sp+1)-- skip old isService byte
+						local newPayload=spack("<I4",typeIdx)..spack("<I4",#"Folder").."Folder".."\x00"..rest
+						pc+=1;parts[pc]=makeChunk("INST",newPayload)
+						patched=true
+					end
+				end
+			end
+			if not patched then pc+=1;parts[pc]=ssub(input,pos,nextPos-1)end
+			pos=nextPos
+		end
+		return tconc(parts)
+	else
+		-- XML path: scan markup and replace <Item class="ServiceName" in tag positions only.
+		-- CDATA blocks and XML comments are passed through untouched so script source
+		-- containing service-class names is never modified.
+		local parts={};local pc=0
+		local pos=1;local n=#input
+		local PREFIX='<Item class="';local PLEN=#PREFIX
+		while pos<=n do
+			if ssub(input,pos,pos+8)=="<![CDATA[" then
+				-- pass CDATA block through verbatim
+				local e=sfind(input,"]]>",pos+9,true)
+				if e then pc+=1;parts[pc]=ssub(input,pos,e+2);pos=e+3
+				else pc+=1;parts[pc]=ssub(input,pos);pos=n+1 end
+			elseif ssub(input,pos,pos+3)=="<!--" then
+				-- pass comment through verbatim
+				local e=sfind(input,"-->",pos+4,true)
+				if e then pc+=1;parts[pc]=ssub(input,pos,e+2);pos=e+3
+				else pc+=1;parts[pc]=ssub(input,pos);pos=n+1 end
+			elseif ssub(input,pos,pos+PLEN-1)==PREFIX then
+				-- found an Item open tag; check if its class is a service
+				local nameStart=pos+PLEN
+				local nameEnd=sfind(input,'"',nameStart,true)
+				if nameEnd then
+					local className=ssub(input,nameStart,nameEnd-1)
+					if SERVICE_CLASSES[className]then
+						-- replace class name with Folder, keep everything after the closing quote
+						pc+=1;parts[pc]=PREFIX.."Folder"
+					else
+						pc+=1;parts[pc]=ssub(input,pos,nameEnd)
+					end
+					pos=nameEnd+1
+				else
+					-- malformed tag; emit as-is and advance past prefix
+					pc+=1;parts[pc]=ssub(input,pos,pos+PLEN-1);pos+=PLEN
+				end
+			else
+				-- jump forward to the next potentially interesting position
+				local p1=sfind(input,"<![CDATA[",pos,true)
+				local p2=sfind(input,"<!--",pos,true)
+				local p3=sfind(input,PREFIX,pos,true)
+				local next=n+1
+				if p1 and p1<next then next=p1 end
+				if p2 and p2<next then next=p2 end
+				if p3 and p3<next then next=p3 end
+				pc+=1;parts[pc]=ssub(input,pos,next-1);pos=next
+			end
+		end
+		return tconc(parts)
+	end
+end
 return Converter
