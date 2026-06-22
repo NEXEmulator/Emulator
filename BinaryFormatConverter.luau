@@ -1082,7 +1082,7 @@ function Converter.FixStudioXml(input)
 					local cnLen;cnLen,sp=sunpack("<I4",payload,sp)
 					local className=ssub(payload,sp,sp+cnLen-1);sp+=cnLen
 					-- sp now points at the isService byte; sp+1 starts the referent array
-					if SERVICE_CLASSES[className]then
+					if SERVICE_CLASSES[className]or className=="Terrain"then
 						local rest=ssub(payload,sp+1)-- skip old isService byte
 						local newPayload=spack("<I4",typeIdx)..spack("<I4",#"Folder").."Folder".."\x00"..rest
 						pc+=1;parts[pc]=makeChunk("INST",newPayload)
@@ -1118,7 +1118,7 @@ function Converter.FixStudioXml(input)
 				local nameEnd=sfind(input,'"',nameStart,true)
 				if nameEnd then
 					local className=ssub(input,nameStart,nameEnd-1)
-					if SERVICE_CLASSES[className]then
+					if SERVICE_CLASSES[className]or className=="Terrain"then
 						-- replace class name with Folder, keep everything after the closing quote
 						pc+=1;parts[pc]=PREFIX.."Folder"
 					else
