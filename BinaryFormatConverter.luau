@@ -908,13 +908,29 @@ elseif typeId==0x21 then vals[i]=0 elseif typeId==0x22 then vals[i]=""
 else vals[i]=0 end
 end
 end
-local binData=typeInfo.writeBin(vals)if binData and#binData>0 then
+-- FIX: Content (0x22) must be written as String (0x01) in binary.
+-- Roblox's binary parser expects type byte 0x01 for these properties;
+-- writing 0x22 causes "unexpected format 34, expected 1".
+-- The vals are already plain URI strings so PropType[0x01].writeBin handles them directly.
+local binData
 local binTypeId
-if typeId==0x22 then binTypeId=0x22
-elseif typeId==0x1E2 then binTypeId=0x01
-elseif typeId==0x1E3 then binTypeId=0x1C
-elseif typeId==0x1E4 and not PROTECTED_STRING_PROPS[pname]then binTypeId=0x01
-else binTypeId=typeId end
+if typeId==0x22 then
+binTypeId=0x01
+binData=PropType[0x01].writeBin(vals)
+elseif typeId==0x1E2 then
+binTypeId=0x01
+binData=typeInfo.writeBin(vals)
+elseif typeId==0x1E3 then
+binTypeId=0x1C
+binData=typeInfo.writeBin(vals)
+elseif typeId==0x1E4 and not PROTECTED_STRING_PROPS[pname]then
+binTypeId=0x01
+binData=typeInfo.writeBin(vals)
+else
+binTypeId=typeId
+binData=typeInfo.writeBin(vals)
+end
+if binData and#binData>0 then
 local payload=spack("<I4I4",ti-1,#pname)..pname..chr[binTypeId]..binData
 pcc+=1;propChunks[pcc]=makeChunk("PROP",payload)end
 end
