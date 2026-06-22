@@ -482,12 +482,7 @@ nv.robloxtype = function(x)
 		return "unknown"
 	end
 end
-nv.FixStudioXML=nv.cppf(function(x)
-	if nv.robloxtype(x)=="binary" then
-			x=nv.BinaryToXML(x)
-	end
-	return nv.gsub(nv.gsub(x,'<Item class="Workspace"','<Item class="Model"'),'<Item class="Terrain"','<Item class="Folder"')
-end)
+nv.FixStudioXML=nv.cppf(nv.BinaryFormat.FixStudioXml)
 nv.roblox={XML=nv.tclone(nv.XML),GetAssetSource=nv.cppf(nv.GetAssetSource),BinaryFormat={
 		XMLToBinary=nv.XMLToBinary,
 		BinaryToXML=nv.BinaryToXML,
@@ -519,7 +514,7 @@ nv.genv.GetObjects=function(x,fixstudio)
 	if assetid then
 		local assetsource
 		if fixstudio then
-		assetsource=nv.fixstudioxml(nv.GetAssetSource(assetid))
+		assetsource=nv.FixStudioXML(nv.GetAssetSource(assetid))
 		else
 			assetsource=nv.GetAssetSource(assetid)
 		end
