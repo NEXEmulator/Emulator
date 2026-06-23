@@ -675,6 +675,22 @@ for _,inst in pairs(instMap)do
 inst.children={};rc+=1;roots[rc]=inst
 end
 end
+-- Internal RBXMs (those carrying HASH/SIGU/SIGN chunks) may have their PRNT
+-- entries in any order depending on which internal tool produced them.  The
+-- DFS traversal in serializeBinary visits children in the order they were
+-- appended here, so two semantically identical files with different PRNT
+-- orderings would round-trip to different outputs.  Sorting each node's
+-- children by their original referent number makes the traversal order
+-- deterministic and input-order-independent.
+-- Non-internal files are unaffected: scc==0 means we skip this entirely.
+if scc>0 then
+	for _,inst in pairs(instMap)do
+		local ch=inst.children
+		if #ch>1 then
+			tsort(ch,function(a,b)return a.referent<b.referent end)
+		end
+	end
+end
 local sharedBlobs={};local sharedKeys={}for idx,entry in pairs(sharedStrs)do
 sharedBlobs[idx]=entry.blob;sharedKeys[idx]=entry.key
 end
@@ -982,8 +998,14 @@ if sstrChunk then fp+=1;final[fp]=sstrChunk end
 for i=1,ic do fp+=1;final[fp]=instChunks[i]end
 for i=1,pcc do fp+=1;final[fp]=propChunks[i]end
 fp+=1;final[fp]=prntChunk
-if sigChunks then for _,sc in ipairs(sigChunks)do local pl=sc.payload
-fp+=1;final[fp]=sc.name..spack("<I4",0)..spack("<I4",#pl)..spack("<I4",0)..pl end end
+-- Use makeChunk so sig chunks (HASH/SIGU/SIGN) are compressed with the same
+-- algorithm as every other chunk when useZstd=true.  Previously they were
+-- always emitted uncompressed (cLen=0), which diverged from files where HASH
+-- was Zstd-compressed, and wasted space on the 22 KB HASH payload.
+-- makeChunk falls back to uncompressed if compression does not reduce size
+-- (e.g. the 324-byte SIGU/SIGN chunks), so those remain raw automatically.
+if sigChunks then for _,sc in ipairs(sigChunks)do
+fp+=1;final[fp]=makeChunk(sc.name,sc.payload,useZstd,compressionLevel)end end
 fp+=1;final[fp]=endChunk
 return tconc(final)end
 local function serializeXml(roots,sharedStrs,sharedKeys,sigChunks)local lc=0;local lines={}lc+=1;lines[lc]='<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime"'..' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'..' xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd"'..' version="4">'
@@ -1108,10 +1130,21 @@ function Converter.FixStudioXml(input)
 			if ssub(chunkName,1,3)=="END" then pc+=1;parts[pc]=ssub(input,pos);break end
 			local patched=false
 			if chunkName=="INST" then
+				-- Internal RBXMs use Zstd per-chunk; detect before falling back to LZ4.
+				-- We also track which algorithm was used so we re-emit with the same one,
+				-- keeping every non-INST chunk byte-identical to the original.
 				local payload
+				local chunkIsZstd=false
 				if cLen>0 then
-					local ok,r=pcall(lz4Decompress,ssub(input,dataPos,dataPos+cLen-1),uLen)
-					if ok then payload=r end
+					local raw=ssub(input,dataPos,dataPos+cLen-1)
+					if ssub(raw,1,4)==ZSTD_MAGIC then
+						chunkIsZstd=true
+						local ok,r=pcall(zstdDecompress,raw)
+						if ok then payload=r end
+					else
+						local ok,r=pcall(lz4Decompress,raw,uLen)
+						if ok then payload=r end
+					end
 				else payload=ssub(input,dataPos,dataPos+uLen-1)end
 				if payload then
 					local sp=1
@@ -1122,7 +1155,7 @@ function Converter.FixStudioXml(input)
 					if SERVICE_CLASSES[className]or className=="Terrain"then
 						local rest=ssub(payload,sp+1)-- skip old isService byte
 						local newPayload=spack("<I4",typeIdx)..spack("<I4",#"Folder").."Folder".."\x00"..rest
-						pc+=1;parts[pc]=makeChunk("INST",newPayload)
+						pc+=1;parts[pc]=makeChunk("INST",newPayload,chunkIsZstd)
 						patched=true
 					end
 				end
