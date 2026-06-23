@@ -490,7 +490,11 @@ local len,np=sunpack("<I4",data,p);p=np
 out[i]=ssub(data,p,p+len-1);p+=len
 end;return out
 end,writeBin=function(vals)local n=#vals;local pc=0;local parts=tcreat(n*2)for i=1,n do local v=vals[i]pc+=1;parts[pc]=spack("<I4",#v)pc+=1;parts[pc]=v
-end;return tconc(parts)end,xmlTag="ProtectedString",readXml=function(s)return s or "" end,writeXml=function(v)return tostring(v or "")end,}PropType[0x1F]={name="UniqueId",readBin=function(data,n)local out=tcreat(n);local n4=n*4;local n2=n*2;local n3=n*3
+end;return tconc(parts)end,xmlTag="ProtectedString",readXml=function(s)return s or "" end,writeXml=function(v)return tostring(v or "")end,}
+-- 0x1D is the internal Roblox bytecode type. Binary layout is identical to ProtectedString
+-- but kept as a separate entry so round-trips through XMLToBinary preserve the original type byte.
+PropType[0x1D]={name="Bytecode",readBin=PropType[0x1E4].readBin,writeBin=PropType[0x1E4].writeBin,xmlTag="ProtectedString",readXml=PropType[0x1E4].readXml,writeXml=PropType[0x1E4].writeXml,}
+PropType[0x1F]={name="UniqueId",readBin=function(data,n)local out=tcreat(n);local n4=n*4;local n2=n*2;local n3=n*3
 for i=1,n do
 local blob=tcreat(16);local base=0
 for f=0,3 do
@@ -576,7 +580,7 @@ local function parseBinary(data)assert(ssub(data,1,16)==RBX_MAGIC,"Not a valid .
 local _,np2=sunpack("<I4",data,pos);pos=np2
 local _,np3=sunpack("<I4",data,pos);pos=np3
 pos+=8
-local typeMap={};local instMap={};local sharedStrs={};local roots={}local rc=0
+local typeMap={};local instMap={};local sharedStrs={};local roots={}local rc=0;local sigChunks={};local scc=0
 while pos<=#data do
 if pos+15>#data then break end
 local chunkName=ssub(data,pos,pos+3);pos+=4
@@ -635,7 +639,9 @@ for i=1,#refs do
 local inst=instMap[refs[i]]if inst and values[i]~=nil then
 inst.properties[propName]={typeId=typeId,value=values[i]}end
 end
-end)elseif chunkName=="PRNT" then
+end)elseif chunkName=="SIGU" or chunkName=="SIGN" then
+scc+=1;sigChunks[scc]={name=chunkName:gsub("%z",""),payload=payload}
+elseif chunkName=="PRNT" then
 pcall(function()local sp=2
 local count,np=sunpack("<I4",payload,sp);sp=np
 local childRefs=deinterleaveRef(ssub(payload,sp,sp+count*4-1),count)local parentRefs=deinterleaveParentRef(ssub(payload,sp+count*4,sp+count*8-1),count)for i=1,count do
@@ -672,7 +678,7 @@ end
 local sharedBlobs={};local sharedKeys={}for idx,entry in pairs(sharedStrs)do
 sharedBlobs[idx]=entry.blob;sharedKeys[idx]=entry.key
 end
-return roots,sharedBlobs,sharedKeys
+return roots,sharedBlobs,sharedKeys,sigChunks
 end
 local function tokenize(xml)local tc=0;local tokens={}local pos=1;local n=#xml
 while pos<=n do
@@ -684,7 +690,10 @@ tc+=1;tokens[tc]={type="text",text=text}end
 else
 local c2=sbyte(xml,pos+1)if c2==33 then
 local c3=sbyte(xml,pos+2)if c3==45 and sbyte(xml,pos+3)==45 then
-local e=sfind(xml,"-->",pos+4,true)pos=e and e+3 or n+1
+local e=sfind(xml,"-->",pos+4,true)
+local ctext=ssub(xml,pos+4,e and e-1 or n)
+if sfind(ctext,"RBXSIG:",1,true)then tc+=1;tokens[tc]={type="rbxsig",text=ctext}end
+pos=e and e+3 or n+1
 elseif c3==91 and ssub(xml,pos,pos+8)=="<![CDATA[" then
 local e=sfind(xml,"]]>",pos+9,true)if e then
 tc+=1;tokens[tc]={type="text",text=ssub(xml,pos+9,e-1)}pos=e+3
@@ -739,12 +748,12 @@ elseif tok.type=="open" or tok.type=="selfclose" then
 local propTag=tok.name
 local propName=tok.attrs and tok.attrs.name
 if tok.type=="selfclose" then
-if propName then props[propName]={xmlTag=propTag,text="",sub={}}end
+if propName then props[propName]={xmlTag=propTag,text="",sub={},attrs=tok.attrs}end
 ti+=1
 else
 ti+=1
 local text,sub,newTi=parseElement(tokens,ti,propTag);ti=newTi
-if propName then props[propName]={xmlTag=propTag,text=text,sub=sub}end
+if propName then props[propName]={xmlTag=propTag,text=text,sub=sub,attrs=tok.attrs}end
 end
 else ti+=1 end
 end
@@ -788,9 +797,13 @@ ti+=1
 end
 if ti>nt then error("RBXConverter: no <roblox> root element found")end
 ti+=1
-local refCounter={0}local xmlSharedStrings={}local tmpTi=ti
+local refCounter={0}local xmlSharedStrings={}local xmlSigChunks={}local tmpTi=ti
 while tmpTi<=nt do
-local tok=tokens[tmpTi]if tok.type=="open" and tok.name=="SharedStrings" then
+local tok=tokens[tmpTi]if tok.type=="rbxsig" then
+local name,b64=tok.text:match("RBXSIG:(%w+):(%S+)")
+if name and b64 then xmlSigChunks[#xmlSigChunks+1]={name=name,payload=base64Decode(b64)}end
+tmpTi+=1
+elseif tok.type=="open" and tok.name=="SharedStrings" then
 tmpTi+=1
 while tmpTi<=nt do
 local t=tokens[tmpTi]if t.type=="close" and t.name=="SharedStrings" then tmpTi+=1;break end
@@ -809,9 +822,9 @@ elseif tok.type=="open" and tok.name=="Item" then
 break
 else tmpTi+=1 end
 end
-local roots,_=parseXmlItems(tokens,ti,refCounter,"roblox")return roots,xmlSharedStrings
+local roots,_=parseXmlItems(tokens,ti,refCounter,"roblox")return roots,xmlSharedStrings,xmlSigChunks
 end
-local function serializeBinary(roots,xmlSharedStrings,useZstd)local allInsts={};local ac=0;local function collect(node)ac+=1;allInsts[ac]=node
+local function serializeBinary(roots,xmlSharedStrings,useZstd,sigChunks)local allInsts={};local ac=0;local function collect(node)ac+=1;allInsts[ac]=node
 local ch=node.children
 for i=1,#ch do collect(ch[i])end
 end
@@ -867,6 +880,9 @@ vals[i]=prop.value
 elseif prop.xmlTag then
 local rawTid=xmlTagToTypeId[prop.xmlTag]or 0x01
 local tid=rawTid
+-- Restore 0x1D bytecode type when the XML attribute marker is present.
+-- Without this, Binary→XML→Binary would silently downgrade 0x1D to 0x1E4.
+if rawTid==0x1E4 and prop.attrs and prop.attrs["roblox:type"]=="Bytecode" then tid=0x1D end
 if not typeId then typeId=tid end
 local v=prop._cached~=nil and prop._cached or getType(tid).readXml(prop.text or "",prop.sub or{})prop._cached=v
 if v~=nil then
@@ -961,9 +977,12 @@ if sstrChunk then fp+=1;final[fp]=sstrChunk end
 for i=1,ic do fp+=1;final[fp]=instChunks[i]end
 for i=1,pcc do fp+=1;final[fp]=propChunks[i]end
 fp+=1;final[fp]=prntChunk
+if sigChunks then for _,sc in ipairs(sigChunks)do local pl=sc.payload
+fp+=1;final[fp]=sc.name..spack("<I4",0)..spack("<I4",#pl)..spack("<I4",0)..pl end end
 fp+=1;final[fp]=endChunk
 return tconc(final)end
-local function serializeXml(roots,sharedStrs,sharedKeys)local lc=0;local lines={}lc+=1;lines[lc]='<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime"'..' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'..' xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd"'..' version="4">'
+local function serializeXml(roots,sharedStrs,sharedKeys,sigChunks)local lc=0;local lines={}lc+=1;lines[lc]='<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime"'..' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'..' xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd"'..' version="4">'
+if sigChunks then for _,sc in ipairs(sigChunks)do lc+=1;lines[lc]="<!-- RBXSIG:"..sc.name..":"..base64Encode(sc.payload).." -->"end end
 local blobKeyCache={}if sharedKeys and sharedStrs then
 local usedKeys={}for idx,key in pairs(sharedKeys)do
 local blob=sharedStrs[idx]if blob and not blobKeyCache[blob]and not usedKeys[key]then
@@ -1026,10 +1045,10 @@ end
 local typeInfo=getType(typeId)local tag=typeInfo.xmlTag
 local inner=typeInfo.writeXml(value)if inner~=nil then
 local encoded
-if typeId==0x1E4 then
--- Always emit ProtectedString as CDATA, even for bytecode/binary content.
--- Switching tag to BinaryString hides Source from tools that look for ProtectedString.
--- This matches Roblox Studio's own XML serializer behavior.
+if typeId==0x1E4 or typeId==0x1D then
+-- Always CDATA, never switch tag to BinaryString.
+-- 0x1E4 = ProtectedString (plain Lua source); 0x1D = internal bytecode.
+-- Both use <ProtectedString> in XML; 0x1D gets roblox:type="Bytecode" added below.
 local sv=tostring(inner or "")
 encoded="<![CDATA["..sv.."]]>"
 elseif typeId==0x01 or typeId==0x02 or typeId==0x03 or typeId==0x04
@@ -1042,7 +1061,8 @@ else encoded=xmlEscape(sv)end
 else
 encoded=inner
 end
-lc+=1;lines[lc]=tab2.."<"..tag..' name="'..pname..'">'..encoded.."</"..tag..">"
+local extraAttr=typeId==0x1D and ' roblox:type="Bytecode"' or ""
+lc+=1;lines[lc]=tab2.."<"..tag..' name="'..pname..'"'..extraAttr..">"..encoded.."</"..tag..">"
 end
 end
 lc+=1;lines[lc]=tab1.."</Properties>"
@@ -1053,8 +1073,8 @@ end
 for i=1,#roots do writeNode(roots[i],1)end
 lc+=1;lines[lc]="</roblox>"
 return tconc(lines,"\n")end
-function Converter.XMLToBinary(xmlString,useZstd)assert(type(xmlString)=="string" and#xmlString>0,"XMLToBinary: expected a non-empty XML string")local roots,xmlSharedStrings=parseXml(xmlString)assert(#roots>0,"XMLToBinary: no instances found in XML string")return serializeBinary(roots,xmlSharedStrings,useZstd==true)end
-function Converter.BinaryToXML(binaryString)assert(type(binaryString)=="string" and#binaryString>0,"BinaryToXML: expected a non-empty binary string")local roots,sharedStrs,sharedKeys=parseBinary(binaryString)assert(#roots>0,"BinaryToXML: no instances found in binary string")return serializeXml(roots,sharedStrs,sharedKeys)end
+function Converter.XMLToBinary(xmlString,useZstd)assert(type(xmlString)=="string" and#xmlString>0,"XMLToBinary: expected a non-empty XML string")local roots,xmlSharedStrings,sigChunks=parseXml(xmlString)assert(#roots>0,"XMLToBinary: no instances found in XML string")return serializeBinary(roots,xmlSharedStrings,useZstd==true,sigChunks)end
+function Converter.BinaryToXML(binaryString)assert(type(binaryString)=="string" and#binaryString>0,"BinaryToXML: expected a non-empty binary string")local roots,sharedStrs,sharedKeys,sigChunks=parseBinary(binaryString)assert(#roots>0,"BinaryToXML: no instances found in binary string")return serializeXml(roots,sharedStrs,sharedKeys,sigChunks)end
 -- FixStudioXml: strips service class identity from any rbxmx/rbxm so it can be
 -- safely inserted into a live DataModel without colliding with existing services.
 -- For binary: patches only INST chunks (class name + isService flag), all other
