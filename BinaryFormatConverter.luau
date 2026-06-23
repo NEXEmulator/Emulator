@@ -1027,9 +1027,11 @@ local typeInfo=getType(typeId)local tag=typeInfo.xmlTag
 local inner=typeInfo.writeXml(value)if inner~=nil then
 local encoded
 if typeId==0x1E4 then
-local sv=tostring(inner or "")if sv:find("[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\xFF]")then
-encoded=base64Encode(sv);tag="BinaryString"
-else encoded="<![CDATA["..sv.."]]>" end
+-- Always emit ProtectedString as CDATA, even for bytecode/binary content.
+-- Switching tag to BinaryString hides Source from tools that look for ProtectedString.
+-- This matches Roblox Studio's own XML serializer behavior.
+local sv=tostring(inner or "")
+encoded="<![CDATA["..sv.."]]>"
 elseif typeId==0x01 or typeId==0x02 or typeId==0x03 or typeId==0x04
 or typeId==0x05 or typeId==0x0B or typeId==0x12 or typeId==0x15
 or typeId==0x16 or typeId==0x17 or typeId==0x1B or typeId==0x1C
