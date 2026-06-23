@@ -996,16 +996,19 @@ local endChunk="END\0"..spack("<I4",0)..spack("<I4",#endPayload)..spack("<I4",0)
 local header=RBX_MAGIC..spack("<I4",toc)..spack("<I4",na)..spack("<I4",0)..spack("<I4",0)local fp=0;local final=tcreat(4+ic+pcc)fp+=1;final[fp]=header
 if sstrChunk then fp+=1;final[fp]=sstrChunk end
 for i=1,ic do fp+=1;final[fp]=instChunks[i]end
+-- HASH sits between INST and PROP in Roblox's internal RBXM format.
+-- Compress it normally (it's ~22 KB and benefits from zstd).
+if sigChunks then for _,sc in ipairs(sigChunks)do
+if sc.name=="HASH" then fp+=1;final[fp]=makeChunk(sc.name,sc.payload,useZstd,compressionLevel)end
+end end
 for i=1,pcc do fp+=1;final[fp]=propChunks[i]end
 fp+=1;final[fp]=prntChunk
--- Use makeChunk so sig chunks (HASH/SIGU/SIGN) are compressed with the same
--- algorithm as every other chunk when useZstd=true.  Previously they were
--- always emitted uncompressed (cLen=0), which diverged from files where HASH
--- was Zstd-compressed, and wasted space on the 22 KB HASH payload.
--- makeChunk falls back to uncompressed if compression does not reduce size
--- (e.g. the 324-byte SIGU/SIGN chunks), so those remain raw automatically.
+-- SIGU/SIGN go after PRNT and are always stored uncompressed (cLen=0).
+-- zstd can shave ~24 bytes off the 324-byte blobs, but Roblox always emits
+-- them raw, so compressing them diverges from the original file structure.
 if sigChunks then for _,sc in ipairs(sigChunks)do
-fp+=1;final[fp]=makeChunk(sc.name,sc.payload,useZstd,compressionLevel)end end
+if sc.name~="HASH" then fp+=1;final[fp]=sc.name..spack("<I4",0)..spack("<I4",#sc.payload)..spack("<I4",0)..sc.payload end
+end end
 fp+=1;final[fp]=endChunk
 return tconc(final)end
 local function serializeXml(roots,sharedStrs,sharedKeys,sigChunks)local lc=0;local lines={}lc+=1;lines[lc]='<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime"'..' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'..' xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd"'..' version="4">'
