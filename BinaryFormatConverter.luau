@@ -206,6 +206,31 @@ local r=ll-15
 while r>=255 do oc+=1;out[oc]="\xff";r-=255 end
 oc+=1;out[oc]=schar(r)end
 oc+=1;out[oc]=ssub(src,anchor,n)return tconc(out,"",1,oc)end
+local b64chars="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+local b64enc={};for i=0,63 do b64enc[i]=ssub(b64chars,i+1,i+1)end
+local b64dec={};for i=0,63 do b64dec[sbyte(b64chars,i+1)]=i end
+local function base64Encode(s)local n=#s
+local oc=0;local out=tcreat(mceil(n/3)*4)for i=1,n,3 do
+local a=sbyte(s,i)or 0
+local b=sbyte(s,i+1)or 0
+local c=sbyte(s,i+2)or 0
+local v=a*65536+b*256+c
+oc+=1;out[oc]=b64enc[b32rsh(v,18)]oc+=1;out[oc]=b64enc[b32band(b32rsh(v,12),63)]oc+=1;out[oc]=i+1<=n and b64enc[b32band(b32rsh(v,6),63)]or "="
+oc+=1;out[oc]=i+2<=n and b64enc[b32band(v,63)]or "="
+end
+return tconc(out)end
+local function base64Decode(s)if sfind(s,"[^A-Za-z0-9+/=]")then s=s:gsub("[^A-Za-z0-9+/=]","")end;local n=#s
+local oc=0;local out=tcreat(mceil(n/4)*3)local i=1
+while i<=n do
+local a=b64dec[sbyte(s,i)]or 0;i+=1
+local b=b64dec[sbyte(s,i)]or 0;i+=1
+local c=b64dec[sbyte(s,i)]or 0;i+=1
+local d=b64dec[sbyte(s,i)]or 0;i+=1
+local v=a*262144+b*4096+c*64+d
+oc+=1;out[oc]=schar(b32rsh(v,16))if sbyte(s,i-2)~=61 then oc+=1;out[oc]=schar(b32band(b32rsh(v,8),255))end
+if sbyte(s,i-1)~=61 then oc+=1;out[oc]=schar(b32band(v,255))end
+end
+return tconc(out)end
 local ZSTD_MAGIC="\x28\xb5\x2f\xfd"
 local function zstdDecompress(src)
 return buffer.tostring(EncodingService:DecompressBuffer(buffer.fromstring(src),Enum.CompressionAlgorithm.Zstd))end
@@ -434,32 +459,7 @@ local v=vals[i]local raw=v>=0 and v*2 or-v*2-1
 local lo=raw%0x100000000
 local hi=mfloor(raw/0x100000000)by[0][i]=chr[b32rsh(hi,24)%256];by[1][i]=chr[b32rsh(hi,16)%256]by[2][i]=chr[b32rsh(hi,8)%256];by[3][i]=chr[hi%256]by[4][i]=chr[b32rsh(lo,24)%256];by[5][i]=chr[b32rsh(lo,16)%256]by[6][i]=chr[b32rsh(lo,8)%256];by[7][i]=chr[lo%256]end
 local pc=0;local parts=tcreat(8)for k=0,7 do pc+=1;parts[pc]=tconc(by[k])end
-return tconc(parts)end,xmlTag="int64",readXml=function(s)return tonumber(s)or 0 end,writeXml=function(v)return tostring(mfloor(v or 0))end,}PropType[0x1C]={name="SharedString",readBin=function(data,n)return deinterleaveU32(data,n)end,writeBin=function(vals)return interleaveU32(vals)end,xmlTag="SharedString",readXml=function(s)return s or "" end,writeXml=function(v)return v or "" end,}local b64chars="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-local b64enc={};for i=0,63 do b64enc[i]=ssub(b64chars,i+1,i+1)end
-local b64dec={};for i=0,63 do b64dec[sbyte(b64chars,i+1)]=i end
-local function base64Encode(s)local n=#s
-local oc=0;local out=tcreat(mceil(n/3)*4)for i=1,n,3 do
-local a=sbyte(s,i)or 0
-local b=sbyte(s,i+1)or 0
-local c=sbyte(s,i+2)or 0
-local v=a*65536+b*256+c
-oc+=1;out[oc]=b64enc[b32rsh(v,18)]oc+=1;out[oc]=b64enc[b32band(b32rsh(v,12),63)]oc+=1;out[oc]=i+1<=n and b64enc[b32band(b32rsh(v,6),63)]or "="
-oc+=1;out[oc]=i+2<=n and b64enc[b32band(v,63)]or "="
-end
-return tconc(out)end
-local function base64Decode(s)if sfind(s,"[^A-Za-z0-9+/=]")then s=s:gsub("[^A-Za-z0-9+/=]","")end;local n=#s
-local oc=0;local out=tcreat(mceil(n/4)*3)local i=1
-while i<=n do
-local a=b64dec[sbyte(s,i)]or 0;i+=1
-local b=b64dec[sbyte(s,i)]or 0;i+=1
-local c=b64dec[sbyte(s,i)]or 0;i+=1
-local d=b64dec[sbyte(s,i)]or 0;i+=1
-local v=a*262144+b*4096+c*64+d
-oc+=1;out[oc]=schar(b32rsh(v,16))if sbyte(s,i-2)~=61 then oc+=1;out[oc]=schar(b32band(b32rsh(v,8),255))end
-if sbyte(s,i-1)~=61 then oc+=1;out[oc]=schar(b32band(v,255))end
-end
-return tconc(out)end
-PropType[0x1E]={name="OptionalCFrame",readBin=function(data,n)local p=2
+return tconc(parts)end,xmlTag="int64",readXml=function(s)return tonumber(s)or 0 end,writeXml=function(v)return tostring(mfloor(v or 0))end,}PropType[0x1C]={name="SharedString",readBin=function(data,n)return deinterleaveU32(data,n)end,writeBin=function(vals)return interleaveU32(vals)end,xmlTag="SharedString",readXml=function(s)return s or "" end,writeXml=function(v)return v or "" end,}PropType[0x1E]={name="OptionalCFrame",readBin=function(data,n)local p=2
 local specs=tcreat(n);local rots=tcreat(n)for i=1,n do
 local s=sbyte(data,p)or 0;p+=1
 if s==0 then
@@ -965,15 +965,11 @@ elseif typeId==0x21 then vals[i]=0 elseif typeId==0x22 then vals[i]=""
 else vals[i]=0 end
 end
 end
--- FIX: Content (0x22) must be written as String (0x01) in binary.
--- Roblox's binary parser expects type byte 0x01 for these properties;
--- writing 0x22 causes "unexpected format 34, expected 1".
--- The vals are already plain URI strings so PropType[0x01].writeBin handles them directly.
 local binData
 local binTypeId
 if typeId==0x22 then
-binTypeId=0x01
-binData=PropType[0x01].writeBin(vals)
+binTypeId=0x22
+binData=typeInfo.writeBin(vals)
 elseif typeId==0x1E2 then
 binTypeId=0x01
 binData=typeInfo.writeBin(vals)
@@ -1232,7 +1228,9 @@ function Converter.FixStudioXml(input)
 				pc+=1;parts[pc]="<";pos+=1
 			end
 		end
-		return tconc(parts)
+		local fixedXml=tconc(parts)
+		local roots,xmlSharedStrings,sigChunks=parseXml(fixedXml)
+		return serializeBinary(roots,xmlSharedStrings,false,sigChunks)
 	end
 end
 -- FixInternalXml: rewrites every PROP chunk in a binary RBXM/RBXL whose
