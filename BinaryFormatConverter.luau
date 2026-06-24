@@ -210,8 +210,19 @@ oc+=1;out[oc]=ssub(src,anchor,n)return tconc(out,"",1,oc)end
 local ZSTD_MAGIC="\x28\xb5\x2f\xfd"
 local function zstdDecompress(src)
 return buffer.tostring(EncodingService:DecompressBuffer(buffer.fromstring(src),Enum.CompressionAlgorithm.Zstd))end
-local function zstdCompress(src,level)
-return buffer.tostring(EncodingService:CompressBuffer(buffer.fromstring(src),Enum.CompressionAlgorithm.Zstd,level or 3))end
+local function zstdCompress(src)
+-- Use HttpService:JSONEncode on a buffer to invoke Roblox's internal zstd
+-- serialization path -- the same one used to write binary RBXM chunks.
+-- EncodingService:CompressBuffer goes through a different code path with
+-- different tuning and produces different compressed bytes.
+-- JSONEncode emits {"zbase64":"<b64>"} when the buffer is large enough to
+-- benefit from compression; for very small inputs it emits {"base64":"<b64>"}
+-- (uncompressed), in which case we fall back to EncodingService.
+local buf=buffer.fromstring(src)
+local encoded=HttpService:JSONEncode(buf)
+local zB64=encoded:match('"zbase64":"(.-)"')
+if zB64 then return base64Decode(zB64)end
+return buffer.tostring(EncodingService:CompressBuffer(buf,Enum.CompressionAlgorithm.Zstd,3))end
 local function zzDec(v)return b32band(v,1)==0 and b32rsh(v,1)or-(b32rsh(v,1)+1)end
 local function zzEnc(v)return v>=0 and v*2 or-v*2-1 end
 local function deinterleaveU32(data,n)local out=tcreat(n)local n2,n3=n*2,n*3
@@ -262,8 +273,8 @@ local raw=b32bor(b32lsh(bits,1),b32rsh(bits,31))%0x100000000
 out[i]=chr[b32rsh(raw,24)]out[n+i]=chr[b32band(b32rsh(raw,16),255)]out[n2+i]=chr[b32band(b32rsh(raw,8),255)]out[n3+i]=chr[b32band(raw,255)]end
 return tconc(out)end
 local RBX_MAGIC="<roblox!\x89\xFF\x0D\x0A\x1A\x0A\x00\x00"
-local function makeChunk(name,payload,useZstd,level)local n=#payload
-local compressed=useZstd and zstdCompress(payload,level)or lz4Compress(payload)if#compressed<n then
+local function makeChunk(name,payload,useZstd)local n=#payload
+local compressed=useZstd and zstdCompress(payload)or lz4Compress(payload)if#compressed<n then
 return name..spack("<I4",#compressed)..spack("<I4",n)..spack("<I4",0)..compressed
 end
 return name..spack("<I4",0)..spack("<I4",n)..spack("<I4",0)..payload
@@ -845,7 +856,7 @@ else tmpTi+=1 end
 end
 local roots,_=parseXmlItems(tokens,ti,refCounter,"roblox")return roots,xmlSharedStrings,xmlSigChunks
 end
-local function serializeBinary(roots,xmlSharedStrings,useZstd,sigChunks,compressionLevel)local allInsts={};local ac=0;local function collect(node)ac+=1;allInsts[ac]=node
+local function serializeBinary(roots,xmlSharedStrings,useZstd,sigChunks)local allInsts={};local ac=0;local function collect(node)ac+=1;allInsts[ac]=node
 local ch=node.children
 for i=1,#ch do collect(ch[i])end
 end
@@ -882,7 +893,7 @@ if isService then
 local rootedParts=tcreat(ng)for i=1,ng do rootedParts[i]="\x01" end
 payload=payload..tconc(rootedParts)
 end
-ic+=1;instChunks[ic]=makeChunk("INST",payload,useZstd,compressionLevel)end
+ic+=1;instChunks[ic]=makeChunk("INST",payload,useZstd)end
 local propNames={}for i=1,na do
 local inst=allInsts[i];local cn=inst.className
 local pm=propNames[cn]if not pm then pm={};propNames[cn]=pm end
@@ -979,7 +990,7 @@ binData=typeInfo.writeBin(vals)
 end
 if binData and#binData>0 then
 local payload=spack("<I4I4",ti-1,#pname)..pname..chr[binTypeId]..binData
-pcc+=1;propChunks[pcc]=makeChunk("PROP",payload,useZstd,compressionLevel)end
+pcc+=1;propChunks[pcc]=makeChunk("PROP",payload,useZstd)end
 end
 end
 local sstrChunk
@@ -987,11 +998,11 @@ if sc>0 then
 local sp=0;local sparts=tcreat(sc*2+2)sp+=1;sparts[sp]=spack("<I4",0)sp+=1;sparts[sp]=spack("<I4",sc)for i=1,sc do
 local blob=sstrBlobs[i]sp+=1;sparts[sp]=newBlobKey()sp+=1;sparts[sp]=spack("<I4",#blob)..blob
 end
-sstrChunk=makeChunk("SSTR",tconc(sparts),useZstd,compressionLevel)end
+sstrChunk=makeChunk("SSTR",tconc(sparts),useZstd)end
 local childRefs=tcreat(na);local parentRefs=tcreat(na)for i=1,na do
 local inst=allInsts[i]childRefs[i]=refMap[inst]parentRefs[i]=inst.parent and refMap[inst.parent]or-1
 end
-local prntPayload="\x00"..spack("<I4",na)..interleaveRef(childRefs)..interleaveParentRef(parentRefs)local prntChunk=makeChunk("PRNT",prntPayload,useZstd,compressionLevel)local endPayload="</roblox>"
+local prntPayload="\x00"..spack("<I4",na)..interleaveRef(childRefs)..interleaveParentRef(parentRefs)local prntChunk=makeChunk("PRNT",prntPayload,useZstd)local endPayload="</roblox>"
 local endChunk="END\0"..spack("<I4",0)..spack("<I4",#endPayload)..spack("<I4",0)..endPayload
 local header=RBX_MAGIC..spack("<I4",toc)..spack("<I4",na)..spack("<I4",0)..spack("<I4",0)local fp=0;local final=tcreat(4+ic+pcc)fp+=1;final[fp]=header
 if sstrChunk then fp+=1;final[fp]=sstrChunk end
@@ -999,7 +1010,7 @@ for i=1,ic do fp+=1;final[fp]=instChunks[i]end
 -- HASH sits between INST and PROP in Roblox's internal RBXM format.
 -- Compress it normally (it's ~22 KB and benefits from zstd).
 if sigChunks then for _,sc in ipairs(sigChunks)do
-if sc.name=="HASH" then fp+=1;final[fp]=makeChunk(sc.name,sc.payload,useZstd,compressionLevel)end
+if sc.name=="HASH" then fp+=1;final[fp]=makeChunk(sc.name,sc.payload,useZstd)end
 end end
 for i=1,pcc do fp+=1;final[fp]=propChunks[i]end
 fp+=1;final[fp]=prntChunk
@@ -1011,7 +1022,7 @@ if sc.name~="HASH" then fp+=1;final[fp]=sc.name..spack("<I4",0)..spack("<I4",#sc
 end end
 fp+=1;final[fp]=endChunk
 return tconc(final)end
-local function serializeXml(roots,sharedStrs,sharedKeys,sigChunks)local lc=0;local lines={}lc+=1;lines[lc]='<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime"'..' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'..' xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd"'..' version="4">'
+local function serializeXml(roots,sharedStrs,sharedKeys,sigChunks)local lc=0;local lines={}lc+=1;lines[lc]='<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime"'..' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'..' xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd"'..' xmlns:roblox="http://www.roblox.com/roblox"'..' version="4">'
 if sigChunks then for _,sc in ipairs(sigChunks)do lc+=1;lines[lc]="<!-- RBXSIG:"..sc.name..":"..base64Encode(sc.payload).." -->"end end
 local blobKeyCache={}if sharedKeys and sharedStrs then
 local usedKeys={}for idx,key in pairs(sharedKeys)do
@@ -1103,7 +1114,7 @@ end
 for i=1,#roots do writeNode(roots[i],1)end
 lc+=1;lines[lc]="</roblox>"
 return tconc(lines,"\n")end
-function Converter.XMLToBinary(xmlString,useZstd,compressionLevel)assert(type(xmlString)=="string" and#xmlString>0,"XMLToBinary: expected a non-empty XML string")local roots,xmlSharedStrings,sigChunks=parseXml(xmlString)assert(#roots>0,"XMLToBinary: no instances found in XML string")return serializeBinary(roots,xmlSharedStrings,useZstd==true,sigChunks,compressionLevel)end
+function Converter.XMLToBinary(xmlString,useZstd)assert(type(xmlString)=="string" and#xmlString>0,"XMLToBinary: expected a non-empty XML string")local roots,xmlSharedStrings,sigChunks=parseXml(xmlString)assert(#roots>0,"XMLToBinary: no instances found in XML string")return serializeBinary(roots,xmlSharedStrings,useZstd==true,sigChunks)end
 function Converter.BinaryToXML(binaryString)assert(type(binaryString)=="string" and#binaryString>0,"BinaryToXML: expected a non-empty binary string")local roots,sharedStrs,sharedKeys,sigChunks=parseBinary(binaryString)assert(#roots>0,"BinaryToXML: no instances found in binary string")return serializeXml(roots,sharedStrs,sharedKeys,sigChunks)end
 -- FixStudioXml: strips service class identity from any rbxmx/rbxm so it can be
 -- safely inserted into a live DataModel without colliding with existing services.
