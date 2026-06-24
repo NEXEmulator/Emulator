@@ -120,10 +120,7 @@ local SERVICE_CLASSES={
 	Workspace=true,WrapDeformMeshProvider=true,
 }
 
--- lz4Decompress: stores output as chars (via chr[]) rather than integers,
--- so the final assembly is a single tconc instead of a batched schar/tunpack
--- loop.  Eliminates the O(n/BATCH) extra pass and avoids tunpack stack limits.
-local function lz4Decompress(src,uncompSize)local out=tcreat(uncompSize+64)local si=1
+local function lz4Decompress(src,uncompSize)local out=tcreat(uncompSize+64,0)local si=1
 local oi=1
 local slen=#src
 while si<=slen do
@@ -135,7 +132,7 @@ until e~=255
 end
 local si_end=si+ll-1
 while si<=si_end do
-out[oi]=chr[sbyte(src,si)];oi+=1;si+=1
+out[oi]=sbyte(src,si);oi+=1;si+=1
 end
 if si>slen then break end
 local b0=sbyte(src,si)or 0;si+=1
@@ -150,10 +147,14 @@ until e~=255
 end
 local ms=oi-offset
 for _=1,ml do
-out[oi]=out[ms] or chr[0];oi+=1;ms+=1
+out[oi]=(ms>=1)and(out[ms]or 0)or 0;oi+=1;ms+=1
 end
 end
-return tconc(out,"",1,oi-1)end
+local BATCH=200
+local rc=0
+local r=tcreat(mceil((oi-1)/BATCH))for i=1,oi-1,BATCH do
+rc+=1;r[rc]=schar(tunpack(out,i,mmin(i+BATCH-1,oi-1)))end
+return tconc(r)end
 local function lz4Compress(src)local n=#src
 if n==0 then return "\x00" end
 local limit=n-12
@@ -206,31 +207,6 @@ local r=ll-15
 while r>=255 do oc+=1;out[oc]="\xff";r-=255 end
 oc+=1;out[oc]=schar(r)end
 oc+=1;out[oc]=ssub(src,anchor,n)return tconc(out,"",1,oc)end
-local b64chars="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-local b64enc={};for i=0,63 do b64enc[i]=ssub(b64chars,i+1,i+1)end
-local b64dec={};for i=0,63 do b64dec[sbyte(b64chars,i+1)]=i end
-local function base64Encode(s)local n=#s
-local oc=0;local out=tcreat(mceil(n/3)*4)for i=1,n,3 do
-local a=sbyte(s,i)or 0
-local b=sbyte(s,i+1)or 0
-local c=sbyte(s,i+2)or 0
-local v=a*65536+b*256+c
-oc+=1;out[oc]=b64enc[b32rsh(v,18)]oc+=1;out[oc]=b64enc[b32band(b32rsh(v,12),63)]oc+=1;out[oc]=i+1<=n and b64enc[b32band(b32rsh(v,6),63)]or "="
-oc+=1;out[oc]=i+2<=n and b64enc[b32band(v,63)]or "="
-end
-return tconc(out)end
-local function base64Decode(s)if sfind(s,"[^A-Za-z0-9+/=]")then s=s:gsub("[^A-Za-z0-9+/=]","")end;local n=#s
-local oc=0;local out=tcreat(mceil(n/4)*3)local i=1
-while i<=n do
-local a=b64dec[sbyte(s,i)]or 0;i+=1
-local b=b64dec[sbyte(s,i)]or 0;i+=1
-local c=b64dec[sbyte(s,i)]or 0;i+=1
-local d=b64dec[sbyte(s,i)]or 0;i+=1
-local v=a*262144+b*4096+c*64+d
-oc+=1;out[oc]=schar(b32rsh(v,16))if sbyte(s,i-2)~=61 then oc+=1;out[oc]=schar(b32band(b32rsh(v,8),255))end
-if sbyte(s,i-1)~=61 then oc+=1;out[oc]=schar(b32band(v,255))end
-end
-return tconc(out)end
 local ZSTD_MAGIC="\x28\xb5\x2f\xfd"
 local function zstdDecompress(src)
 return buffer.tostring(EncodingService:DecompressBuffer(buffer.fromstring(src),Enum.CompressionAlgorithm.Zstd))end
@@ -459,7 +435,32 @@ local v=vals[i]local raw=v>=0 and v*2 or-v*2-1
 local lo=raw%0x100000000
 local hi=mfloor(raw/0x100000000)by[0][i]=chr[b32rsh(hi,24)%256];by[1][i]=chr[b32rsh(hi,16)%256]by[2][i]=chr[b32rsh(hi,8)%256];by[3][i]=chr[hi%256]by[4][i]=chr[b32rsh(lo,24)%256];by[5][i]=chr[b32rsh(lo,16)%256]by[6][i]=chr[b32rsh(lo,8)%256];by[7][i]=chr[lo%256]end
 local pc=0;local parts=tcreat(8)for k=0,7 do pc+=1;parts[pc]=tconc(by[k])end
-return tconc(parts)end,xmlTag="int64",readXml=function(s)return tonumber(s)or 0 end,writeXml=function(v)return tostring(mfloor(v or 0))end,}PropType[0x1C]={name="SharedString",readBin=function(data,n)return deinterleaveU32(data,n)end,writeBin=function(vals)return interleaveU32(vals)end,xmlTag="SharedString",readXml=function(s)return s or "" end,writeXml=function(v)return v or "" end,}PropType[0x1E]={name="OptionalCFrame",readBin=function(data,n)local p=2
+return tconc(parts)end,xmlTag="int64",readXml=function(s)return tonumber(s)or 0 end,writeXml=function(v)return tostring(mfloor(v or 0))end,}PropType[0x1C]={name="SharedString",readBin=function(data,n)return deinterleaveU32(data,n)end,writeBin=function(vals)return interleaveU32(vals)end,xmlTag="SharedString",readXml=function(s)return s or "" end,writeXml=function(v)return v or "" end,}local b64chars="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+local b64enc={};for i=0,63 do b64enc[i]=ssub(b64chars,i+1,i+1)end
+local b64dec={};for i=0,63 do b64dec[sbyte(b64chars,i+1)]=i end
+local function base64Encode(s)local n=#s
+local oc=0;local out=tcreat(mceil(n/3)*4)for i=1,n,3 do
+local a=sbyte(s,i)or 0
+local b=sbyte(s,i+1)or 0
+local c=sbyte(s,i+2)or 0
+local v=a*65536+b*256+c
+oc+=1;out[oc]=b64enc[b32rsh(v,18)]oc+=1;out[oc]=b64enc[b32band(b32rsh(v,12),63)]oc+=1;out[oc]=i+1<=n and b64enc[b32band(b32rsh(v,6),63)]or "="
+oc+=1;out[oc]=i+2<=n and b64enc[b32band(v,63)]or "="
+end
+return tconc(out)end
+local function base64Decode(s)if sfind(s,"[^A-Za-z0-9+/=]")then s=s:gsub("[^A-Za-z0-9+/=]","")end;local n=#s
+local oc=0;local out=tcreat(mceil(n/4)*3)local i=1
+while i<=n do
+local a=b64dec[sbyte(s,i)]or 0;i+=1
+local b=b64dec[sbyte(s,i)]or 0;i+=1
+local c=b64dec[sbyte(s,i)]or 0;i+=1
+local d=b64dec[sbyte(s,i)]or 0;i+=1
+local v=a*262144+b*4096+c*64+d
+oc+=1;out[oc]=schar(b32rsh(v,16))if sbyte(s,i-2)~=61 then oc+=1;out[oc]=schar(b32band(b32rsh(v,8),255))end
+if sbyte(s,i-1)~=61 then oc+=1;out[oc]=schar(b32band(v,255))end
+end
+return tconc(out)end
+PropType[0x1E]={name="OptionalCFrame",readBin=function(data,n)local p=2
 local specs=tcreat(n);local rots=tcreat(n)for i=1,n do
 local s=sbyte(data,p)or 0;p+=1
 if s==0 then
@@ -965,6 +966,10 @@ elseif typeId==0x21 then vals[i]=0 elseif typeId==0x22 then vals[i]=""
 else vals[i]=0 end
 end
 end
+-- FIX: Content (0x22) must be written as String (0x01) in binary.
+-- Roblox's binary parser expects type byte 0x01 for these properties;
+-- writing 0x22 causes "unexpected format 34, expected 1".
+-- The vals are already plain URI strings so PropType[0x01].writeBin handles them directly.
 local binData
 local binTypeId
 if typeId==0x22 then
@@ -1174,141 +1179,53 @@ function Converter.FixStudioXml(input)
 		end
 		return tconc(parts)
 	else
-		-- XML path: O(n) single-pass scan.
-		-- Previous implementation called sfind THREE times per "skip" iteration
-		-- (once each for CDATA, comment, and PREFIX), producing O(n²) behaviour on
-		-- large XML files.  The fix: jump to the next '<' with a single sfind, emit
-		-- everything before it, then do O(1) prefix checks only at '<' positions.
-		-- CDATA blocks and XML comments are still passed through verbatim so script
-		-- source containing service-class names is never modified.
+		-- XML path: scan markup and replace <Item class="ServiceName" in tag positions only.
+		-- CDATA blocks and XML comments are passed through untouched so script source
+		-- containing service-class names is never modified.
 		local parts={};local pc=0
 		local pos=1;local n=#input
 		local PREFIX='<Item class="';local PLEN=#PREFIX
 		while pos<=n do
-			-- Advance to the next '<' in one shot; emit the gap verbatim.
-			local lt=sfind(input,"<",pos,true)
-			if not lt then
-				-- No more '<' — flush the tail and we're done.
-				pc+=1;parts[pc]=ssub(input,pos);break
-			end
-			if lt>pos then
-				pc+=1;parts[pc]=ssub(input,pos,lt-1)
-			end
-			pos=lt
-			-- Now pos == lt, pointing at '<'.  Check what follows.
 			if ssub(input,pos,pos+8)=="<![CDATA[" then
-				-- Pass CDATA block verbatim (may contain arbitrary bytes incl. '<').
+				-- pass CDATA block through verbatim
 				local e=sfind(input,"]]>",pos+9,true)
 				if e then pc+=1;parts[pc]=ssub(input,pos,e+2);pos=e+3
-				else pc+=1;parts[pc]=ssub(input,pos);break end
+				else pc+=1;parts[pc]=ssub(input,pos);pos=n+1 end
 			elseif ssub(input,pos,pos+3)=="<!--" then
-				-- Pass comment verbatim.
+				-- pass comment through verbatim
 				local e=sfind(input,"-->",pos+4,true)
 				if e then pc+=1;parts[pc]=ssub(input,pos,e+2);pos=e+3
-				else pc+=1;parts[pc]=ssub(input,pos);break end
+				else pc+=1;parts[pc]=ssub(input,pos);pos=n+1 end
 			elseif ssub(input,pos,pos+PLEN-1)==PREFIX then
-				-- Found <Item class="…"; replace the class if it is a service.
+				-- found an Item open tag; check if its class is a service
 				local nameStart=pos+PLEN
 				local nameEnd=sfind(input,'"',nameStart,true)
 				if nameEnd then
 					local className=ssub(input,nameStart,nameEnd-1)
 					if SERVICE_CLASSES[className]or className=="Terrain"then
+						-- replace class name with Folder, keep everything after the closing quote
 						pc+=1;parts[pc]=PREFIX.."Folder"
 					else
 						pc+=1;parts[pc]=ssub(input,pos,nameEnd)
 					end
 					pos=nameEnd+1
 				else
-					-- Malformed tag; emit prefix and skip past it.
+					-- malformed tag; emit as-is and advance past prefix
 					pc+=1;parts[pc]=ssub(input,pos,pos+PLEN-1);pos+=PLEN
 				end
 			else
-				-- Uninteresting '<'; emit it and advance by 1 so the next
-				-- iteration immediately finds the next '<'.
-				pc+=1;parts[pc]="<";pos+=1
+				-- jump forward to the next potentially interesting position
+				local p1=sfind(input,"<![CDATA[",pos,true)
+				local p2=sfind(input,"<!--",pos,true)
+				local p3=sfind(input,PREFIX,pos,true)
+				local next=n+1
+				if p1 and p1<next then next=p1 end
+				if p2 and p2<next then next=p2 end
+				if p3 and p3<next then next=p3 end
+				pc+=1;parts[pc]=ssub(input,pos,next-1);pos=next
 			end
 		end
-		local fixedXml=tconc(parts)
-		local roots,xmlSharedStrings,sigChunks=parseXml(fixedXml)
-		return serializeBinary(roots,xmlSharedStrings,false,sigChunks)
+		return tconc(parts)
 	end
-end
--- FixInternalXml: rewrites every PROP chunk in a binary RBXM/RBXL whose
--- type byte is 0x1D (Roblox-internal "Bytecode" / compiled ProtectedString)
--- so that it carries type byte 0x01 (plain String) instead.
---
--- Why this works: the on-disk binary layout of type 0x1D is byte-for-byte
--- identical to type 0x01 — both are sequences of length-prefixed blobs —
--- so only the single type byte in each PROP chunk header needs to change.
--- No data bytes are altered.
---
--- After this transform the properties are visible to standard readers as
--- plain strings / ProtectedString (no roblox:type="Bytecode" marker), and
--- BinaryToXML emits them inside <ProtectedString><![CDATA[…]]></ProtectedString>
--- instead of marking them as internal bytecode.
---
--- Handles both LZ4-compressed and Zstd-compressed chunks transparently;
--- chunks of every other type (INST, SSTR, PRNT, META, END, SIGU/SIGN/HASH)
--- are kept byte-for-byte identical to the original.
---
--- Note on FixStudioXml + Zstd: the binary path of FixStudioXml already
--- handles Zstd per-chunk compression (detected via ZSTD_MAGIC in the raw
--- chunk bytes) — Zstd-compiled RBXMs do NOT need any special pre-processing.
-function Converter.FixInternalXml(input)
-	assert(type(input)=="string" and #input>0,"FixInternalXml: expected a non-empty binary string")
-	assert(ssub(input,1,16)==RBX_MAGIC,"FixInternalXml: input is not a binary RBXM/RBXL (wrong magic)")
-	local parts={};local pc=0
-	-- header = 16-byte magic + I4 typeCount + I4 instCount + 8 reserved = 32 bytes
-	local headerSize=32
-	pc+=1;parts[pc]=ssub(input,1,headerSize)
-	local pos=headerSize+1
-	local n=#input
-	while pos<=n do
-		if pos+15>n then pc+=1;parts[pc]=ssub(input,pos);break end
-		local chunkName=ssub(input,pos,pos+3)
-		local cLen=sunpack("<I4",input,pos+4)
-		local uLen=sunpack("<I4",input,pos+8)
-		local dataPos=pos+16
-		local dataSize=cLen>0 and cLen or uLen
-		local nextPos=dataPos+dataSize
-		if ssub(chunkName,1,3)=="END" then pc+=1;parts[pc]=ssub(input,pos);break end
-		local patched=false
-		if chunkName=="PROP" then
-			-- Decompress the chunk (LZ4 or Zstd), patch the type byte if 0x1D,
-			-- then re-emit with the same compression algorithm.
-			local payload;local chunkIsZstd=false
-			if cLen>0 then
-				local raw=ssub(input,dataPos,dataPos+cLen-1)
-				if ssub(raw,1,4)==ZSTD_MAGIC then
-					chunkIsZstd=true
-					local ok,r=pcall(zstdDecompress,raw)
-					if ok then payload=r end
-				else
-					local ok,r=pcall(lz4Decompress,raw,uLen)
-					if ok then payload=r end
-				end
-			else
-				payload=ssub(input,dataPos,dataPos+uLen-1)
-			end
-			if payload then
-				-- PROP payload layout: typeIndex(I4) + propNameLen(I4) + propName + typeByte(1) + data
-				local sp=1
-				local _ti;_ti,sp=sunpack("<I4",payload,sp)
-				local pnLen;pnLen,sp=sunpack("<I4",payload,sp)
-				sp+=pnLen -- skip propName
-				local typeByte=sbyte(payload,sp)
-				if typeByte==0x1D then
-					-- Patch 0x1D (internal Bytecode) → 0x01 (String / ProtectedString).
-					-- Data bytes after the type byte are layout-compatible; no data change needed.
-					local newPayload=ssub(payload,1,sp-1).."\x01"..ssub(payload,sp+1)
-					pc+=1;parts[pc]=makeChunk("PROP",newPayload,chunkIsZstd)
-					patched=true
-				end
-			end
-		end
-		if not patched then pc+=1;parts[pc]=ssub(input,pos,nextPos-1)end
-		pos=nextPos
-	end
-	return tconc(parts)
 end
 return Converter
