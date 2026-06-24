@@ -968,8 +968,8 @@ end
 local binData
 local binTypeId
 if typeId==0x22 then
-binTypeId=0x22
-binData=typeInfo.writeBin(vals)
+binTypeId=0x01
+binData=PropType[0x01].writeBin(vals)
 elseif typeId==0x1E2 then
 binTypeId=0x01
 binData=typeInfo.writeBin(vals)
