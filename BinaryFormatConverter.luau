@@ -1197,4 +1197,68 @@ function Converter.FixStudioXml(input)
 		end))
 	end
 end
+-- FixInternalBinary: converts the internal 0x1D Bytecode type marker to plain
+-- ProtectedString (binary type 0x01) so that script properties in "internal"
+-- Roblox RBXM/RBXL files round-trip correctly through Studio and the public API.
+-- Binary layout for 0x1D and 0x01 is identical (length-prefixed strings), so
+-- only the single type byte inside each PROP chunk needs to be rewritten.
+-- For XML: strips the roblox:type="Bytecode" attribute from ProtectedString tags.
+function Converter.FixInternalBinary(input)
+	assert(type(input)=="string" and #input>0,"FixInternalBinary: expected a non-empty string")
+	local isBinary=ssub(input,1,16)==RBX_MAGIC
+	if isBinary then
+		local parts={};local pc=0
+		local headerSize=32
+		pc+=1;parts[pc]=ssub(input,1,headerSize)
+		local pos=headerSize+1
+		local n=#input
+		while pos<=n do
+			if pos+15>n then pc+=1;parts[pc]=ssub(input,pos);break end
+			local chunkName=ssub(input,pos,pos+3)
+			local cLen=sunpack("<I4",input,pos+4)
+			local uLen=sunpack("<I4",input,pos+8)
+			local dataPos=pos+16
+			local dataSize=cLen>0 and cLen or uLen
+			local nextPos=dataPos+dataSize
+			if ssub(chunkName,1,3)=="END" then pc+=1;parts[pc]=ssub(input,pos);break end
+			local patched=false
+			if chunkName=="PROP" then
+				local payload
+				local chunkIsZstd=false
+				if cLen>0 then
+					local raw=ssub(input,dataPos,dataPos+cLen-1)
+					if ssub(raw,1,4)==ZSTD_MAGIC then
+						chunkIsZstd=true
+						local ok,r=pcall(zstdDecompress,raw)
+						if ok then payload=r end
+					else
+						local ok,r=pcall(lz4Decompress,raw,uLen)
+						if ok then payload=r end
+					end
+				else payload=ssub(input,dataPos,dataPos+uLen-1) end
+				if payload then
+					-- PROP layout: I4 typeIdx, I4 nameLen, name bytes, 1-byte typeId, data
+					local sp=1
+					local _typeIdx;_typeIdx,sp=sunpack("<I4",payload,sp)
+					local pnLen;pnLen,sp=sunpack("<I4",payload,sp)
+					sp+=pnLen  -- skip property name; sp now points at typeId byte
+					if sbyte(payload,sp)==0x1D then
+						-- rewrite 0x1D → 0x01; binary payload layout is identical
+						local newPayload=ssub(payload,1,sp-1)..chr[0x01]..ssub(payload,sp+1)
+						pc+=1;parts[pc]=makeChunk("PROP",newPayload,chunkIsZstd)
+						patched=true
+					end
+				end
+			end
+			if not patched then pc+=1;parts[pc]=ssub(input,pos,nextPos-1) end
+			pos=nextPos
+		end
+		return tconc(parts)
+	else
+		-- XML path: strip the roblox:type="Bytecode" attribute added by BinaryToXML.
+		-- The attribute can only appear on <ProtectedString> open tags, never inside
+		-- CDATA content, so a plain gsub is safe and O(n).
+		return (input:gsub(' roblox:type="Bytecode"',""))
+	end
+end
 return Converter
