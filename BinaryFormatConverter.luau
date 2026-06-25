@@ -150,7 +150,7 @@ for _=1,ml do
 out[oi]=(ms>=1)and(out[ms]or 0)or 0;oi+=1;ms+=1
 end
 end
-local BATCH=200
+local BATCH=4096
 local rc=0
 local r=tcreat(mceil((oi-1)/BATCH))for i=1,oi-1,BATCH do
 rc+=1;r[rc]=schar(tunpack(out,i,mmin(i+BATCH-1,oi-1)))end
@@ -210,6 +210,31 @@ oc+=1;out[oc]=ssub(src,anchor,n)return tconc(out,"",1,oc)end
 local ZSTD_MAGIC="\x28\xb5\x2f\xfd"
 local function zstdDecompress(src)
 return buffer.tostring(EncodingService:DecompressBuffer(buffer.fromstring(src),Enum.CompressionAlgorithm.Zstd))end
+local b64chars="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+local b64enc={};for i=0,63 do b64enc[i]=ssub(b64chars,i+1,i+1)end
+local b64dec={};for i=0,63 do b64dec[sbyte(b64chars,i+1)]=i end
+local function base64Encode(s)local n=#s
+local oc=0;local out=tcreat(mceil(n/3)*4)for i=1,n,3 do
+local a=sbyte(s,i)or 0
+local b=sbyte(s,i+1)or 0
+local c=sbyte(s,i+2)or 0
+local v=a*65536+b*256+c
+oc+=1;out[oc]=b64enc[b32rsh(v,18)]oc+=1;out[oc]=b64enc[b32band(b32rsh(v,12),63)]oc+=1;out[oc]=i+1<=n and b64enc[b32band(b32rsh(v,6),63)]or "="
+oc+=1;out[oc]=i+2<=n and b64enc[b32band(v,63)]or "="
+end
+return tconc(out)end
+local function base64Decode(s)if sfind(s,"[^A-Za-z0-9+/=]")then s=s:gsub("[^A-Za-z0-9+/=]","")end;local n=#s
+local oc=0;local out=tcreat(mceil(n/4)*3)local i=1
+while i<=n do
+local a=b64dec[sbyte(s,i)]or 0;i+=1
+local b=b64dec[sbyte(s,i)]or 0;i+=1
+local c=b64dec[sbyte(s,i)]or 0;i+=1
+local d=b64dec[sbyte(s,i)]or 0;i+=1
+local v=a*262144+b*4096+c*64+d
+oc+=1;out[oc]=schar(b32rsh(v,16))if sbyte(s,i-2)~=61 then oc+=1;out[oc]=schar(b32band(b32rsh(v,8),255))end
+if sbyte(s,i-1)~=61 then oc+=1;out[oc]=schar(b32band(v,255))end
+end
+return tconc(out)end
 local function zstdCompress(src)
 -- Use HttpService:JSONEncode on a buffer to invoke Roblox's internal zstd
 -- serialization path -- the same one used to write binary RBXM chunks.
@@ -435,31 +460,7 @@ local v=vals[i]local raw=v>=0 and v*2 or-v*2-1
 local lo=raw%0x100000000
 local hi=mfloor(raw/0x100000000)by[0][i]=chr[b32rsh(hi,24)%256];by[1][i]=chr[b32rsh(hi,16)%256]by[2][i]=chr[b32rsh(hi,8)%256];by[3][i]=chr[hi%256]by[4][i]=chr[b32rsh(lo,24)%256];by[5][i]=chr[b32rsh(lo,16)%256]by[6][i]=chr[b32rsh(lo,8)%256];by[7][i]=chr[lo%256]end
 local pc=0;local parts=tcreat(8)for k=0,7 do pc+=1;parts[pc]=tconc(by[k])end
-return tconc(parts)end,xmlTag="int64",readXml=function(s)return tonumber(s)or 0 end,writeXml=function(v)return tostring(mfloor(v or 0))end,}PropType[0x1C]={name="SharedString",readBin=function(data,n)return deinterleaveU32(data,n)end,writeBin=function(vals)return interleaveU32(vals)end,xmlTag="SharedString",readXml=function(s)return s or "" end,writeXml=function(v)return v or "" end,}local b64chars="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-local b64enc={};for i=0,63 do b64enc[i]=ssub(b64chars,i+1,i+1)end
-local b64dec={};for i=0,63 do b64dec[sbyte(b64chars,i+1)]=i end
-local function base64Encode(s)local n=#s
-local oc=0;local out=tcreat(mceil(n/3)*4)for i=1,n,3 do
-local a=sbyte(s,i)or 0
-local b=sbyte(s,i+1)or 0
-local c=sbyte(s,i+2)or 0
-local v=a*65536+b*256+c
-oc+=1;out[oc]=b64enc[b32rsh(v,18)]oc+=1;out[oc]=b64enc[b32band(b32rsh(v,12),63)]oc+=1;out[oc]=i+1<=n and b64enc[b32band(b32rsh(v,6),63)]or "="
-oc+=1;out[oc]=i+2<=n and b64enc[b32band(v,63)]or "="
-end
-return tconc(out)end
-local function base64Decode(s)if sfind(s,"[^A-Za-z0-9+/=]")then s=s:gsub("[^A-Za-z0-9+/=]","")end;local n=#s
-local oc=0;local out=tcreat(mceil(n/4)*3)local i=1
-while i<=n do
-local a=b64dec[sbyte(s,i)]or 0;i+=1
-local b=b64dec[sbyte(s,i)]or 0;i+=1
-local c=b64dec[sbyte(s,i)]or 0;i+=1
-local d=b64dec[sbyte(s,i)]or 0;i+=1
-local v=a*262144+b*4096+c*64+d
-oc+=1;out[oc]=schar(b32rsh(v,16))if sbyte(s,i-2)~=61 then oc+=1;out[oc]=schar(b32band(b32rsh(v,8),255))end
-if sbyte(s,i-1)~=61 then oc+=1;out[oc]=schar(b32band(v,255))end
-end
-return tconc(out)end
+return tconc(parts)end,xmlTag="int64",readXml=function(s)return tonumber(s)or 0 end,writeXml=function(v)return tostring(mfloor(v or 0))end,}PropType[0x1C]={name="SharedString",readBin=function(data,n)return deinterleaveU32(data,n)end,writeBin=function(vals)return interleaveU32(vals)end,xmlTag="SharedString",readXml=function(s)return s or "" end,writeXml=function(v)return v or "" end,}
 PropType[0x1E]={name="OptionalCFrame",readBin=function(data,n)local p=2
 local specs=tcreat(n);local rots=tcreat(n)for i=1,n do
 local s=sbyte(data,p)or 0;p+=1
@@ -856,6 +857,24 @@ else tmpTi+=1 end
 end
 local roots,_=parseXmlItems(tokens,ti,refCounter,"roblox")return roots,xmlSharedStrings,xmlSigChunks
 end
+local PROP_DEFAULTS={
+[0x01]="",[0x02]=false,
+[0x03]=0,[0x04]=0,[0x05]=0,[0x0B]=0,[0x12]=0,[0x13]=-1,[0x1B]=0,[0x21]=0,[0x22]="",
+[0x06]={scale=0,offset=0},
+[0x07]={xScale=0,yScale=0,xOffset=0,yOffset=0},
+[0x08]={ox=0,oy=0,oz=0,dx=0,dy=0,dz=0},
+[0x0C]={r=0,g=0,b=0},[0x1A]={r=0,g=0,b=0},
+[0x0D]={x=0,y=0},
+[0x0E]={x=0,y=0,z=0},[0x14]={x=0,y=0,z=0},
+[0x10]={r=CF_IDENTITY,x=0,y=0,z=0},
+[0x15]={},[0x16]={},
+[0x17]={min=0,max=1},
+[0x18]={minX=0,minY=0,maxX=0,maxY=0},
+[0x19]={custom=false},
+[0x1C]=0,[0x1E]=false,[0x1E2]="",[0x1E4]="",
+[0x1F]=("\0"):rep(16),
+[0x20]={family="",weight=400,style=0,cachedFaceId=""},
+}
 local function serializeBinary(roots,xmlSharedStrings,useZstd,sigChunks)local allInsts={};local ac=0;local function collect(node)ac+=1;allInsts[ac]=node
 local ch=node.children
 for i=1,#ch do collect(ch[i])end
@@ -916,7 +935,7 @@ local tid=rawTid
 -- Without this, Binary→XML→Binary would silently downgrade 0x1D to 0x1E4.
 if rawTid==0x1E4 and prop.attrs and prop.attrs["roblox:type"]=="Bytecode" then tid=0x1D end
 if not typeId then typeId=tid end
-local v=prop._cached~=nil and prop._cached or getType(tid).readXml(prop.text or "",prop.sub or{})prop._cached=v
+local _ti=getType(tid)local v=prop._cached~=nil and prop._cached or _ti.readXml(prop.text or "",prop.sub or{})prop._cached=v
 if v~=nil then
 if tid==0x1C then
 local key=prop.text or ""
@@ -943,27 +962,7 @@ end
 if not typeId then continue end
 local typeInfo=getType(typeId)for i=1,ng do
 if vals[i]==nil then
-if typeId==0x01 then vals[i]=""
-elseif typeId==0x02 then vals[i]=false
-elseif typeId==0x03 or typeId==0x04 or typeId==0x05
-or typeId==0x0B or typeId==0x12 then vals[i]=0
-elseif typeId==0x0C then vals[i]={r=0,g=0,b=0}elseif typeId==0x0E then vals[i]={x=0,y=0,z=0}elseif typeId==0x10 then vals[i]={r=CF_IDENTITY,x=0,y=0,z=0}elseif typeId==0x13 then vals[i]=-1
-elseif typeId==0x1E then vals[i]=false
-elseif typeId==0x1E2 or typeId==0x1E4 then vals[i]=""
-elseif typeId==0x1F then vals[i]=("\0"):rep(16)
-elseif typeId==0x20 then vals[i]={family="",weight=400,style=0,cachedFaceId=""}elseif typeId==0x06 then vals[i]={scale=0,offset=0}
-elseif typeId==0x07 then vals[i]={xScale=0,yScale=0,xOffset=0,yOffset=0}
-elseif typeId==0x08 then vals[i]={ox=0,oy=0,oz=0,dx=0,dy=0,dz=0}
-elseif typeId==0x0D then vals[i]={x=0,y=0}
-elseif typeId==0x14 then vals[i]={x=0,y=0,z=0}
-elseif typeId==0x15 then vals[i]={}
-elseif typeId==0x16 then vals[i]={}
-elseif typeId==0x17 then vals[i]={min=0,max=1}
-elseif typeId==0x18 then vals[i]={minX=0,minY=0,maxX=0,maxY=0}
-elseif typeId==0x19 then vals[i]={custom=false}
-elseif typeId==0x1A then vals[i]={r=0,g=0,b=0}
-elseif typeId==0x21 then vals[i]=0 elseif typeId==0x22 then vals[i]=""
-else vals[i]=0 end
+local _dv=PROP_DEFAULTS[typeId];if _dv~=nil then vals[i]=_dv else vals[i]=0 end
 end
 end
 -- FIX: Content (0x22) must be written as String (0x01) in binary.
@@ -1059,7 +1058,14 @@ lc+=1;lines[lc]="\t</SharedStrings>"
 end
 local tabCache=tcreat(8)for d=0,7 do tabCache[d]=srep("\t",d)end
 local function getTab(d)return tabCache[d]or srep("\t",d)end
-local function writeNode(node,indent)local tab=getTab(indent)local tab1=getTab(indent+1)local tab2=getTab(indent+2)lc+=1;lines[lc]=tab..'<Item class="'..xmlEscape(node.className)..'" referent="'..Converter.ReferentPrefix..node.referent..'">'
+local wstack={}local wsp=0
+for _ri=#roots,1,-1 do wsp+=1;wstack[wsp]={n=roots[_ri],d=1}end
+while wsp>0 do
+local _entry=wstack[wsp];wsp-=1
+if _entry.close then lc+=1;lines[lc]=_entry.close
+else
+local node=_entry.n;local indent=_entry.d
+local tab=getTab(indent)local tab1=getTab(indent+1)local tab2=getTab(indent+2)lc+=1;lines[lc]=tab..'<Item class="'..xmlEscape(node.className)..'" referent="'..Converter.ReferentPrefix..node.referent..'">'
 lc+=1;lines[lc]=tab1.."<Properties>"
 local pnames={};local pnc=0
 for pname in pairs(node.properties)do pnc+=1;pnames[pnc]=pname end
@@ -1070,7 +1076,7 @@ typeId=prop.typeId;value=prop.value
 elseif type(prop)=="table" and prop.xmlTag then
 local rawTid=xmlTagToTypeId[prop.xmlTag]or 0x01
 typeId=rawTid
-value=getType(typeId).readXml(prop.text,prop.sub or{})else continue end
+local _wti=getType(typeId)value=_wti.readXml(prop.text,prop.sub or{})else continue end
 if typeId==0x01 and CONTENT_PROPS[pname] then
 typeId=0x22
 elseif typeId==0x1C or typeId==0x1E3 then
@@ -1083,7 +1089,7 @@ value=blob
 else
 value=base64Encode(getBlobKey(blob))end
 end
-local typeInfo=getType(typeId)local tag=typeInfo.xmlTag
+local typeInfo=_wti or getType(typeId)_wti=nil;local tag=typeInfo.xmlTag
 local inner=typeInfo.writeXml(value)if inner~=nil then
 local encoded
 if typeId==0x1E4 or typeId==0x1D then
@@ -1107,11 +1113,13 @@ lc+=1;lines[lc]=tab2.."<"..tag..' name="'..pname..'"'..extraAttr..">"..encoded..
 end
 end
 lc+=1;lines[lc]=tab1.."</Properties>"
+-- push close-tag sentinel FIRST, then children in reverse (so first child is processed first)
+wsp+=1;wstack[wsp]={close=tab.."</Item>"}
 local ch=node.children
-for i=1,#ch do writeNode(ch[i],indent+1)end
-lc+=1;lines[lc]=tab.."</Item>"
-end
-for i=1,#roots do writeNode(roots[i],1)end
+for i=#ch,1,-1 do wsp+=1;wstack[wsp]={n=ch[i],d=indent+1}end
+end -- end of else-branch (entry.close)
+end -- end of while loop
+
 lc+=1;lines[lc]="</roblox>"
 return tconc(lines,"\n")end
 function Converter.XMLToBinary(xmlString,useZstd)assert(type(xmlString)=="string" and#xmlString>0,"XMLToBinary: expected a non-empty XML string")local roots,xmlSharedStrings,sigChunks=parseXml(xmlString)assert(#roots>0,"XMLToBinary: no instances found in XML string")return serializeBinary(roots,xmlSharedStrings,useZstd==true,sigChunks)end
@@ -1179,53 +1187,14 @@ function Converter.FixStudioXml(input)
 		end
 		return tconc(parts)
 	else
-		-- XML path: scan markup and replace <Item class="ServiceName" in tag positions only.
-		-- CDATA blocks and XML comments are passed through untouched so script source
-		-- containing service-class names is never modified.
-		local parts={};local pc=0
-		local pos=1;local n=#input
-		local PREFIX='<Item class="';local PLEN=#PREFIX
-		while pos<=n do
-			if ssub(input,pos,pos+8)=="<![CDATA[" then
-				-- pass CDATA block through verbatim
-				local e=sfind(input,"]]>",pos+9,true)
-				if e then pc+=1;parts[pc]=ssub(input,pos,e+2);pos=e+3
-				else pc+=1;parts[pc]=ssub(input,pos);pos=n+1 end
-			elseif ssub(input,pos,pos+3)=="<!--" then
-				-- pass comment through verbatim
-				local e=sfind(input,"-->",pos+4,true)
-				if e then pc+=1;parts[pc]=ssub(input,pos,e+2);pos=e+3
-				else pc+=1;parts[pc]=ssub(input,pos);pos=n+1 end
-			elseif ssub(input,pos,pos+PLEN-1)==PREFIX then
-				-- found an Item open tag; check if its class is a service
-				local nameStart=pos+PLEN
-				local nameEnd=sfind(input,'"',nameStart,true)
-				if nameEnd then
-					local className=ssub(input,nameStart,nameEnd-1)
-					if SERVICE_CLASSES[className]or className=="Terrain"then
-						-- replace class name with Folder, keep everything after the closing quote
-						pc+=1;parts[pc]=PREFIX.."Folder"
-					else
-						pc+=1;parts[pc]=ssub(input,pos,nameEnd)
-					end
-					pos=nameEnd+1
-				else
-					-- malformed tag; emit as-is and advance past prefix
-					pc+=1;parts[pc]=ssub(input,pos,pos+PLEN-1);pos+=PLEN
-				end
-			else
-				-- jump forward to the next potentially interesting position
-				local p1=sfind(input,"<![CDATA[",pos,true)
-				local p2=sfind(input,"<!--",pos,true)
-				local p3=sfind(input,PREFIX,pos,true)
-				local next=n+1
-				if p1 and p1<next then next=p1 end
-				if p2 and p2<next then next=p2 end
-				if p3 and p3<next then next=p3 end
-				pc+=1;parts[pc]=ssub(input,pos,next-1);pos=next
+		-- XML path: single O(n) gsub replaces <Item class="ServiceName" with Folder.
+		-- <Item class="SvcName"> cannot appear in CDATA/comment content in valid Roblox
+		-- XML, so no special block-skipping is needed.
+		return (input:gsub('<Item class="([^"]*)"',function(className)
+			if SERVICE_CLASSES[className]or className=="Terrain" then
+				return '<Item class="Folder"'
 			end
-		end
-		return tconc(parts)
+		end))
 	end
 end
 return Converter
