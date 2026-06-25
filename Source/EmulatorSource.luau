@@ -483,11 +483,13 @@ nv.robloxtype = function(x)
 	end
 end
 nv.FixStudioXML=nv.cppf(nv.BinaryFormat.FixStudioXml)
+nv.FixInternalXML=nv.cppf(nv.BinaryFormat.FixInternalXml)
 nv.roblox={XML=nv.tclone(nv.XML),GetAssetSource=nv.cppf(nv.GetAssetSource),BinaryFormat={
 		XMLToBinary=nv.XMLToBinary,
 		BinaryToXML=nv.BinaryToXML,
 		XMLType=nv.cppf(nv.robloxtype),
-		FixStudioXML=nv.FixStudioXML
+		FixStudioXML=nv.FixStudioXML,
+		FixInternalXML=nv.FixInternalXML
 }}
 nv.genv.GetProperties=nv.cppf(nv.getproperties)
 nv.genv.GetLocalObjects=function(x,fixstudio)
