@@ -1197,13 +1197,13 @@ function Converter.FixStudioXml(input)
 		end))
 	end
 end
--- FixInternalBinary: converts the internal 0x1D Bytecode type marker to plain
+-- FixInternalXml: converts the internal 0x1D Bytecode type marker to plain
 -- ProtectedString (binary type 0x01) so that script properties in "internal"
 -- Roblox RBXM/RBXL files round-trip correctly through Studio and the public API.
 -- Binary layout for 0x1D and 0x01 is identical (length-prefixed strings), so
 -- only the single type byte inside each PROP chunk needs to be rewritten.
 -- For XML: strips the roblox:type="Bytecode" attribute from ProtectedString tags.
-function Converter.FixInternalBinary(input)
+function Converter.FixInternalXml(input)
 	assert(type(input)=="string" and #input>0,"FixInternalBinary: expected a non-empty string")
 	local isBinary=ssub(input,1,16)==RBX_MAGIC
 	if isBinary then
