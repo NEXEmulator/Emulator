@@ -588,11 +588,17 @@ end
 return text or ""
 end,writeXml=function(v)v=tostring(v or "")return v=="" and "<null></null>" or "<url>"..xmlEscape(v).."</url>"
 end,}
-local function parseBinary(data)assert(ssub(data,1,16)==RBX_MAGIC,"Not a valid .rbxm binary file")local pos=17
+local function parseBinary(data,internalRbxm)assert(ssub(data,1,16)==RBX_MAGIC,"Not a valid .rbxm binary file")local pos=17
 local _,np2=sunpack("<I4",data,pos);pos=np2
 local _,np3=sunpack("<I4",data,pos);pos=np3
 pos+=8
 local typeMap={};local instMap={};local sharedStrs={};local roots={}local rc=0;local sigChunks={};local scc=0
+-- sawInternal tracks whether this file used any internal-only-RBXM feature
+-- (a 0x1D Bytecode property, or a SIGN/SIGU/HASH chunk). Both are things that
+-- never occur in files Roblox Studio or the public API surface will ever
+-- produce or accept, so by default (internalRbxm falsy) we refuse to convert
+-- them silently -- see the check just before this function returns.
+local sawInternal=false
 while pos<=#data do
 if pos+15>#data then break end
 local chunkName=ssub(data,pos,pos+3);pos+=4
@@ -641,6 +647,7 @@ local typeIdx,np1=sunpack("<I4",payload,sp);sp=np1
 local pnLen,np2=sunpack("<I4",payload,sp);sp=np2
 local propName=ssub(payload,sp,sp+pnLen-1);sp+=pnLen
 local typeId=sbyte(payload,sp);sp+=1
+if typeId==0x1D then sawInternal=true end
 local ti=typeMap[typeIdx]
 if typeId==0x01 and BINARY_STRING_PROPS[propName]then typeId=0x1E2 end
 if typeId==0x1C and NETASSET_PROPS[propName]then typeId=0x1E3 end
@@ -652,6 +659,7 @@ local inst=instMap[refs[i]]if inst and values[i]~=nil then
 inst.properties[propName]={typeId=typeId,value=values[i]}end
 end
 end)elseif chunkName=="SIGU" or chunkName=="SIGN" or chunkName=="HASH" then
+sawInternal=true
 scc+=1;sigChunks[scc]={name=chunkName:gsub("%z",""),payload=payload}
 elseif chunkName=="PRNT" then
 pcall(function()local sp=2
@@ -705,6 +713,9 @@ if scc>0 then
 end
 local sharedBlobs={};local sharedKeys={}for idx,entry in pairs(sharedStrs)do
 sharedBlobs[idx]=entry.blob;sharedKeys[idx]=entry.key
+end
+if sawInternal and not internalRbxm then
+error("BinaryToXML: this .rbxm contains internal-only Roblox data (a Bytecode property and/or SIGN/SIGU/HASH chunks) that never appears in a normal Studio/public-API .rbxm. Pass InternalRbxm=true to BinaryToXML(...) to convert it.",0)
 end
 return roots,sharedBlobs,sharedKeys,sigChunks
 end
@@ -875,7 +886,11 @@ local PROP_DEFAULTS={
 [0x1F]=("\0"):rep(16),
 [0x20]={family="",weight=400,style=0,cachedFaceId=""},
 }
-local function serializeBinary(roots,xmlSharedStrings,useZstd,sigChunks)local allInsts={};local ac=0;local function collect(node)ac+=1;allInsts[ac]=node
+local function serializeBinary(roots,xmlSharedStrings,useZstd,sigChunks,internalRbxm)
+if sigChunks and#sigChunks>0 and not internalRbxm then
+error("XMLToBinary: this XML embeds internal Roblox chunks (RBXSIG comments for SIGN/SIGU/HASH) that only exist in the internal RBXM/RBXL format. Pass InternalRbxm=true to XMLToBinary(...) to include them, or remove the RBXSIG comments to produce an ordinary public .rbxm.",0)
+end
+local allInsts={};local ac=0;local function collect(node)ac+=1;allInsts[ac]=node
 local ch=node.children
 for i=1,#ch do collect(ch[i])end
 end
@@ -933,7 +948,12 @@ local rawTid=xmlTagToTypeId[prop.xmlTag]or 0x01
 local tid=rawTid
 -- Restore 0x1D bytecode type when the XML attribute marker is present.
 -- Without this, Binary→XML→Binary would silently downgrade 0x1D to 0x1E4.
-if rawTid==0x1E4 and prop.attrs and prop.attrs["roblox:type"]=="Bytecode" then tid=0x1D end
+if rawTid==0x1E4 and prop.attrs and prop.attrs["roblox:type"]=="Bytecode" then
+if not internalRbxm then
+error("XMLToBinary: property '"..pname.."' is marked roblox:type=\"Bytecode\" (internal Roblox bytecode). Pass InternalRbxm=true to XMLToBinary(...) to write it back as 0x1D Bytecode, otherwise it will silently downgrade to a plain 0x01 ProtectedString/Source.",0)
+end
+tid=0x1D
+end
 if not typeId then typeId=tid end
 local _ti=getType(tid)local v=prop._cached~=nil and prop._cached or _ti.readXml(prop.text or "",prop.sub or{})prop._cached=v
 if v~=nil then
@@ -1109,6 +1129,17 @@ else
 encoded=inner
 end
 local extraAttr=typeId==0x1D and ' roblox:type="Bytecode"' or ""
+if typeId==0x1D then
+-- Bytecode (0x1D) has no XML representation of its own -- it doesn't exist
+-- in .rbxmx or public .rbxm at all -- so it's written out as a ProtectedString
+-- (0x1E4/0x01), which is binary-layout-identical. This comment is a
+-- human-readable note of that fact; the roblox:type="Bytecode" attribute
+-- above is what XMLToBinary(..., true) actually reads to restore 0x1D on
+-- the way back to binary (comments aren't parsed as data, only as a marker
+-- for RBXSIG: see the tokenizer, so they can't carry the round-trip signal
+-- themselves).
+lc+=1;lines[lc]=tab2.."<!-- InternalType=Bytecode (0x1D); requires InternalRbxm=true in XMLToBinary to convert back -->"
+end
 lc+=1;lines[lc]=tab2.."<"..tag..' name="'..pname..'"'..extraAttr..">"..encoded.."</"..tag..">"
 end
 end
@@ -1122,8 +1153,17 @@ end -- end of while loop
 
 lc+=1;lines[lc]="</roblox>"
 return tconc(lines,"\n")end
-function Converter.XMLToBinary(xmlString,useZstd)assert(type(xmlString)=="string" and#xmlString>0,"XMLToBinary: expected a non-empty XML string")local roots,xmlSharedStrings,sigChunks=parseXml(xmlString)assert(#roots>0,"XMLToBinary: no instances found in XML string")return serializeBinary(roots,xmlSharedStrings,useZstd==true,sigChunks)end
-function Converter.BinaryToXML(binaryString)assert(type(binaryString)=="string" and#binaryString>0,"BinaryToXML: expected a non-empty binary string")local roots,sharedStrs,sharedKeys,sigChunks=parseBinary(binaryString)assert(#roots>0,"BinaryToXML: no instances found in binary string")return serializeXml(roots,sharedStrs,sharedKeys,sigChunks)end
+-- internalRbxm (3rd arg): must be explicitly set to true to convert XML that
+-- carries internal-RBXM-only markers (RBXSIG comments, roblox:type="Bytecode").
+-- Without it, such input raises a clear error instead of silently producing
+-- an internal-flavored binary the caller didn't ask for.
+function Converter.XMLToBinary(xmlString,useZstd,internalRbxm)assert(type(xmlString)=="string" and#xmlString>0,"XMLToBinary: expected a non-empty XML string")local roots,xmlSharedStrings,sigChunks=parseXml(xmlString)assert(#roots>0,"XMLToBinary: no instances found in XML string")return serializeBinary(roots,xmlSharedStrings,useZstd==true,sigChunks,internalRbxm==true)end
+-- internalRbxm (2nd arg): must be explicitly set to true to convert a binary
+-- .rbxm that contains internal-only data (a Bytecode property and/or
+-- SIGN/SIGU/HASH chunks -- things Studio and the public API never produce or
+-- accept). Without it, such input raises a clear error instead of silently
+-- dropping/mangling that data.
+function Converter.BinaryToXML(binaryString,internalRbxm)assert(type(binaryString)=="string" and#binaryString>0,"BinaryToXML: expected a non-empty binary string")local roots,sharedStrs,sharedKeys,sigChunks=parseBinary(binaryString,internalRbxm==true)assert(#roots>0,"BinaryToXML: no instances found in binary string")return serializeXml(roots,sharedStrs,sharedKeys,sigChunks)end
 -- FixStudioXml: strips service class identity from any rbxmx/rbxm so it can be
 -- safely inserted into a live DataModel without colliding with existing services.
 -- For binary: patches only INST chunks (class name + isService flag), all other
