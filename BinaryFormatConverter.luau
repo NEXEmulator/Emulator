@@ -588,6 +588,55 @@ end
 return text or ""
 end,writeXml=function(v)v=tostring(v or "")return v=="" and "<null></null>" or "<url>"..xmlEscape(v).."</url>"
 end,}
+-- SIGN/SIGU entry layout (reverse-engineered, not documented by Roblox).
+-- This is FOUR separate 4-byte fields, not one 8-byte ID -- verified by
+-- exact byte accounting: count(4) + entries*(4+4+4+4+64) == the chunk's
+-- actual decompressed length (324 bytes / 4 entries) with zero bytes left
+-- over. A merged 8-byte-ID version of this layout comes up 16 bytes short
+-- of that total, so it's ruled out regardless of what any single error
+-- message seems to suggest -- trust the arithmetic that accounts for every
+-- byte over a partial/ambiguous log line.
+--
+--   i32 entryCount
+--   entryCount * {
+--     i32 unknownA    -- always 0 in every sample seen; unconfirmed meaning
+--     i32 publicKeyId -- 13/14/15/16 in the sample file; matches the small
+--                         sequential values Anaminus separately documented
+--                         (9-12) for an older build -- this is the field
+--                         that changes across builds/rotation
+--     i32 unknownB    -- always 0 in every sample seen; unconfirmed meaning
+--     i32 sigLength   -- 64 in every sample seen so far
+--     u8  sigValue[sigLength]
+--   }
+-- These do NOT compute or verify signatures -- they only parse/rebuild the
+-- container bytes around an opaque signature value produced elsewhere.
+local function parseSigEntries(payload)
+	local pos=1
+	local count;count,pos=sunpack("<I4",payload,pos)
+	local entries=tcreat(count)
+	for i=1,count do
+		local unknownA;unknownA,pos=sunpack("<I4",payload,pos)
+		local publicKeyId;publicKeyId,pos=sunpack("<I4",payload,pos)
+		local unknownB;unknownB,pos=sunpack("<I4",payload,pos)
+		local sigLen;sigLen,pos=sunpack("<I4",payload,pos)
+		local sig=ssub(payload,pos,pos+sigLen-1);pos+=sigLen
+		entries[i]={unknownA=unknownA,publicKeyId=publicKeyId,unknownB=unknownB,signature=sig}
+	end
+	return entries
+end
+local function buildSigEntries(entries)
+	local parts=tcreat(1+#entries*5);local pc=1
+	parts[pc]=spack("<I4",#entries)
+	for i=1,#entries do
+		local e=entries[i]
+		pc+=1;parts[pc]=spack("<I4",e.unknownA or 0)
+		pc+=1;parts[pc]=spack("<I4",e.publicKeyId)
+		pc+=1;parts[pc]=spack("<I4",e.unknownB or 0)
+		pc+=1;parts[pc]=spack("<I4",#e.signature)
+		pc+=1;parts[pc]=e.signature
+	end
+	return tconc(parts)
+end
 local function parseBinary(data,internalRbxm)assert(ssub(data,1,16)==RBX_MAGIC,"Not a valid .rbxm binary file")local pos=17
 local _,np2=sunpack("<I4",data,pos);pos=np2
 local _,np3=sunpack("<I4",data,pos);pos=np3
@@ -660,7 +709,21 @@ inst.properties[propName]={typeId=typeId,value=values[i]}end
 end
 end)elseif chunkName=="SIGU" or chunkName=="SIGN" or chunkName=="HASH" then
 sawInternal=true
-scc+=1;sigChunks[scc]={name=chunkName:gsub("%z",""),payload=payload}
+local cname=chunkName:gsub("%z","")
+local entries,verified=nil,nil
+if cname=="SIGN" or cname=="SIGU" then
+	local ok,result=pcall(parseSigEntries,payload)
+	if ok then
+		entries=result
+		-- Confirm our field layout is right by rebuilding the chunk from
+		-- the parsed entries and checking it matches byte-for-byte. If a
+		-- future sample doesn't round-trip, entries will be non-nil but
+		-- verified=false, and callers should fall back to raw payload.
+		local ok2,rebuilt=pcall(buildSigEntries,entries)
+		verified=ok2 and rebuilt==payload
+	end
+end
+scc+=1;sigChunks[scc]={name=cname,payload=payload,entries=entries,entriesVerified=verified}
 elseif chunkName=="PRNT" then
 pcall(function()local sp=2
 local count,np=sunpack("<I4",payload,sp);sp=np
@@ -1042,7 +1105,18 @@ end end
 fp+=1;final[fp]=endChunk
 return tconc(final)end
 local function serializeXml(roots,sharedStrs,sharedKeys,sigChunks)local lc=0;local lines={}lc+=1;lines[lc]='<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime"'..' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'..' xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd"'..' xmlns:roblox="http://www.roblox.com/roblox"'..' version="4">'
-if sigChunks then for _,sc in ipairs(sigChunks)do lc+=1;lines[lc]="<!-- RBXSIG:"..sc.name..":"..base64Encode(sc.payload).." -->"end end
+if sigChunks then for _,sc in ipairs(sigChunks)do
+-- Human-readable only: does not contain "RBXSIG:" so the tokenizer skips
+-- it entirely (see the tokenizer's substring check) -- it carries no
+-- round-trip information and is purely for a reader's benefit.
+if sc.entries then
+	local ids=tcreat(#sc.entries)
+	for i,e in ipairs(sc.entries)do ids[i]=tostring(e.publicKeyId)end
+	lc+=1;lines[lc]="<!-- "..sc.name.." publicKeyIds: "..tconc(ids,", ")..
+		(sc.entriesVerified and "" or "  [WARNING: entry layout did not round-trip -- raw bytes preserved, do not trust these IDs]").." -->"
+end
+lc+=1;lines[lc]="<!-- RBXSIG:"..sc.name..":"..base64Encode(sc.payload).." -->"
+end end
 local blobKeyCache={}if sharedKeys and sharedStrs then
 local usedKeys={}for idx,key in pairs(sharedKeys)do
 local blob=sharedStrs[idx]if blob and not blobKeyCache[blob]and not usedKeys[key]then
@@ -1164,6 +1238,39 @@ function Converter.XMLToBinary(xmlString,useZstd,internalRbxm)assert(type(xmlStr
 -- accept). Without it, such input raises a clear error instead of silently
 -- dropping/mangling that data.
 function Converter.BinaryToXML(binaryString,internalRbxm)assert(type(binaryString)=="string" and#binaryString>0,"BinaryToXML: expected a non-empty binary string")local roots,sharedStrs,sharedKeys,sigChunks=parseBinary(binaryString,internalRbxm==true)assert(#roots>0,"BinaryToXML: no instances found in binary string")return serializeXml(roots,sharedStrs,sharedKeys,sigChunks)end
+-- ParseSignatureChunk / BuildSignatureChunk: direct access to a decompressed
+-- SIGN or SIGU chunk's payload, for callers who want the entries without
+-- going through the XML round-trip. Read-only container parsing -- this
+-- does NOT compute, verify, or forge a signature; it only exposes the
+-- publicKeyId/signature bytes that are already present in the file.
+--
+-- ParseSignatureChunk(payload) -> entries, verified
+--   entries:  { {publicKeyId=<number>, signature=<64-byte string>}, ... }
+--   verified: true if re-encoding `entries` reproduces `payload` exactly.
+--             Always check this -- if false, the layout assumption above
+--             didn't hold for this input and `entries` should not be trusted;
+--             fall back to treating payload as an opaque blob.
+function Converter.ParseSignatureChunk(payload)
+	assert(type(payload)=="string" and#payload>0,"ParseSignatureChunk: expected a non-empty decompressed SIGN/SIGU payload")
+	local ok,entries=pcall(parseSigEntries,payload)
+	if not ok then return nil,false end
+	local ok2,rebuilt=pcall(buildSigEntries,entries)
+	return entries,ok2 and rebuilt==payload
+end
+-- BuildSignatureChunk(entries) -> payload
+--   Inverse of ParseSignatureChunk. entries must be
+--   { {publicKeyId=<number>, signature=<string>}, ... } with signature
+--   bytes taken from elsewhere (e.g. unmodified from a ParseSignatureChunk
+--   call) -- this function only re-packs them, it cannot produce a
+--   signature value that Roblox's client would trust.
+function Converter.BuildSignatureChunk(entries)
+	assert(type(entries)=="table","BuildSignatureChunk: expected an array of {publicKeyId, signature} entries")
+	for i,e in ipairs(entries)do
+		assert(type(e.publicKeyId)=="number",("BuildSignatureChunk: entries[%d].publicKeyId must be a number"):format(i))
+		assert(type(e.signature)=="string",("BuildSignatureChunk: entries[%d].signature must be a string"):format(i))
+	end
+	return buildSigEntries(entries)
+end
 -- FixStudioXml: strips service class identity from any rbxmx/rbxm so it can be
 -- safely inserted into a live DataModel without colliding with existing services.
 -- For binary: patches only INST chunks (class name + isService flag), all other
