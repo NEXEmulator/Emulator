@@ -40,9 +40,9 @@ nv.srot={
 __metatable="The metatable is locked.",
 __newindex=nv.cppf(function()nv.err"attempt to modify a protected metatable"end)
 }
-nv.sro=nv.clonef(setreadonly) or nv.cppf(function(x,y)
+nv.sro=setreadonly and nv.clonef(setreadonly) or nv.cppf(function(x,y)
 	if y then
-		nv.rawsmt(x,{nv.srot})
+		nv.rawsmt(x,nv.srot)
 	else
 		nv.rawsmt(x,{})
 	end
@@ -204,7 +204,7 @@ nv.oldset(3)
 nv.def(nv.oldset,id)
 		end
 local ticon=x.Icon
-x.Icon=(nv.foundationimage(ticon) and nil) or ticon
+x.Icon=(nv.foundationimage(ticon) and nv.NEXIcon) or ticon
 return nv.SendNotification(nv.GuiService,x)
 end
 nv.HttpEnabled=nv.settings.HTTPEnabled
@@ -248,7 +248,7 @@ end
 nv.XMLEnabled=nv.settings.XMLEnabled
 nv.ind=nv.select(2,pcall(nv.index,nv.HttpService,"RequestInternal"))
 nv.requestinternal=nv.ind and nv.clonef(nv.ind) or error
-if nv.woahc(nv.requestinternal,{Url="https://example.com",Method="GET"}) then
+if nv.woahc(nv.requestinternal,nv.HttpService,{Url="https://example.com",Method="GET"}) then
 	nv.interfunc=function(x)
 		local id=nv.oldti()
 		if id<3 then
@@ -325,7 +325,7 @@ local out={'<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="h
 local uss={}
 local function scan(t)for k,v in next,t do if type(v)=="table" and v.Tag=="SharedString" then uss[v.Value]=true end if type(k)=="string" and k:find("^Item") then scan(v) end end end
 scan(root)
-if root.SharedStrings then local sb={} for h,c in next,root.SharedStrings do if uss[h] then nv.ti(sb,nv.sf('<SharedString md5="%s">%s</SharedString>',h,c)) end end if #sb>0 then nv.ti(out,"\n<SharedStrings>") nv.ti(out,"\n"..tc(sb,"\n")) nv.ti(out,"\n</SharedStrings>") end end
+if root.SharedStrings then local sb={} for h,c in next,root.SharedStrings do if uss[h] then nv.ti(sb,nv.sf('<SharedString md5="%s">%s</SharedString>',h,c)) end end if #sb>0 then nv.ti(out,"\n<SharedStrings>") nv.ti(out,"\n"..nv.tc(sb,"\n")) nv.ti(out,"\n</SharedStrings>") end end
 local refmap,refcnt={},0
 local function remap_refs(t)
 	local it={} for k,v in next,t do if nv.typo(k)=="string" and k:find("^Item") then nv.ti(it,{k,v}) end end
@@ -456,7 +456,7 @@ while true do
 				nv.ti(sb,nv.sf('<SharedString md5="%s">%s</SharedString>',hash,ss[hash]))
 			end
 			if #sb>0 then
-				ssblock="\n<SharedStrings>\n"..tc(sb,"\n").."\n</SharedStrings>"
+				ssblock="\n<SharedStrings>\n"..nv.tc(sb,"\n").."\n</SharedStrings>"
 			end
 			x=h..ssblock..x..'</roblox>'
 		end
@@ -658,7 +658,7 @@ random=Random,
 threads=coroutine,
 luaL_dostring=loadstring,
 RobloxObjects={
-Game=nv.obsolete(Game),
+Game=nv.obsolete(nv.game),
 Color3=Color3,
 Enum=Enum,
 Path2DControlPoint=Path2DControlPoint,
@@ -949,7 +949,7 @@ end
 end
 nv.globalgd=nv.cppf(function(self)
 local t={}
-nv.checksexy(`{nv.behave}{self.Path}`,t)
+nv.checksexy(self.Path,t)
 return t
 end)
 nv.globaldestroy=nv.cppf(function(self)
@@ -984,8 +984,8 @@ end
 local FileData={
 Path=x,
 Destroy=nv.globaldestroy,
-Name=getfilename(x),
-Type=typefile(x),
+Name=nv.genv.getfilename(x),
+Type=nv.isf(`{nv.behave}{x}`) and "file" or (nv.isfl(`{nv.behave}{x}`) and "folder" or nil),
 GetChildren=nv.cppf(function(self)
 return {}
 end),
@@ -1081,10 +1081,11 @@ if nv.debugm then
 nv.rwarn(`Came across an abnormal thread! ({env.script})`)
 			end
 		else
+local newind
 if indr then
 local oindrmt=indr.__metatable
 indr.__metatable=nil
-local newind=nv.tclone(envmi)
+newind=nv.tclone(envmi)
 envm.__index=newind
 indr.__metatable=oindrmt
 end
@@ -1120,7 +1121,7 @@ end
 end
 end
 end
-nv.renv.UpdateNEX=newcclosure(function()nv.nexify()end)
+nv.renv.UpdateNEX=nv.cppf(function()nv.nexify()end)
 nv.nexify()
 nv.SendNotification(nv.GuiService,{
 Icon=nv.NEXIcon,
