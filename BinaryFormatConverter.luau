@@ -1,1411 +1,1133 @@
---ai was used for optimization here
-local Converter={NEX_Version="1.0.2",ReferentPrefix="NEX"}local b32=bit32
-local spack,sunpack=string.pack,string.unpack
-local tconc,tcreat,tsort,tunpack=table.concat,table.create,table.sort,table.unpack
-local mfloor,mabs,mceil,mmin=math.floor,math.abs,math.ceil,math.min
-local HUGE=math.huge
-local schar,sfmt,sfind,ssub,sbyte=string.char,string.format,string.find,string.sub,string.byte
-local srep=string.rep
-local b32rsh,b32band,b32bor,b32lsh=b32.rshift,b32.band,b32.bor,b32.lshift
-local pairs,ipairs,next,pcall,type,tonumber,tostring=pairs,ipairs,next,pcall,type,tonumber,tostring
-local HttpService=game:GetService("HttpService")
-local EncodingService=game:GetService("EncodingService")
-local chr=tcreat(256)for _i=0,255 do chr[_i]=schar(_i)end
-local function newBlobKey()local g=HttpService:GenerateGUID(false):gsub("-","")local b=tcreat(16)for i=1,16 do b[i]=schar(tonumber(g:sub(i*2-1,i*2),16))end
-return tconc(b)end
--- CONTENT_PROPS: used in BinaryToXML to know which SharedString slots hold asset URIs
-local CONTENT_PROPS={
-	SoundId=true,Image=true,HoverImage=true,PressedImage=true,
-	Texture=true,LinkedSource=true,MeshId=true,TextureId=true,TextureID=true,
-	SkyboxBk=true,SkyboxDn=true,SkyboxFt=true,SkyboxLf=true,SkyboxRt=true,SkyboxUp=true,
-	AnimationId=true,ShirtTemplate=true,PantsTemplate=true,ContentId=true,
-	GraphicId=true,OverlayTextureId=true,BaseTextureId=true,NormalMap=true,
-	VideoSource=true,AssetId=true,
-	EmissiveMaskContent=true,ColorMaskContent=true,MetalnessContent=true,
-	RoughnessContent=true,NormalContent=true,
-	-- extended
-	Video=true,Asset=true,
-	ColorMap=true,MetalnessMap=true,RoughnessMap=true,
-	CageMeshId=true,ReferenceMeshId=true,
-	Graphic=true,
-	BackAccessory=true,FaceAccessory=true,FrontAccessory=true,
-	HairAccessory=true,HatAccessory=true,NeckAccessory=true,
-	ShouldersAccessory=true,WaistAccessory=true,
-	Face=true,GraphicTShirt=true,
+--!native
+--!nolint
+--!nocheck
+--!optimize 3
+local nv={}
+nv.select=clonefunction(select)
+nv.game,nv.workspace=cloneref(game),cloneref(workspace) --this is not to stop detection from weaktables, this is just so replications to the Instance metatable dont replicate to these instances for better security, I might be just paranoid, but better safe than sorry.
+nv.NEXRequire = function(x)
+return request({Url=`https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/{x}`,Method="GET"}).Body
+end
+nv.ImportToFolder = function(x,y)
+for i,v in next,y do
+if not isfile(`{x}/{i}`) then
+writefile(`{x}/{i}`,nv.NEXRequire(v))
+						end
+		end
+end
+if not isfolder(".icons") then
+makefolder(".icons")
+nv.ImportToFolder(".icons",{
+["NEX.png"]="Icons/NEX.png",
+[".nomedia"]="Icons/.nomedia"
+})
+end
+nv.version="1.0.9"
+nv.lastversion="1.0.8"
+nv.NEXIcon=getcustomasset(".icons/NEX.png")
+nv.LoadedIcons={NEX=nv.NEXIcon}
+nv.BinaryFormat=loadstring(request({Url="https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/BinaryFormatConverter.luau",Method="GET"}).Body)()
+nv.clonef=clonefunction(clonefunction)
+nv.cppf=nv.clonef(newcclosure)
+nv.XMLToBinary=nv.cppf(nv.BinaryFormat.XMLToBinary)
+nv.BinaryToXML=nv.cppf(nv.BinaryFormat.BinaryToXML)
+nv.err=nv.clonef(error)
+nv.canhead=({pcall(request,{Url="https://raw.githubusercontent.com",Method="HEAD"})})[1]
+nv.rawsmt=nv.clonef(setrawmetatable)
+nv.rawmt=nv.clonef(getrawmetatable)
+nv.tclone=nv.clonef(table.clone)
+nv.srot={
+__metatable="The metatable is locked.",
+__newindex=nv.cppf(function()nv.err"attempt to modify a protected metatable"end)
 }
-
-local BINARY_STRING_PROPS={
-	AttributesSerialize=true,Tags=true,PhysicsData=true,PhysicsGrid=true,
-	LevelOfDetailData=true,TerrainColors=true,TerrainMaterialColors=true,
-	SmoothGrid=true,ClusterGrid=true,CollisionGroupData=true,
-	MaterialColors=true,HiddenServices=true,VisibleServices=true,
-}
-
-local NETASSET_PROPS={SolidMeshHolder=true}
-
--- SERVICE_CLASSES: Roblox classes tagged "Service" in the official reflection database.
--- This is structural instance metadata (which classes are root-level singleton services),
--- not a property-type guess. The XML format has no field for this at all (a service Item
--- looks identical to any other Item), so XMLToBinary has no way to recover it except by
--- knowing the Roblox class hierarchy. Without this, services round-trip through binary as
--- ordinary non-service instances, which is what caused the duplicated-services/empty-Workspace bug.
-local SERVICE_CLASSES={
-	AccountService=true,AchievementService=true,ActivityHistoryEventService=true,AdService=true,AnalyticsService=true,
-	AnimationClipProvider=true,AnimationFromVideoCreatorService=true,AnimationFromVideoCreatorStudioService=true,
-	AnnotationsService=true,AppAgeSignalsService=true,AppLifecycleObserverService=true,AppRatingPromptService=true,
-	AppStorageService=true,AppUpdateService=true,AssetCounterService=true,AssetDeliveryProxy=true,AssetImportService=true,
-	AssetManagerService=true,AssetQualityService=true,AssetService=true,AudioFocusService=true,AuroraScriptService=true,
-	AuroraService=true,AvatarChatService=true,AvatarCreationService=true,AvatarEditorService=true,AvatarImportService=true,
-	AvatarSettings=true,BadgeService=true,BrowserService=true,BugReporterService=true,BulkImportService=true,
-	CSGDictionaryService=true,CacheableContentProvider=true,CalloutService=true,CaptureService=true,ChangeHistoryService=true,
-	ChangeHistoryStreamingService=true,Chat=true,CloudCRUDService=true,CloudExecutionService=true,ClusterPacketCache=true,
-	CollaboratorsService=true,CollectionService=true,CommerceService=true,ConfigService=true,ConfigureServerService=true,
-	ConnectivityService=true,ContentProvider=true,ContextActionService=true,ControllerService=true,CookiesService=true,
-	CoreGui=true,CoreGuiConfiguration=true,CorePackages=true,CoreScriptDebuggingManagerHelper=true,CoreScriptSyncService=true,
-	CreationDBService=true,CreatorStoreService=true,CrossDMScriptChangeListener=true,DataModelPatchService=true,
-	DataStoreService=true,Debris=true,DebugSettings=true,DebuggablePluginWatcher=true,DebuggerConnectionManager=true,
-	DebuggerManager=true,DebuggerUIService=true,DeferredAssetManagerService=true,DesignFoundationsService=true,
-	DeviceIdService=true,DraftsService=true,DraggerService=true,EditableService=true,EncodingService=true,
-	EventIngestService=true,ExampleV2Service=true,ExperienceAuthService=true,ExperienceNotificationService=true,
-	ExperienceService=true,ExperienceStateCaptureService=true,ExperienceStateRecordingService=true,ExplorerServiceVisibilityService=true,
-	FaceAnimatorService=true,FacialAgeEstimationService=true,FacialAnimationRecordingService=true,FacialAnimationStreamingServiceV2=true,
-	FeatureRestrictionManager=true,FileManagerService=true,FileSyncReplicationService=true,FlagStandService=true,
-	FlyweightService=true,FriendService=true,GamePassService=true,GameSettings=true,GamepadService=true,GenerationService=true,
-	GenericChallengeService=true,Geometry=true,GeometryService=true,GongService=true,GroupService=true,GuiService=true,
-	GuidRegistryService=true,HSRDataContentProvider=true,HapticService=true,HarmonyService=true,HeapProfilerService=true,
-	HeatmapQueryService=true,HeatmapService=true,HeightmapImporterService=true,Hopper=true,HttpRbxApiService=true,
-	HttpService=true,ILegacyStudioBridge=true,IXPService=true,ImageScreenCaptureService=true,IncrementalPatchBuilder=true,
-	InsertService=true,InstanceExtensionsService=true,InstanceFileSyncService=true,InternalMessagingService=true,
-	InternalMessagingServiceVerifier=true,InternalSyncService=true,JointsService=true,KeyboardService=true,
-	KeyframeSequenceProvider=true,LSPFileSyncService=true,LanguageService=true,LegacyStudioBridge=true,Lighting=true,
-	LinkingService=true,LiveScriptingService=true,LiveSyncService=true,LocalStorageService=true,LocalizationService=true,
-	LodDataService=true,LogReporterService=true,LogService=true,LoginService=true,LuaSettings=true,LuaWebService=true,
-	LuauScriptAnalyzerService=true,MLModelDeliveryService=true,MLService=true,MarketplaceService=true,MatchmakingService=true,
-	MaterialGenerationService=true,MaterialService=true,MemStorageService=true,MemoryStoreService=true,MeshContentProvider=true,
-	MessageBusService=true,MessagingService=true,MetaBreakpointManager=true,MicroProfilerService=true,ModerationService=true,
-	MouseService=true,NetworkClient=true,NetworkServer=true,NetworkSettings=true,NonReplicatedCSGDictionaryService=true,
-	NotificationService=true,OmniRecommendationsService=true,OpenCloudService=true,PackageService=true,PackageUIService=true,
-	Packages=true,PartyEmulatorService=true,PatchBundlerFileWatch=true,PathfindingService=true,PerformanceControlService=true,
-	PermissionsService=true,PhysicsService=true,PhysicsSettings=true,PlaceAssetIdsService=true,PlaceStatsService=true,
-	PlacesService=true,PlatformCloudStorageService=true,PlatformFriendsService=true,PlatformLibraries=true,
-	PlayerDataService=true,PlayerEmulatorService=true,PlayerHydrationService=true,PlayerViewService=true,
-	Players=true,PluginConnectionService=true,PluginDebugService=true,PluginGuiService=true,PluginManagementService=true,
-	PluginPolicyService=true,PointsService=true,PolicyService=true,Preloaded=true,ProceduralBehaviorSchedulerService=true,
-	ProcessInstancePhysicsService=true,ProximityPromptService=true,PublishService=true,RbxAnalyticsService=true,
-	RecommendationService=true,ReflectionService=true,RemoteCommandService=true,RemoteCursorService=true,
-	RemoteDebuggerServer=true,RenderSettings=true,ReplicatedFirst=true,ReplicatedStorage=true,RibbonNotificationService=true,
-	RobloxPluginGuiService=true,RobloxReplicatedStorage=true,RobloxServerStorage=true,RolloutValidationService=true,
-	RomarkRbxAnalyticsService=true,RomarkService=true,RtMessagingService=true,RunService=true,RuntimeContentService=true,
-	RuntimeScriptService=true,SafetyService=true,SceneAnalysisService=true,ScriptChangeService=true,ScriptCloneWatcher=true,
-	ScriptCloneWatcherHelper=true,ScriptCommitService=true,ScriptContext=true,ScriptDebuggerService=true,
-	ScriptEditorService=true,ScriptProfilerService=true,ScriptRegistrationService=true,ScriptService=true,
-	Selection=true,SelectionHighlightManager=true,SerializationService=true,ServerScriptService=true,ServerStorage=true,
-	ServiceVisibilityService=true,SessionCheckService=true,SessionService=true,SharedTableRegistry=true,SlimAnimationReplicationService=true,
-	SlimContentProvider=true,SlimDebugSettings=true,SlimReplicationService=true,SlimService=true,SmoothVoxelsUpgraderService=true,
-	SnippetService=true,SocialService=true,SolidModelContentProvider=true,SoundService=true,SoundShimService=true,
-	SpawnerService=true,StartPageService=true,StarterGui=true,StarterPack=true,StarterPlayer=true,StartupMessageService=true,
-	Stats=true,StopWatchReporter=true,Studio=true,StudioAssetService=true,StudioCameraService=true,StudioCaptureService=true,
-	StudioData=true,StudioDeviceEmulatorService=true,StudioDeviceSimulatorService=true,StudioPublishService=true,
-	StudioScriptDebugEventListener=true,StudioSdkService=true,StudioService=true,StudioTestService=true,StudioUserService=true,
-	StudioWidgetsService=true,StylingService=true,SystemThemeService=true,TaskScheduler=true,TeamCreateData=true,
-	TeamCreatePublishService=true,TeamCreateService=true,Teams=true,TelemetryService=true,TeleportService=true,
-	TemporaryCageMeshProvider=true,TemporaryScriptService=true,TestService=true,TextBoxService=true,TextChatService=true,
-	TextService=true,TextureGenerationService=true,ThirdPartyUserService=true,TimerService=true,ToastNotificationService=true,
-	TouchInputService=true,TraceRouteService=true,TracerService=true,TutorialService=true,TweenService=true,
-	UGCAvatarService=true,UGCValidationService=true,UIDragDetectorService=true,UniqueIdLookupService=true,
-	UnvalidatedAssetService=true,UserGameSettings=true,UserInputService=true,UserService=true,UserStorageService=true,
-	VRService=true,VRStatusService=true,VersionControlService=true,VideoCaptureService=true,VideoScreenCaptureService=true,
-	VideoService=true,VirtualInputManager=true,VirtualUser=true,VisibilityCheckDispatcher=true,Visit=true,
-	VisualizationModeService=true,VoiceChatInternal=true,VoiceChatService=true,WebSocketService=true,WebViewService=true,
-	Workspace=true,WrapDeformMeshProvider=true,
-}
-
-local function lz4Decompress(src,uncompSize)local out=tcreat(uncompSize+64,0)local si=1
-local oi=1
-local slen=#src
-while si<=slen do
-local tok=sbyte(src,si);si+=1
-local ll=b32rsh(tok,4)if ll==15 then
-repeat
-local e=sbyte(src,si)or 0;si+=1;ll+=e
-until e~=255
+nv.sro=setreadonly and nv.clonef(setreadonly) or nv.cppf(function(x,y)
+	if y then
+		nv.rawsmt(x,nv.srot)
+	else
+		nv.rawsmt(x,{})
+	end
+end)
+nv.tablepc=nv.cppf(function(x)
+	local ta=nv.tclone(x)
+	nv.sro(ta,true)
+	return ta
+end)
+nv.cclose,nv.info,nv.genv,nv.index,nv.newindex=coroutine.close,debug.info,loadstring(nv.NEXRequire("AllowedFunctions.luau"))()
+xpcall(function()nv.workspace[nil]()end,function()nv.index=nv.clonef(nv.info(2,'f'))end)xpcall(function()nv.workspace.woahs=1 end,function()nv.newindex=nv.clonef(nv.info(2,'f'))end)
+nv.GetService=nv.index(nv.game,"GetService")
+nv.GuiService=cloneref(nv.GetService(nv.game,"GuiService"))
+nv.ot=os.clock
+nv.t=nv.ot()
+nv.NEXTitle=`NEX Emulator (V{nv.version})`
+nv.SendNotification=nv.clonef(nv.index(nv.GuiService,"SendNotification"))
+nv.SendNotification(nv.GuiService,{
+Icon=nv.NEXIcon,
+Title=nv.NEXTitle,
+Text="NEX Emulation starting..."
+})
+nv.tw=task.wait
+nv.FindFirstChild=nv.clonef(nv.index(nv.workspace,"FindFirstChild"))
+nv.NetworkClient=cloneref(nv.GetService(nv.game,"NetworkClient"))
+nv.GetChildren=nv.clonef(nv.index(nv.workspace,"GetChildren"))
+nv.Clone=nv.clonef(nv.index(nv.workspace,"Clone"))
+nv.IsA=nv.clonef(nv.index(nv.workspace,"IsA"))
+nv.ClientReplicator=cloneref(nv.FindFirstChild(nv.NetworkClient,"ClientReplicator"))
+nv.Destroy=nv.clonef(nv.index(nv.game,"Destroy"))
+if not isfolder("GameData") then
+makefolder("GameData")
 end
-local si_end=si+ll-1
-while si<=si_end do
-out[oi]=sbyte(src,si);oi+=1;si+=1
+nv.rgca=nv.clonef(getcustomasset)
+nv.rwarn=nv.clonef(warn)
+nv.rtype=nv.clonef(type)
+nv.cdef=nv.clonef(task.defer)
+nv.def=function(x,...) return nv.cdef(function(...)return x(...)end,...)end
+nv.reg=getreg()
+nv.GameId=nv.index(nv.game,"GameId")
+nv.HttpService=cloneref(nv.GetService(nv.game,"HttpService"))
+nv.MarketplaceService=cloneref(nv.GetService(nv.game,"MarketplaceService"))
+nv.GetProductInfo=nv.clonef(nv.index(nv.MarketplaceService,"GetProductInfo"))
+nv.JsonDecode=nv.clonef(nv.index(nv.HttpService,"JSONDecode"))
+nv.JsonEncode=nv.clonef(nv.index(nv.HttpService,"JSONEncode"))
+nv.rootid=nv.JsonDecode(nv.HttpService,
+request({Url=`https://develop.roblox.com/v1/universes/{nv.GameId}`,Method="GET"}).Body).rootPlaceId
+nv.behave=`GameData/{nv.rootid}/Storage/`
+nv.SettingsPrefix=`GameData/{nv.rootid}/`
+if not isfolder(nv.SettingsPrefix) then
+makefolder(nv.SettingsPrefix)
 end
-if si>slen then break end
-local b0=sbyte(src,si)or 0;si+=1
-local b1=sbyte(src,si)or 0;si+=1
-local offset=b0+b1*256
-if offset==0 then break end
-local ml=b32band(tok,0xF)+4
-if b32band(tok,0xF)==15 then
-repeat
-local e=sbyte(src,si)or 0;si+=1;ml+=e
-until e~=255
+if not isfolder(nv.behave) then
+makefolder(nv.behave)
 end
-local ms=oi-offset
-for _=1,ml do
-out[oi]=(ms>=1)and(out[ms]or 0)or 0;oi+=1;ms+=1
+nv.gca=function(x) return nv.rgca(`{nv.behave}{x}`) end
+nv.RootName=`{nv.SettingsPrefix}RootName {nv.GetProductInfo(nv.MarketplaceService,nv.rootid).Name}`
+nv.SettingsExist=isfile(`{nv.SettingsPrefix}Settings.json`)
+nv.s,nv.settingst=pcall(function()
+return nv.JsonDecode(nv.HttpService,readfile(`{nv.SettingsPrefix}Settings.json`))
+end)
+nv.origs={CapabilityMax=2,EmulateOnGameIsLoaded=true,HTTPEnabled=true,FilesEnabled=true,ExternalFilePerms=false,DebugMode=false,RobloxScriptRequire=true,XMLEnabled=true}
+if not isfile("StarterSettings.json") then
+writefile("StarterSettings.json",nv.JsonEncode(nv.HttpService,nv.origs))
 end
+nv.settings=nv.SettingsExist and nv.s and nv.settingst or nv.JsonDecode(nv.HttpService,readfile("StarterSettings.json"))
+if not isfile("._NEXVERSION") or readfile("._NEXVERSION")==nv.lastversion then
+writefile("._NEXVERSION",nv.version)
+for i,v in next,nv.origs do
+	if nv.settings[i]==nil then
+		nv.settings[i]=v
+	end
 end
-local BATCH=4096
-local rc=0
-local r=tcreat(mceil((oi-1)/BATCH))for i=1,oi-1,BATCH do
-rc+=1;r[rc]=schar(tunpack(out,i,mmin(i+BATCH-1,oi-1)))end
-return tconc(r)end
-local function lz4Compress(src)local n=#src
-if n==0 then return "\x00" end
-local limit=n-12
-local htBits=16
-while htBits<20 and b32lsh(1,htBits)<n do htBits+=1 end
-local HTSIZE=b32lsh(1,htBits)local htShift=32-htBits
-local M=2654435761
-local ht=tcreat(HTSIZE,0)local prev=tcreat(n+1,0)local MAX_DEPTH=16
-local oc=0;local out={}local anchor=1
-local ip=1
-local function hash4(b0,b1,b2,b3)local lo=b32band((b0+b1*256)*M,0xFFFFFFFF)local hi=b32band((b2+b3*256)*M,0xFFFFFFFF)return b32rsh(b32band(lo+b32lsh(hi,16),0xFFFFFFFF),htShift)+1
-end
-while ip<=limit do
-local b0,b1,b2,b3=sbyte(src,ip,ip+3)local h=hash4(b0,b1,b2,b3)prev[ip]=ht[h];ht[h]=ip
-local best_ml=3;local best_ref=0
-local maxMl=n-4-ip
-local pos=prev[ip];local depth=0
-while pos>0 and depth<MAX_DEPTH do
-if ip-pos>65535 then break end
-local r0,r1,r2,r3=sbyte(src,pos,pos+3)if r0==b0 and r1==b1 and r2==b2 and r3==b3 then
-local ml=4
-while ml+8<=maxMl and ssub(src,ip+ml,ip+ml+7)==ssub(src,pos+ml,pos+ml+7)do ml+=8 end
-while ml<maxMl and sbyte(src,ip+ml)==sbyte(src,pos+ml)do ml+=1 end
-if ml>best_ml then
-best_ml=ml;best_ref=pos
-if ml>=maxMl then break end
-end
-end
-pos=prev[pos];depth+=1
-end
-if best_ref>0 then
-local ll=ip-anchor;local ml4=best_ml-4;local offset=ip-best_ref
-oc+=1;out[oc]=schar(mmin(ll,15)*16+mmin(ml4,15))if ll>=15 then
-local r=ll-15
-while r>=255 do oc+=1;out[oc]="\xff";r-=255 end
-oc+=1;out[oc]=schar(r)end
-if ll>0 then oc+=1;out[oc]=ssub(src,anchor,ip-1)end
-oc+=1;out[oc]=schar(offset%256)oc+=1;out[oc]=schar(mfloor(offset/256))if ml4>=15 then
-local r=ml4-15
-while r>=255 do oc+=1;out[oc]="\xff";r-=255 end
-oc+=1;out[oc]=schar(r)end
-ip=ip+best_ml;anchor=ip
+nv.stjson=nv.JsonEncode(nv.HttpService,nv.settings)
+writefile("StarterSettings.json",nv.stjson)
 else
-ip+=1
+nv.stjson=nv.JsonEncode(nv.HttpService,nv.settings)
+end
+if not nv.SettingsExist then
+writefile(`{nv.SettingsPrefix}Settings.json`,nv.stjson)
+end
+nv.IsLoaded=nv.index(nv.game,"IsLoaded")
+if nv.settings.EmulateOnGameIsLoaded then
+repeat nv.tw() until nv.IsLoaded(nv.game)
+end
+nv.NotAllowed={getgenv=1}
+nv.HttpFamily={request=1}
+nv.SerializationService=cloneref(nv.GetService(nv.game,"SerializationService"))
+nv.DeserializeInstance=nv.clonef(nv.index(nv.SerializationService,"DeserializeInstancesAsync"))
+nv.bufferstring=nv.clonef(buffer.fromstring)
+nv.SetStateEnabled=nv.clonef(Instance.new"Humanoid".SetStateEnabled)
+nv.rnexists=`{nv.SettingsPrefix}.rootname`
+if not isfile(nv.rnexists) then
+	print(nv.RootName)
+if not pcall(writefile,nv.RootName,' ') then
+		writefile(nv.RootName:gsub(" ",""),'')
+	end
+writefile(nv.rnexists,' ')
+end
+nv.grenv=getrenv()
+nv.rrequire=nv.grenv.require
+nv.exstr="hi"
+nv.find,nv.sub=nv.clonef(nv.exstr.find),nv.clonef(nv.exstr.sub)
+nv.foundationimage=function(x)
+return nv.find(x,"://")==nil
+end
+if nv.settings.RobloxScriptRequire then
+nv.genv.Rrequire=nv.rrequire
+else
+nv.genv.RobloxScriptRequire=function(...)
+nv.rwarn("RobloxScriptRequire disabled.")
 end
 end
-local ll=n-anchor+1
-oc+=1;out[oc]=schar(mmin(ll,15)*16)if ll>=15 then
-local r=ll-15
-while r>=255 do oc+=1;out[oc]="\xff";r-=255 end
-oc+=1;out[oc]=schar(r)end
-oc+=1;out[oc]=ssub(src,anchor,n)return tconc(out,"",1,oc)end
-local ZSTD_MAGIC="\x28\xb5\x2f\xfd"
-local function zstdDecompress(src)
-return buffer.tostring(EncodingService:DecompressBuffer(buffer.fromstring(src),Enum.CompressionAlgorithm.Zstd))end
-local b64chars="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-local b64enc={};for i=0,63 do b64enc[i]=ssub(b64chars,i+1,i+1)end
-local b64dec={};for i=0,63 do b64dec[sbyte(b64chars,i+1)]=i end
-local function base64Encode(s)local n=#s
-local oc=0;local out=tcreat(mceil(n/3)*4)for i=1,n,3 do
-local a=sbyte(s,i)or 0
-local b=sbyte(s,i+1)or 0
-local c=sbyte(s,i+2)or 0
-local v=a*65536+b*256+c
-oc+=1;out[oc]=b64enc[b32rsh(v,18)]oc+=1;out[oc]=b64enc[b32band(b32rsh(v,12),63)]oc+=1;out[oc]=i+1<=n and b64enc[b32band(b32rsh(v,6),63)]or "="
-oc+=1;out[oc]=i+2<=n and b64enc[b32band(v,63)]or "="
-end
-return tconc(out)end
-local function base64Decode(s)if sfind(s,"[^A-Za-z0-9+/=]")then s=s:gsub("[^A-Za-z0-9+/=]","")end;local n=#s
-local oc=0;local out=tcreat(mceil(n/4)*3)local i=1
-while i<=n do
-local a=b64dec[sbyte(s,i)]or 0;i+=1
-local b=b64dec[sbyte(s,i)]or 0;i+=1
-local c=b64dec[sbyte(s,i)]or 0;i+=1
-local d=b64dec[sbyte(s,i)]or 0;i+=1
-local v=a*262144+b*4096+c*64+d
-oc+=1;out[oc]=schar(b32rsh(v,16))if sbyte(s,i-2)~=61 then oc+=1;out[oc]=schar(b32band(b32rsh(v,8),255))end
-if sbyte(s,i-1)~=61 then oc+=1;out[oc]=schar(b32band(v,255))end
-end
-return tconc(out)end
-local function zstdCompress(src)
--- Use HttpService:JSONEncode on a buffer to invoke Roblox's internal zstd
--- serialization path -- the same one used to write binary RBXM chunks.
--- EncodingService:CompressBuffer goes through a different code path with
--- different tuning and produces different compressed bytes.
--- JSONEncode emits {"zbase64":"<b64>"} when the buffer is large enough to
--- benefit from compression; for very small inputs it emits {"base64":"<b64>"}
--- (uncompressed), in which case we fall back to EncodingService.
-local buf=buffer.fromstring(src)
-local encoded=HttpService:JSONEncode(buf)
-local zB64=encoded:match('"zbase64":"(.-)"')
-if zB64 then return base64Decode(zB64)end
-return buffer.tostring(EncodingService:CompressBuffer(buf,Enum.CompressionAlgorithm.Zstd,3))end
-local function zzDec(v)return b32band(v,1)==0 and b32rsh(v,1)or-(b32rsh(v,1)+1)end
-local function zzEnc(v)return v>=0 and v*2 or-v*2-1 end
-local function deinterleaveU32(data,n)local out=tcreat(n)local n2,n3=n*2,n*3
-for i=1,n do
-out[i]=sbyte(data,i)*0x1000000+sbyte(data,n+i)*0x10000+sbyte(data,n2+i)*0x100+sbyte(data,n3+i)end
-return out
-end
-local function interleaveU32(vals)local n=#vals
-local n2,n3=n*2,n*3
-local out=tcreat(n*4)for i=1,n do
-local r=(vals[i]or 0)%0x100000000
-out[i]=chr[b32rsh(r,24)]out[n+i]=chr[b32band(b32rsh(r,16),255)]out[n2+i]=chr[b32band(b32rsh(r,8),255)]out[n3+i]=chr[b32band(r,255)]end
-return tconc(out)end
-local function deinterleaveI32(data,n)local out=tcreat(n)local n2,n3=n*2,n*3
-for i=1,n do
-local raw=sbyte(data,i)*0x1000000+sbyte(data,n+i)*0x10000+sbyte(data,n2+i)*0x100+sbyte(data,n3+i)out[i]=zzDec(raw)end
-return out
-end
-local function interleaveI32(vals)local n=#vals
-local n2,n3=n*2,n*3
-local out=tcreat(n*4)for i=1,n do
-local r=zzEnc(vals[i])%0x100000000
-out[i]=chr[b32rsh(r,24)]out[n+i]=chr[b32band(b32rsh(r,16),255)]out[n2+i]=chr[b32band(b32rsh(r,8),255)]out[n3+i]=chr[b32band(r,255)]end
-return tconc(out)end
-local function deinterleaveRef(data,n)local out=tcreat(n)local n2,n3=n*2,n*3
-local acc=0
-for i=1,n do
-local raw=sbyte(data,i)*0x1000000+sbyte(data,n+i)*0x10000+sbyte(data,n2+i)*0x100+sbyte(data,n3+i)acc+=zzDec(raw);out[i]=acc
-end
-return out
-end
-local deinterleaveParentRef=deinterleaveRef
-local function interleaveRef(refs)local n=#refs
-local deltas=tcreat(n)local prev=0
-for i=1,n do local v=refs[i];deltas[i]=v-prev;prev=v end
-return interleaveI32(deltas)end
-local interleaveParentRef=interleaveRef
-local function deinterleaveF32(data,n)local out=tcreat(n)local n2,n3=n*2,n*3
-for i=1,n do
-local raw=sbyte(data,i)*0x1000000+sbyte(data,n+i)*0x10000+sbyte(data,n2+i)*0x100+sbyte(data,n3+i)local bits=b32bor(b32rsh(raw,1),b32lsh(b32band(raw,1),31))out[i]=(sunpack(">f",schar(b32rsh(bits,24)%256,b32rsh(bits,16)%256,b32rsh(bits,8)%256,bits%256)))end
-return out
-end
-local function interleaveF32(vals)local n=#vals
-local n2,n3=n*2,n*3
-local out=tcreat(n*4)for i=1,n do
-local b0,b1,b2,b3=sbyte(spack(">f",vals[i]),1,4)local bits=b0*0x1000000+b1*0x10000+b2*0x100+b3
-local raw=b32bor(b32lsh(bits,1),b32rsh(bits,31))%0x100000000
-out[i]=chr[b32rsh(raw,24)]out[n+i]=chr[b32band(b32rsh(raw,16),255)]out[n2+i]=chr[b32band(b32rsh(raw,8),255)]out[n3+i]=chr[b32band(raw,255)]end
-return tconc(out)end
-local RBX_MAGIC="<roblox!\x89\xFF\x0D\x0A\x1A\x0A\x00\x00"
-local function makeChunk(name,payload,useZstd)local n=#payload
-local compressed=useZstd and zstdCompress(payload)or lz4Compress(payload)if#compressed<n then
-return name..spack("<I4",#compressed)..spack("<I4",n)..spack("<I4",0)..compressed
-end
-return name..spack("<I4",0)..spack("<I4",n)..spack("<I4",0)..payload
-end
-local CF_IDENTITY={1,0,0,0,1,0,0,0,1}local CF_SPECIAL={[0x02]={1,0,0,0,1,0,0,0,1},[0x03]={1,0,0,0,0,-1,0,1,0},[0x05]={1,0,0,0,-1,0,0,0,-1},[0x06]={1,0,0,0,0,1,0,-1,0},[0x07]={0,1,0,1,0,0,0,0,-1},[0x09]={0,0,1,1,0,0,0,1,0},[0x0A]={0,-1,0,1,0,0,0,0,1},[0x0C]={0,0,-1,1,0,0,0,-1,0},[0x0D]={0,1,0,0,0,1,1,0,0},[0x0E]={0,0,-1,0,1,0,1,0,0},[0x10]={0,-1,0,0,0,-1,1,0,0},[0x11]={0,0,1,0,-1,0,1,0,0},[0x14]={-1,0,0,0,1,0,0,0,-1},[0x15]={-1,0,0,0,0,1,0,1,0},[0x17]={-1,0,0,0,-1,0,0,0,1},[0x18]={-1,0,0,0,0,-1,0,-1,0},[0x19]={0,1,0,-1,0,0,0,0,1},[0x1B]={0,0,-1,-1,0,0,0,1,0},[0x1C]={0,-1,0,-1,0,0,0,0,-1},[0x1E]={0,0,1,-1,0,0,0,-1,0},[0x1F]={0,1,0,0,0,-1,-1,0,0},[0x20]={0,0,1,0,1,0,-1,0,0},[0x22]={0,-1,0,0,0,1,-1,0,0},[0x23]={0,0,-1,0,-1,0,-1,0,0},}local CF_SPECIAL_LOOKUP={}do
-local function key(r)return sfmt("%d%d%d%d%d%d%d%d%d",r[1],r[2],r[3],r[4],r[5],r[6],r[7],r[8],r[9])end
-for id,r in pairs(CF_SPECIAL)do CF_SPECIAL_LOOKUP[key(r)]=id end
-end
-local function findCFSpecial(r)local r1,r2,r3,r4,r5,r6,r7,r8,r9=r[1]or 0,r[2]or 0,r[3]or 0,r[4]or 0,r[5]or 0,r[6]or 0,r[7]or 0,r[8]or 0,r[9]or 0
-local ri1,ri2,ri3,ri4,ri5,ri6,ri7,ri8,ri9=mfloor(r1+0.5),mfloor(r2+0.5),mfloor(r3+0.5),mfloor(r4+0.5),mfloor(r5+0.5),mfloor(r6+0.5),mfloor(r7+0.5),mfloor(r8+0.5),mfloor(r9+0.5)
-if mabs(r1-ri1)>1e-4 or mabs(r2-ri2)>1e-4 or mabs(r3-ri3)>1e-4 or mabs(r4-ri4)>1e-4 or mabs(r5-ri5)>1e-4 or mabs(r6-ri6)>1e-4 or mabs(r7-ri7)>1e-4 or mabs(r8-ri8)>1e-4 or mabs(r9-ri9)>1e-4 then return nil end
-return CF_SPECIAL_LOOKUP[sfmt("%d%d%d%d%d%d%d%d%d",ri1,ri2,ri3,ri4,ri5,ri6,ri7,ri8,ri9)]
-end
-local function xmlUnescape(s)return(s:gsub("&amp;","&"):gsub("&lt;","<"):gsub("&gt;",">"):gsub("&quot;",'"'):gsub("&apos;","'"))end
-local function xmlEscape(s)return(tostring(s):gsub("&","&amp;"):gsub("<","&lt;"):gsub(">","&gt;"))end
-local function safeF(v)if type(v)~="number" or v~=v or mabs(v)==HUGE then return "0" end
-return sfmt("%.9g",v)end
-local PropType={}PropType[0x01]={name="String",readBin=function(data,n)local out=tcreat(n);local p=1
-for i=1,n do
-local len,np=sunpack("<I4",data,p);p=np
-out[i]=ssub(data,p,p+len-1);p+=len
-end;return out
-end,writeBin=function(vals)local n=#vals;local pc=0;local parts=tcreat(n*2)for i=1,n do local v=vals[i]pc+=1;parts[pc]=spack("<I4",#v)pc+=1;parts[pc]=v
-end;return tconc(parts)end,xmlTag="string",readXml=function(s)return s end,writeXml=function(v)return tostring(v)end,}PropType[0x02]={name="Bool",readBin=function(data,n)local out=tcreat(n)for i=1,n do out[i]=sbyte(data,i)~=0 end;return out
-end,writeBin=function(vals)local n=#vals;local out=tcreat(n)for i=1,n do out[i]=chr[vals[i]and 1 or 0]end
-return tconc(out)end,xmlTag="bool",readXml=function(s)return s=="true" end,writeXml=function(v)return v and "true" or "false" end,}PropType[0x03]={name="Int",readBin=function(data,n)return deinterleaveI32(data,n)end,writeBin=function(vals)return interleaveI32(vals)end,xmlTag="int",readXml=function(s)return tonumber(s)or 0 end,writeXml=function(v)return tostring(mfloor(v or 0))end,}PropType[0x04]={name="Float",readBin=function(data,n)return deinterleaveF32(data,n)end,writeBin=function(vals)return interleaveF32(vals)end,xmlTag="float",readXml=function(s)return tonumber(s)or 0 end,writeXml=function(v)return safeF(v)end,}PropType[0x05]={name="Double",readBin=function(data,n)local out=tcreat(n);local p=1
-for i=1,n do out[i],p=sunpack("<d",data,p)end;return out
-end,writeBin=function(vals)local n=#vals;local pc=0;local parts=tcreat(n)for i=1,n do pc+=1;parts[pc]=spack("<d",vals[i])end
-return tconc(parts)end,xmlTag="double",readXml=function(s)return tonumber(s)or 0 end,writeXml=function(v)return sfmt("%.17g",v)end,}PropType[0x06]={name="UDim",readBin=function(data,n)local sc=deinterleaveF32(ssub(data,1,n*4),n)local of=deinterleaveI32(ssub(data,n*4+1),n)local out=tcreat(n)for i=1,n do out[i]={scale=sc[i],offset=of[i]}end;return out
-end,writeBin=function(vals)local n=#vals;local sc=tcreat(n);local of=tcreat(n)for i=1,n do sc[i]=vals[i].scale;of[i]=vals[i].offset end
-return interleaveF32(sc)..interleaveI32(of)end,xmlTag="UDim",readXml=function(_,sub)return{scale=tonumber(sub.S or"0"),offset=tonumber(sub.O or"0")}end,writeXml=function(v)return sfmt("<S>%g</S><O>%d</O>",v.scale,v.offset)end,}PropType[0x07]={name="UDim2",readBin=function(data,n)local xs=deinterleaveF32(ssub(data,1,n*4),n)local ys=deinterleaveF32(ssub(data,n*4+1,n*8),n)local xo=deinterleaveI32(ssub(data,n*8+1,n*12),n)local yo=deinterleaveI32(ssub(data,n*12+1),n)local out=tcreat(n)for i=1,n do out[i]={xScale=xs[i],yScale=ys[i],xOffset=xo[i],yOffset=yo[i]}end
-return out
-end,writeBin=function(vals)local n=#vals
-local xs=tcreat(n);local ys=tcreat(n);local xo=tcreat(n);local yo=tcreat(n)for i=1,n do local v=vals[i];xs[i]=v.xScale;ys[i]=v.yScale;xo[i]=v.xOffset;yo[i]=v.yOffset end
-return interleaveF32(xs)..interleaveF32(ys)..interleaveI32(xo)..interleaveI32(yo)end,xmlTag="UDim2",readXml=function(_,sub)return{xScale=tonumber(sub.XS or"0"),xOffset=tonumber(sub.XO or"0"),yScale=tonumber(sub.YS or"0"),yOffset=tonumber(sub.YO or"0")}end,writeXml=function(v)return sfmt("<XS>%g</XS><XO>%d</XO><YS>%g</YS><YO>%d</YO>",v.xScale,v.xOffset,v.yScale,v.yOffset)end,}PropType[0x08]={name="Ray",readBin=function(data,n)local out=tcreat(n);local p=1
-for i=1,n do
-local ox,oy,oz,dx,dy,dz
-ox,p=sunpack("<f",data,p);oy,p=sunpack("<f",data,p);oz,p=sunpack("<f",data,p)dx,p=sunpack("<f",data,p);dy,p=sunpack("<f",data,p);dz,p=sunpack("<f",data,p)out[i]={ox=ox,oy=oy,oz=oz,dx=dx,dy=dy,dz=dz}end;return out
-end,writeBin=function(vals)local n=#vals;local pc=0;local parts=tcreat(n)for i=1,n do local v=vals[i]pc+=1;parts[pc]=spack("<ffffff",v.ox,v.oy,v.oz,v.dx,v.dy,v.dz)end;return tconc(parts)end,xmlTag="Ray",readXml=function(_,sub)local o=type(sub.origin)=="table" and sub.origin or{}local d=type(sub.direction)=="table" and sub.direction or{}return{ox=tonumber(o.X or"0"),oy=tonumber(o.Y or"0"),oz=tonumber(o.Z or"0"),dx=tonumber(d.X or"0"),dy=tonumber(d.Y or"0"),dz=tonumber(d.Z or"0")}end,writeXml=function(v)return sfmt("<origin><X>%g</X><Y>%g</Y><Z>%g</Z></origin><direction><X>%g</X><Y>%g</Y><Z>%g</Z></direction>",v.ox,v.oy,v.oz,v.dx,v.dy,v.dz)end,}PropType[0x09]={name="Faces",readBin=function(data,n)local out=tcreat(n);for i=1,n do out[i]=sbyte(data,i)end;return out
-end,writeBin=function(vals)local n=#vals;local out=tcreat(n)for i=1,n do out[i]=chr[(vals[i]or 0)%256]end;return tconc(out)end,xmlTag="Faces",readXml=function(_,sub)local v=0
-if sub.Right=="true" then v+=1 end;if sub.Top=="true" then v+=2 end
-if sub.Back=="true" then v+=4 end;if sub.Left=="true" then v+=8 end
-if sub.Bottom=="true" then v+=16 end;if sub.Front=="true" then v+=32 end
+nv.Identity={setidentity=1,getthreadidentity=1}
+nv.renv={}
+nv.InsertService=cloneref(nv.GetService(nv.game,"InsertService"))
+nv.LLA=nv.clonef(nv.index(nv.InsertService,"LoadLocalAsset"))
+nv.Players=cloneref(nv.GetService(nv.game,"Players"))
+nv.ClearError=nv.clonef(nv.index(nv.GuiService,"ClearError"))
+nv.oldset=setidentity
+nv.oldti=getthreadidentity
+nv.LP=cloneref(nv.index(nv.Players,"LocalPlayer"))
+nv.Kick=nv.index(nv.LP,"Kick")
+nv.GetCurrentThread = function()
+local ThreadIdentifier=nv.info(0,'f')
+for _,v in nv.reg do
+if nv.rtype(v)=="thread" and nv.info(v,0,'f')==ThreadIdentifier then
 return v
-end,writeXml=function(v)local function b(m)return b32band(v,m)~=0 and "true" or "false" end
-return sfmt("<Right>%s</Right><Top>%s</Top><Back>%s</Back><Left>%s</Left><Bottom>%s</Bottom><Front>%s</Front>",b(1),b(2),b(4),b(8),b(16),b(32))end,}PropType[0x0A]={name="Axes",readBin=function(data,n)local out=tcreat(n);for i=1,n do out[i]=sbyte(data,i)end;return out
-end,writeBin=function(vals)local n=#vals;local out=tcreat(n)for i=1,n do out[i]=chr[(vals[i]or 0)%256]end;return tconc(out)end,xmlTag="Axes",readXml=function(_,sub)local v=0
-if sub.X=="true" then v+=4 end
-if sub.Y=="true" then v+=2 end
-if sub.Z=="true" then v+=1 end
-return v
-end,writeXml=function(v)local function b(m)return b32band(v,m)~=0 and "true" or "false" end
-return sfmt("<X>%s</X><Y>%s</Y><Z>%s</Z>",b(4),b(2),b(1))end,}PropType[0x0B]={name="BrickColor",readBin=function(data,n)return deinterleaveU32(data,n)end,writeBin=function(vals)return interleaveU32(vals)end,xmlTag="BrickColor",readXml=function(s)return tonumber(s)or 0 end,writeXml=function(v)return tostring(mfloor(v or 0))end,}PropType[0x0C]={name="Color3",readBin=function(data,n)local rs=deinterleaveF32(ssub(data,1,n*4),n)local gs=deinterleaveF32(ssub(data,n*4+1,n*8),n)local bs=deinterleaveF32(ssub(data,n*8+1),n)local out=tcreat(n)for i=1,n do out[i]={r=rs[i],g=gs[i],b=bs[i]}end;return out
-end,writeBin=function(vals)local n=#vals;local rs=tcreat(n);local gs=tcreat(n);local bs=tcreat(n)for i=1,n do local v=vals[i];rs[i]=v.r;gs[i]=v.g;bs[i]=v.b end
-return interleaveF32(rs)..interleaveF32(gs)..interleaveF32(bs)end,xmlTag="Color3",readXml=function(s,sub)if sub and sub.R then
-return{r=tonumber(sub.R or"0"),g=tonumber(sub.G or"0"),b=tonumber(sub.B or"0")}end
-local packed=tonumber(s)or 0
-return{r=b32band(b32rsh(packed,16),0xFF)/255,g=b32band(b32rsh(packed,8),0xFF)/255,b=b32band(packed,0xFF)/255}end,writeXml=function(v)return sfmt("<R>%.9g</R><G>%.9g</G><B>%.9g</B>",v.r,v.g,v.b)end,}PropType[0x0D]={name="Vector2",readBin=function(data,n)local xs=deinterleaveF32(ssub(data,1,n*4),n)local ys=deinterleaveF32(ssub(data,n*4+1),n)local out=tcreat(n)for i=1,n do out[i]={x=xs[i],y=ys[i]}end;return out
-end,writeBin=function(vals)local n=#vals;local xs=tcreat(n);local ys=tcreat(n)for i=1,n do xs[i]=vals[i].x;ys[i]=vals[i].y end
-return interleaveF32(xs)..interleaveF32(ys)end,xmlTag="Vector2",readXml=function(_,sub)return{x=tonumber(sub.X or"0"),y=tonumber(sub.Y or"0")}end,writeXml=function(v)return sfmt("<X>%.9g</X><Y>%.9g</Y>",v.x,v.y)end,}PropType[0x0E]={name="Vector3",readBin=function(data,n)local xs=deinterleaveF32(ssub(data,1,n*4),n)local ys=deinterleaveF32(ssub(data,n*4+1,n*8),n)local zs=deinterleaveF32(ssub(data,n*8+1),n)local out=tcreat(n)for i=1,n do out[i]={x=xs[i],y=ys[i],z=zs[i]}end;return out
-end,writeBin=function(vals)local n=#vals;local xs=tcreat(n);local ys=tcreat(n);local zs=tcreat(n)for i=1,n do local v=vals[i];xs[i]=v.x;ys[i]=v.y;zs[i]=v.z end
-return interleaveF32(xs)..interleaveF32(ys)..interleaveF32(zs)end,xmlTag="Vector3",readXml=function(_,sub)return{x=tonumber(sub.X or"0"),y=tonumber(sub.Y or"0"),z=tonumber(sub.Z or"0")}end,writeXml=function(v)return "<X>"..safeF(v.x).."</X><Y>"..safeF(v.y).."</Y><Z>"..safeF(v.z).."</Z>"
-end,}PropType[0x10]={name="CFrame",readBin=function(data,n)local p=1
-local rotations=tcreat(n)for i=1,n do
-local spec=sbyte(data,p);p+=1
-if spec==0 then
-local r=tcreat(9)for j=1,9 do r[j],p=sunpack("<f",data,p)end
-rotations[i]=r
+end
+end
+end
+nv.currentthread=nv.GetCurrentThread()
+nv.genv.GetCurrentThread=nv.GetCurrentThread
+nv.genv.DisconnectFromServer=function()
+local id=nv.oldti()
+if id<3 then
+nv.oldset(3)
+nv.def(nv.oldset,id)
+end
+nv.Kick(nv.LP)
+nv.ClearError(nv.GuiService)
+repeat nv.tw() until nv.index(nv.ClientReplicator,"Parent")==nil
+local char=cloneref(nv.index(nv.LP,"Character"))
+nv.newindex(char,"Archivable",true)
+local c=nv.GetChildren(nv.Clone(char))
+for i,v in nv.GetChildren(char) do --didnt use next because it's already an integer placement, not a dict
+if nv.IsA(v,"BasePart") or nv.index(v,"ClassName")=="Accessory" then --I wanted to use if not v:IsA"LuaSourceContainer" but it didnt let me walk for some reason
+nv.Destroy(v)
+nv.newindex(c[i],"Parent",char)
+end
+end
+local hum=cloneref(nv.index(char,"Humanoid"))
+nv.SetStateEnabled(hum,15,false)
+end
+nv.genv.ToastNotify=function(x)
+local id=nv.oldti()
+if id<3 then
+nv.oldset(3)
+nv.def(nv.oldset,id)
+		end
+local ticon=x.Icon
+x.Icon=(nv.foundationimage(ticon) and nv.NEXIcon) or ticon
+return nv.SendNotification(nv.GuiService,x)
+end
+nv.HttpEnabled=nv.settings.HTTPEnabled
+nv.FilesEnabled=nv.settings.FilesEnabled
+nv.ExternalFilePerms=nv.settings.ExternalFilePerms
+nv.gitpattern="^https://github.com/([^/]+)/([^/]+)(.*)$"
+nv.apipattern="https://api.github.com/repos/%s/%s/contents/%s"
+nv.apiwpattern="https://api.github.com/repos/%s/%s/contents/"
+nv.match=nv.clonef(string.match)
+nv.convertgit = function(x)
+local owner,repo,folder=nv.match(x,nv.gitpattern)
+if owner and repo then
+		if folder and folder ~= "" then
+				folder = folder:gsub("^/", "")
+				return string.format(nv.apipattern, owner, repo, folder),repo
+		else
+				return string.format(nv.apiwpattern, owner, repo),repo
+		end
 else
-rotations[i]=CF_SPECIAL[spec]or CF_IDENTITY
+		return nil
 end
 end
-local posData=ssub(data,p)local xs=deinterleaveF32(ssub(posData,1,n*4),n)local ys=deinterleaveF32(ssub(posData,n*4+1,n*8),n)local zs=deinterleaveF32(ssub(posData,n*8+1),n)local out=tcreat(n)for i=1,n do out[i]={r=rotations[i],x=xs[i],y=ys[i],z=zs[i]}end
-return out
-end,writeBin=function(vals)local n=#vals
-local pc=0;local perInst=tcreat(n)local xs=tcreat(n);local ys=tcreat(n);local zs=tcreat(n)for i=1,n do
-local v=vals[i];local r=v.r or CF_IDENTITY
-local specId=findCFSpecial(r)if specId then
-pc+=1;perInst[pc]=schar(specId)else
-local rp=tcreat(10);rp[1]="\x00"
-for j=1,9 do rp[j+1]=spack("<f",r[j]or 0)end
-pc+=1;perInst[pc]=tconc(rp)end
-xs[i]=v.x or 0;ys[i]=v.y or 0;zs[i]=v.z or 0
-end
-return tconc(perInst,"",1,pc)..interleaveF32(xs)..interleaveF32(ys)..interleaveF32(zs)end,xmlTag="CoordinateFrame",readXml=function(_,sub)return{x=tonumber(sub.X or"0"),y=tonumber(sub.Y or"0"),z=tonumber(sub.Z or"0"),r={tonumber(sub.R00 or"1"),tonumber(sub.R01 or"0"),tonumber(sub.R02 or"0"),tonumber(sub.R10 or"0"),tonumber(sub.R11 or"1"),tonumber(sub.R12 or"0"),tonumber(sub.R20 or"0"),tonumber(sub.R21 or"0"),tonumber(sub.R22 or"1")},}end,writeXml=function(v)local r=v.r or CF_IDENTITY
-return "<X>"..safeF(v.x).."</X><Y>"..safeF(v.y).."</Y><Z>"..safeF(v.z).."</Z>".."<R00>"..safeF(r[1]).."</R00><R01>"..safeF(r[2]).."</R01><R02>"..safeF(r[3]).."</R02>".."<R10>"..safeF(r[4]).."</R10><R11>"..safeF(r[5]).."</R11><R12>"..safeF(r[6]).."</R12>".."<R20>"..safeF(r[7]).."</R20><R21>"..safeF(r[8]).."</R21><R22>"..safeF(r[9]).."</R22>"
-end,}PropType[0x12]={name="Enum",readBin=function(data,n)return deinterleaveU32(data,n)end,writeBin=function(vals)return interleaveU32(vals)end,xmlTag="token",readXml=function(s)return tonumber(s)or 0 end,writeXml=function(v)return tostring(mfloor(v or 0))end,}PropType[0x13]={name="Referent",readBin=function(data,n)return deinterleaveRef(data,n)end,writeBin=function(vals)return interleaveRef(vals)end,xmlTag="Ref",readXml=function(s)if not s or s=="null" or s=="" then return-1 end
-return tonumber(s)or-1
-end,writeXml=function(v)return(not v or v==-1 or v<0)and "null" or(Converter.ReferentPrefix..tostring(v))end,}PropType[0x14]={name="Vector3int16",readBin=function(data,n)local out=tcreat(n);local p=1
-for i=1,n do
-local x,y,z
-x,p=sunpack("<i2",data,p);y,p=sunpack("<i2",data,p);z,p=sunpack("<i2",data,p)out[i]={x=x,y=y,z=z}end;return out
-end,writeBin=function(vals)local n=#vals;local pc=0;local parts=tcreat(n)for i=1,n do local v=vals[i]pc+=1;parts[pc]=spack("<i2i2i2",v.x or 0,v.y or 0,v.z or 0)end;return tconc(parts)end,xmlTag="Vector3int16",readXml=function(_,sub)return{x=tonumber(sub.X or"0"),y=tonumber(sub.Y or"0"),z=tonumber(sub.Z or"0")}end,writeXml=function(v)return sfmt("<X>%d</X><Y>%d</Y><Z>%d</Z>",v.x,v.y,v.z)end,}PropType[0x15]={name="NumberSequence",readBin=function(data,n)local out=tcreat(n);local p=1
-for i=1,n do
-local count,np=sunpack("<I4",data,p);p=np
-local kps=tcreat(count)for j=1,count do
-local t,v,e
-t,p=sunpack("<f",data,p);v,p=sunpack("<f",data,p);e,p=sunpack("<f",data,p)kps[j]={t=t,v=v,e=e}end
-out[i]=kps
-end;return out
-end,writeBin=function(vals)local nv=#vals;local pc=0;local parts=tcreat(nv*4)for i=1,nv do
-local kps=vals[i];local nk=#kps
-pc+=1;parts[pc]=spack("<I4",nk)for j=1,nk do local kp=kps[j]pc+=1;parts[pc]=spack("<fff",kp.t,kp.v,kp.e)end
-end;return tconc(parts)end,xmlTag="NumberSequence",readXml=function(s)local kps={};local kc=0
-for t,v,e in(s.." "):gmatch("(%S+)%s+(%S+)%s+(%S+)%s+")do
-kc+=1;kps[kc]={t=tonumber(t),v=tonumber(v),e=tonumber(e)}end;return kps
-end,writeXml=function(v)local n=#v;local pc=0;local parts=tcreat(n)for i=1,n do local kp=v[i]pc+=1;parts[pc]=sfmt("%g %g %g ",kp.t,kp.v,kp.e)end;return tconc(parts)end,}PropType[0x16]={name="ColorSequence",readBin=function(data,n)local out=tcreat(n);local p=1
-for i=1,n do
-local count,np=sunpack("<I4",data,p);p=np
-local kps=tcreat(count)for j=1,count do
-local t,r,g,bb,e
-t,p=sunpack("<f",data,p);r,p=sunpack("<f",data,p)g,p=sunpack("<f",data,p);bb,p=sunpack("<f",data,p);e,p=sunpack("<f",data,p)kps[j]={t=t,r=r,g=g,b=bb,e=e}end
-out[i]=kps
-end;return out
-end,writeBin=function(vals)local nv=#vals;local pc=0;local parts=tcreat(nv*4)for i=1,nv do
-local kps=vals[i];local nk=#kps
-pc+=1;parts[pc]=spack("<I4",nk)for j=1,nk do local kp=kps[j]pc+=1;parts[pc]=spack("<fffff",kp.t,kp.r,kp.g,kp.b,kp.e)end
-end;return tconc(parts)end,xmlTag="ColorSequence",readXml=function(s)local kps={};local kc=0
-for t,r,g,b,e in(s.." "):gmatch("(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+(%S+)%s+")do
-kc+=1;kps[kc]={t=tonumber(t),r=tonumber(r),g=tonumber(g),b=tonumber(b),e=tonumber(e)}end;return kps
-end,writeXml=function(v)local n=#v;local pc=0;local parts=tcreat(n)for i=1,n do local kp=v[i]pc+=1;parts[pc]=sfmt("%g %g %g %g %g ",kp.t,kp.r,kp.g,kp.b,kp.e)end;return tconc(parts)end,}PropType[0x17]={name="NumberRange",readBin=function(data,n)local out=tcreat(n);local p=1
-for i=1,n do
-local mn,mx;mn,p=sunpack("<f",data,p);mx,p=sunpack("<f",data,p)out[i]={min=mn,max=mx}end;return out
-end,writeBin=function(vals)local n=#vals;local pc=0;local parts=tcreat(n)for i=1,n do local v=vals[i]pc+=1;parts[pc]=spack("<ff",v.min,v.max)end;return tconc(parts)end,xmlTag="NumberRange",readXml=function(s)local a,b=s:match("(%S+)%s+(%S+)")return{min=tonumber(a or"0"),max=tonumber(b or"1")}end,writeXml=function(v)return sfmt("%g %g ",v.min,v.max)end,}PropType[0x18]={name="Rect",readBin=function(data,n)local mnx=deinterleaveF32(ssub(data,1,n*4),n)local mny=deinterleaveF32(ssub(data,n*4+1,n*8),n)local mxx=deinterleaveF32(ssub(data,n*8+1,n*12),n)local mxy=deinterleaveF32(ssub(data,n*12+1),n)local out=tcreat(n)for i=1,n do out[i]={minX=mnx[i],minY=mny[i],maxX=mxx[i],maxY=mxy[i]}end
-return out
-end,writeBin=function(vals)local n=#vals
-local mnx=tcreat(n);local mny=tcreat(n);local mxx=tcreat(n);local mxy=tcreat(n)for i=1,n do local v=vals[i];mnx[i]=v.minX;mny[i]=v.minY;mxx[i]=v.maxX;mxy[i]=v.maxY end
-return interleaveF32(mnx)..interleaveF32(mny)..interleaveF32(mxx)..interleaveF32(mxy)end,xmlTag="Rect2D",readXml=function(_,sub)local mn=type(sub.min)=="table" and sub.min or{}local mx=type(sub.max)=="table" and sub.max or{}return{minX=tonumber(mn.X or"0"),minY=tonumber(mn.Y or"0"),maxX=tonumber(mx.X or"0"),maxY=tonumber(mx.Y or"0")}end,writeXml=function(v)return sfmt("<min><X>%g</X><Y>%g</Y></min><max><X>%g</X><Y>%g</Y></max>",v.minX,v.minY,v.maxX,v.maxY)end,}PropType[0x19]={name="PhysicalProperties",readBin=function(data,n)local out=tcreat(n);local p=1
-for i=1,n do
-local custom=sbyte(data,p)~=0;p+=1
-if custom then
-local d,f,e,fw,ew
-d,p=sunpack("<f",data,p);f,p=sunpack("<f",data,p);e,p=sunpack("<f",data,p)fw,p=sunpack("<f",data,p);ew,p=sunpack("<f",data,p)out[i]={custom=true,density=d,friction=f,elasticity=e,frictionWeight=fw,elasticityWeight=ew}else
-out[i]={custom=false}end
-end;return out
-end,writeBin=function(vals)local n=#vals;local pc=0;local parts=tcreat(n)for i=1,n do local v=vals[i]if v.custom then
-pc+=1;parts[pc]="\x01"..spack("<fffff",v.density,v.friction,v.elasticity,v.frictionWeight,v.elasticityWeight)else
-pc+=1;parts[pc]="\x00"
-end
-end;return tconc(parts)end,xmlTag="PhysicalProperties",readXml=function(_,sub)if sub.CustomPhysics=="true" then
-return{custom=true,density=tonumber(sub.Density or"0"),friction=tonumber(sub.Friction or"0"),elasticity=tonumber(sub.Elasticity or"0"),frictionWeight=tonumber(sub.FrictionWeight or"0"),elasticityWeight=tonumber(sub.ElasticityWeight or"0")}end
-return{custom=false}end,writeXml=function(v)if v.custom then
-return sfmt("<CustomPhysics>true</CustomPhysics><Density>%g</Density>".."<Friction>%g</Friction><Elasticity>%g</Elasticity>".."<FrictionWeight>%g</FrictionWeight><ElasticityWeight>%g</ElasticityWeight>",v.density,v.friction,v.elasticity,v.frictionWeight,v.elasticityWeight)end
-return "<CustomPhysics>false</CustomPhysics>"
-end,}PropType[0x1A]={name="Color3uint8",readBin=function(data,n)local out=tcreat(n);local n2=n*2
-for i=1,n do out[i]={r=sbyte(data,i),g=sbyte(data,n+i),b=sbyte(data,n2+i)}end
-return out
-end,writeBin=function(vals)local n=#vals;local rs=tcreat(n);local gs=tcreat(n);local bs=tcreat(n)for i=1,n do local v=vals[i];rs[i]=chr[v.r%256];gs[i]=chr[v.g%256];bs[i]=chr[v.b%256]end
-return tconc(rs)..tconc(gs)..tconc(bs)end,xmlTag="Color3uint8",readXml=function(_,sub)return{r=tonumber(sub.R or"0"),g=tonumber(sub.G or"0"),b=tonumber(sub.B or"0")}end,writeXml=function(v)return sfmt("<R>%d</R><G>%d</G><B>%d</B>",v.r,v.g,v.b)end,}PropType[0x1B]={name="Int64",readBin=function(data,n)local out=tcreat(n)local n2,n3,n4,n5,n6,n7=n*2,n*3,n*4,n*5,n*6,n*7
-for i=1,n do
-local hi=sbyte(data,i)*0x1000000+sbyte(data,n+i)*0x10000+sbyte(data,n2+i)*0x100+sbyte(data,n3+i)local lo=sbyte(data,n4+i)*0x1000000+sbyte(data,n5+i)*0x10000+sbyte(data,n6+i)*0x100+sbyte(data,n7+i)local combined=hi*0x100000000+lo
-if b32band(lo,1)==0 then out[i]=mfloor(combined/2)else out[i]=-mfloor((combined+1)/2)end
-end;return out
-end,writeBin=function(vals)local n=#vals
-local by={};for k=0,7 do by[k]=tcreat(n)end
-for i=1,n do
-local v=vals[i]local raw=v>=0 and v*2 or-v*2-1
-local lo=raw%0x100000000
-local hi=mfloor(raw/0x100000000)by[0][i]=chr[b32rsh(hi,24)%256];by[1][i]=chr[b32rsh(hi,16)%256]by[2][i]=chr[b32rsh(hi,8)%256];by[3][i]=chr[hi%256]by[4][i]=chr[b32rsh(lo,24)%256];by[5][i]=chr[b32rsh(lo,16)%256]by[6][i]=chr[b32rsh(lo,8)%256];by[7][i]=chr[lo%256]end
-local pc=0;local parts=tcreat(8)for k=0,7 do pc+=1;parts[pc]=tconc(by[k])end
-return tconc(parts)end,xmlTag="int64",readXml=function(s)return tonumber(s)or 0 end,writeXml=function(v)return tostring(mfloor(v or 0))end,}PropType[0x1C]={name="SharedString",readBin=function(data,n)return deinterleaveU32(data,n)end,writeBin=function(vals)return interleaveU32(vals)end,xmlTag="SharedString",readXml=function(s)return s or "" end,writeXml=function(v)return v or "" end,}
-PropType[0x1E]={name="OptionalCFrame",readBin=function(data,n)local p=2
-local specs=tcreat(n);local rots=tcreat(n)for i=1,n do
-local s=sbyte(data,p)or 0;p+=1
-if s==0 then
-local r=tcreat(9)for j=1,9 do r[j],p=sunpack("<f",data,p)end
-rots[i]=r
-else
-rots[i]=CF_SPECIAL[s]or CF_IDENTITY
-end
-specs[i]=s
-end
-local xs=deinterleaveF32(ssub(data,p,p+n*4-1),n);p+=n*4
-local ys=deinterleaveF32(ssub(data,p,p+n*4-1),n);p+=n*4
-local zs=deinterleaveF32(ssub(data,p,p+n*4-1),n);p+=n*4
-p+=1
-local out=tcreat(n)for i=1,n do
-out[i]=(sbyte(data,p+i-1)or 0)~=0 and{r=rots[i],x=xs[i],y=ys[i],z=zs[i]}or nil
-end
-return out
-end,writeBin=function(vals)local n=#vals
-local bools=tcreat(n)local pc=0;local cfBytes=tcreat(n*10)local xs=tcreat(n);local ys=tcreat(n);local zs=tcreat(n)for i=1,n do
-local v=vals[i]local cf=v or{r=CF_IDENTITY,x=0,y=0,z=0}bools[i]=chr[v and 1 or 0]local r=cf.r or CF_IDENTITY
-local specId=findCFSpecial(r)if specId then
-pc+=1;cfBytes[pc]=schar(specId)else
-pc+=1;cfBytes[pc]="\x00"
-for j=1,9 do pc+=1;cfBytes[pc]=spack("<f",r[j]or 0)end
-end
-xs[i]=cf.x or 0;ys[i]=cf.y or 0;zs[i]=cf.z or 0
-end
-return "\x10"..tconc(cfBytes,"",1,pc)..interleaveF32(xs)..interleaveF32(ys)..interleaveF32(zs).."\x02"..tconc(bools)end,xmlTag="OptionalCoordinateFrame",readXml=function(_,sub)if not sub or not sub.CFrame then return nil end
-local cf=sub.CFrame
-local function v(k)return tonumber(type(cf)=="table" and cf[k]or nil)or 0 end
-return{r={v"R00",v"R01",v"R02",v"R10",v"R11",v"R12",v"R20",v"R21",v"R22"},x=v"X",y=v"Y",z=v"Z"}end,writeXml=function(v)if not v then return "" end
-local r=v.r or CF_IDENTITY
-return "<CFrame>".."<X>"..safeF(v.x).."</X><Y>"..safeF(v.y).."</Y><Z>"..safeF(v.z).."</Z>".."<R00>"..safeF(r[1]).."</R00><R01>"..safeF(r[2]).."</R01><R02>"..safeF(r[3]).."</R02>".."<R10>"..safeF(r[4]).."</R10><R11>"..safeF(r[5]).."</R11><R12>"..safeF(r[6]).."</R12>".."<R20>"..safeF(r[7]).."</R20><R21>"..safeF(r[8]).."</R21><R22>"..safeF(r[9]).."</R22>".."</CFrame>"
-end,}PropType[0x1E4]={name="ProtectedString",readBin=function(data,n)local out=tcreat(n);local p=1
-for i=1,n do
-local len,np=sunpack("<I4",data,p);p=np
-out[i]=ssub(data,p,p+len-1);p+=len
-end;return out
-end,writeBin=function(vals)local n=#vals;local pc=0;local parts=tcreat(n*2)for i=1,n do local v=vals[i]pc+=1;parts[pc]=spack("<I4",#v)pc+=1;parts[pc]=v
-end;return tconc(parts)end,xmlTag="ProtectedString",readXml=function(s)return s or "" end,writeXml=function(v)return tostring(v or "")end,}
--- 0x1D is the internal Roblox bytecode type. Binary layout is identical to ProtectedString
--- but kept as a separate entry so round-trips through XMLToBinary preserve the original type byte.
-PropType[0x1D]={name="Bytecode",readBin=PropType[0x1E4].readBin,writeBin=PropType[0x1E4].writeBin,xmlTag="ProtectedString",readXml=PropType[0x1E4].readXml,writeXml=PropType[0x1E4].writeXml,}
-PropType[0x1F]={name="UniqueId",readBin=function(data,n)local out=tcreat(n);local n4=n*4;local n2=n*2;local n3=n*3
-for i=1,n do
-local blob=tcreat(16);local base=0
-for f=0,3 do
-local seg=f*n4
-blob[base+1]=schar(sbyte(data,seg+i)or 0)
-blob[base+2]=schar(sbyte(data,seg+n+i)or 0)
-blob[base+3]=schar(sbyte(data,seg+n2+i)or 0)
-blob[base+4]=schar(sbyte(data,seg+n3+i)or 0)
-base+=4
-end
-out[i]=tconc(blob)
-end;return out
-end,writeBin=function(vals)local n=#vals;local n2=n*2;local n3=n*3;local null=("\0"):rep(16)
-local g={}for f=0,3 do g[f]=tcreat(n*4)end
-for i=1,n do local v=vals[i]or null
-for f=0,3 do local base=f*4
-g[f][i]=chr[sbyte(v,base+1)or 0];g[f][n+i]=chr[sbyte(v,base+2)or 0]
-g[f][n2+i]=chr[sbyte(v,base+3)or 0];g[f][n3+i]=chr[sbyte(v,base+4)or 0]
-end
-end
-local pc=0;local parts=tcreat(4)
-for f=0,3 do pc+=1;parts[pc]=tconc(g[f])end;return tconc(parts)
-end,xmlTag="UniqueId",readXml=function(s)local hex=(s or ""):gsub("%s","")
-if #hex==0 then return("\0"):rep(16)end
-local out=tcreat(16);for i=1,16 do out[i]=schar(tonumber(hex:sub(i*2-1,i*2),16)or 0)end;return tconc(out)
-end,writeXml=function(v)local out=tcreat(16);for i=1,16 do out[i]=sfmt("%02x",sbyte(v,i)or 0)end;return tconc(out)end,}PropType[0x20]={name="Font",readBin=function(data,n)local out=tcreat(n);local p=1
-for i=1,n do
-local flen,np=sunpack("<I4",data,p);p=np
-local family=ssub(data,p,p+flen-1);p+=flen
-local weight,np2=sunpack("<I2",data,p);p=np2
-local style=sbyte(data,p);p+=1
-local clen,np3=sunpack("<I4",data,p);p=np3
-local cached=ssub(data,p,p+clen-1);p+=clen
-out[i]={family=family,weight=weight,style=style,cachedFaceId=cached}end;return out
-end,writeBin=function(vals)local n=#vals;local pc=0;local parts=tcreat(n)for i=1,n do local v=vals[i]local fam=v.family or "";local cac=v.cachedFaceId or ""
-pc+=1;parts[pc]=spack("<I4",#fam)..fam..spack("<I2",v.weight or 400)..chr[v.style or 0]..spack("<I4",#cac)..cac
-end;return tconc(parts)end,xmlTag="Font",readXml=function(_,sub)local famSub=type(sub.Family)=="table" and sub.Family or{}local family=type(famSub.url)=="string" and famSub.url or(type(sub.Family)=="string" and sub.Family or "")local weightMap={Thin=100,ExtraLight=200,Light=300,Regular=400,Medium=500,SemiBold=600,Bold=700,ExtraBold=800,Heavy=900}local styleMap={Normal=0,Italic=2}return{family=family,weight=tonumber(sub.Weight)or weightMap[sub.Weight or ""]or 400,style=styleMap[sub.Style or "Normal"]or 0,cachedFaceId=""}end,writeXml=function(v)local styleNames={[0]="Normal",[2]="Italic"}return "<Family><url>"..xmlEscape(v.family or "").."</url></Family>".."<Weight>"..tostring(v.weight or 400).."</Weight>".."<Style>"..(styleNames[v.style or 0]or "Normal").."</Style>"
-end,}PropType[0x21]={name="SecurityCapabilities",readBin=function(data,n)local out=tcreat(n);local p=1
-for i=1,n do
-local lo,hi;lo,p=sunpack("<I4",data,p);hi,p=sunpack("<I4",data,p)out[i]=lo+hi*0x100000000
-end;return out
-end,writeBin=function(vals)local n=#vals;local pc=0;local parts=tcreat(n)for i=1,n do local v=vals[i]or 0
-local lo=v%0x100000000
-local hi=mfloor(v/0x100000000)%0x100000000
-pc+=1;parts[pc]=spack("<I4",lo)..spack("<I4",hi)end;return tconc(parts)end,xmlTag="SecurityCapabilities",readXml=function(s)return tonumber(s)or 0 end,writeXml=function(v)return tostring(mfloor(v or 0))end,}local function getType(id)return PropType[id]or{name="Unknown("..sfmt("0x%02X",id)..")",readBin=function()return{}end,writeBin=function()return "" end,xmlTag="BinaryString",readXml=function(s)return s end,writeXml=function(v)return tostring(v or "")end,}end
-local xmlTagToTypeId={}for id,info in pairs(PropType)do
-if info.xmlTag then xmlTagToTypeId[info.xmlTag]=id end
-end
-xmlTagToTypeId["string"]=0x01;xmlTagToTypeId["bool"]=0x02
-xmlTagToTypeId["int"]=0x03;xmlTagToTypeId["float"]=0x04
-xmlTagToTypeId["double"]=0x05;xmlTagToTypeId["BinaryString"]=0x1E2
-xmlTagToTypeId["ProtectedString"]=0x1E4;xmlTagToTypeId["UniqueId"]=0x1F;xmlTagToTypeId["Font"]=0x20
-xmlTagToTypeId["SecurityCapabilities"]=0x21
-xmlTagToTypeId["OptionalCoordinateFrame"]=0x1E
-xmlTagToTypeId["Content"]=0x22;xmlTagToTypeId["NetAssetRef"]=0x1E3
-PropType[0x1E3]={name="NetAssetRef",readBin=function(data,n)return deinterleaveU32(data,n)end,writeBin=function(vals)return interleaveU32(vals)end,xmlTag="NetAssetRef",readXml=function(s)return base64Decode(s or "")end,writeXml=function(v)return base64Encode(v or "")end,}PropType[0x1E2]={name="BinaryString",readBin=function(data,n)local out=tcreat(n);local p=1
-for i=1,n do
-local len,np=sunpack("<I4",data,p);p=np
-out[i]=ssub(data,p,p+len-1);p+=len
-end;return out
-end,writeBin=function(vals)local n=#vals;local pc=0;local parts=tcreat(n*2)for i=1,n do local v=vals[i]or ""
-pc+=1;parts[pc]=spack("<I4",#v)pc+=1;parts[pc]=v
-end;return tconc(parts)end,xmlTag="BinaryString",readXml=function(s)return base64Decode(s or "")end,writeXml=function(v)return base64Encode(v or "")end,}PropType[0x22]={name="Content",readBin=function(data,n)local out=tcreat(n)
-local srcTypes=deinterleaveI32(ssub(data,1,n*4),n);local p=n*4+1
-local uriCount;uriCount,p=sunpack("<I4",data,p)local uris=tcreat(uriCount)for i=1,uriCount do
-local ulen;ulen,p=sunpack("<I4",data,p);uris[i]=ssub(data,p,p+ulen-1);p+=ulen
-end
-local objCount;objCount,p=sunpack("<I4",data,p);p+=objCount*4
-p+=4
-local ui=0 for i=1,n do if srcTypes[i]==1 then ui+=1;out[i]=uris[ui]or "" else out[i]="" end end
-return out
-end,writeBin=function(vals)local n=#vals;local srcTypeInts=tcreat(n);local uriParts={};local uc=0
-for i=1,n do local v=tostring(vals[i]or "")if v~="" then srcTypeInts[i]=1;uc+=1;uriParts[uc]=spack("<I4",#v)..v else srcTypeInts[i]=0 end end
-return interleaveI32(srcTypeInts)..spack("<I4",uc)..tconc(uriParts)..spack("<I4",0)..spack("<I4",0)end,xmlTag="Content",readXml=function(text,sub)if type(sub)=="table" then
-if type(sub.uri)=="string" then return sub.uri end
-if type(sub.url)=="string" and sub.url~="" then return sub.url end
-if sub.null~=nil then return "" end
-end
-return text or ""
-end,writeXml=function(v)v=tostring(v or "")return v=="" and "<null></null>" or "<url>"..xmlEscape(v).."</url>"
-end,}
--- SIGN/SIGU entry layout (reverse-engineered, not documented by Roblox).
--- This is FOUR separate 4-byte fields, not one 8-byte ID -- verified by
--- exact byte accounting: count(4) + entries*(4+4+4+4+64) == the chunk's
--- actual decompressed length (324 bytes / 4 entries) with zero bytes left
--- over. A merged 8-byte-ID version of this layout comes up 16 bytes short
--- of that total, so it's ruled out regardless of what any single error
--- message seems to suggest -- trust the arithmetic that accounts for every
--- byte over a partial/ambiguous log line.
---
---   i32 entryCount
---   entryCount * {
---     i32 unknownA    -- always 0 in every sample seen; unconfirmed meaning
---     i32 publicKeyId -- 13/14/15/16 in the sample file; matches the small
---                         sequential values Anaminus separately documented
---                         (9-12) for an older build -- this is the field
---                         that changes across builds/rotation
---     i32 unknownB    -- always 0 in every sample seen; unconfirmed meaning
---     i32 sigLength   -- 64 in every sample seen so far
---     u8  sigValue[sigLength]
---   }
--- These do NOT compute or verify signatures -- they only parse/rebuild the
--- container bytes around an opaque signature value produced elsewhere.
-local function parseSigEntries(payload)
-	local pos=1
-	local count;count,pos=sunpack("<I4",payload,pos)
-	local entries=tcreat(count)
-	for i=1,count do
-		local unknownA;unknownA,pos=sunpack("<I4",payload,pos)
-		local publicKeyId;publicKeyId,pos=sunpack("<I4",payload,pos)
-		local unknownB;unknownB,pos=sunpack("<I4",payload,pos)
-		local sigLen;sigLen,pos=sunpack("<I4",payload,pos)
-		local sig=ssub(payload,pos,pos+sigLen-1);pos+=sigLen
-		entries[i]={unknownA=unknownA,publicKeyId=publicKeyId,unknownB=unknownB,signature=sig}
-	end
-	return entries
-end
-local function buildSigEntries(entries)
-	local parts=tcreat(1+#entries*5);local pc=1
-	parts[pc]=spack("<I4",#entries)
-	for i=1,#entries do
-		local e=entries[i]
-		pc+=1;parts[pc]=spack("<I4",e.unknownA or 0)
-		pc+=1;parts[pc]=spack("<I4",e.publicKeyId)
-		pc+=1;parts[pc]=spack("<I4",e.unknownB or 0)
-		pc+=1;parts[pc]=spack("<I4",#e.signature)
-		pc+=1;parts[pc]=e.signature
-	end
-	return tconc(parts)
-end
-local function parseBinary(data,internalRbxm)assert(ssub(data,1,16)==RBX_MAGIC,"Not a valid .rbxm binary file")local pos=17
-local _,np2=sunpack("<I4",data,pos);pos=np2
-local _,np3=sunpack("<I4",data,pos);pos=np3
-pos+=8
-local typeMap={};local instMap={};local sharedStrs={};local roots={}local rc=0;local sigChunks={};local scc=0
--- sawInternal tracks whether this file used any internal-only-RBXM feature
--- (a 0x1D Bytecode property, or a SIGN/SIGU/HASH chunk). Both are things that
--- never occur in files Roblox Studio or the public API surface will ever
--- produce or accept, so by default (internalRbxm falsy) we refuse to convert
--- them silently -- see the check just before this function returns.
-local sawInternal=false
-while pos<=#data do
-if pos+15>#data then break end
-local chunkName=ssub(data,pos,pos+3);pos+=4
-local cLen=sunpack("<I4",data,pos);pos+=4
-local uLen=sunpack("<I4",data,pos);pos+=4
-pos+=4
-if type(cLen)~="number" or type(uLen)~="number"
-or cLen<0 or uLen<0 or cLen>#data or uLen>#data*8 then break end
-if ssub(chunkName,1,3)=="END" then break end
-local payload
-if cLen==0 then
-if pos+uLen-1<=#data then payload=ssub(data,pos,pos+uLen-1)end
-pos=mmin(pos+uLen,#data+1)else
-if pos+cLen-1<=#data then
-if ssub(data,pos,pos+3)==ZSTD_MAGIC then
-local ok,result=pcall(zstdDecompress,ssub(data,pos,pos+cLen-1))if ok then payload=result end
-else
-local ok,result=pcall(lz4Decompress,ssub(data,pos,pos+cLen-1),uLen)if ok then payload=result end
-end
-end
-pos=mmin(pos+cLen,#data+1)end
-if payload==nil then continue end
-if chunkName=="META" then
-elseif chunkName=="SSTR" then
-pcall(function()local sp=1
-local _,np=sunpack("<I4",payload,sp);sp=np
-local count,np2=sunpack("<I4",payload,sp);sp=np2
-for i=1,count do
-local key=ssub(payload,sp,sp+15);sp+=16
-local s,np3=sunpack("<s4",payload,sp);sp=np3
-sharedStrs[i-1]={blob=s,key=key}end
-end)elseif chunkName=="INST" then
-pcall(function()local sp=1
-local typeIdx,np1=sunpack("<I4",payload,sp);sp=np1
-local cnLen,np2=sunpack("<I4",payload,sp);sp=np2
-local className=ssub(payload,sp,sp+cnLen-1);sp+=cnLen
-local isService=sbyte(payload,sp)~=0;sp+=1
-local count,np3=sunpack("<I4",payload,sp);sp=np3
-local refs=deinterleaveRef(ssub(payload,sp,sp+count*4-1),count);sp+=count*4
-if isService then sp+=count end
-typeMap[typeIdx]={className=className,count=count,referents=refs}for i=1,count do
-local ref=refs[i]instMap[ref]={referent=ref,className=className,isService=isService,properties={},children={},parent=nil}end
-end)elseif chunkName=="PROP" then
-pcall(function()local sp=1
-local typeIdx,np1=sunpack("<I4",payload,sp);sp=np1
-local pnLen,np2=sunpack("<I4",payload,sp);sp=np2
-local propName=ssub(payload,sp,sp+pnLen-1);sp+=pnLen
-local typeId=sbyte(payload,sp);sp+=1
-if typeId==0x1D then sawInternal=true end
-local ti=typeMap[typeIdx]
-if typeId==0x01 and BINARY_STRING_PROPS[propName]then typeId=0x1E2 end
-if typeId==0x1C and NETASSET_PROPS[propName]then typeId=0x1E3 end
-if not ti then return end
-local typeInfo=getType(typeId)local ok2,values=pcall(typeInfo.readBin,ssub(payload,sp),ti.count)if not ok2 then return end
-local refs=ti.referents
-for i=1,#refs do
-local inst=instMap[refs[i]]if inst and values[i]~=nil then
-inst.properties[propName]={typeId=typeId,value=values[i]}end
-end
-end)elseif chunkName=="SIGU" or chunkName=="SIGN" or chunkName=="HASH" then
-sawInternal=true
-local cname=chunkName:gsub("%z","")
-local entries,verified=nil,nil
-if cname=="SIGN" or cname=="SIGU" then
-	local ok,result=pcall(parseSigEntries,payload)
-	if ok then
-		entries=result
-		-- Confirm our field layout is right by rebuilding the chunk from
-		-- the parsed entries and checking it matches byte-for-byte. If a
-		-- future sample doesn't round-trip, entries will be non-nil but
-		-- verified=false, and callers should fall back to raw payload.
-		local ok2,rebuilt=pcall(buildSigEntries,entries)
-		verified=ok2 and rebuilt==payload
-	end
-end
-scc+=1;sigChunks[scc]={name=cname,payload=payload,entries=entries,entriesVerified=verified}
-elseif chunkName=="PRNT" then
-pcall(function()local sp=2
-local count,np=sunpack("<I4",payload,sp);sp=np
-local childRefs=deinterleaveRef(ssub(payload,sp,sp+count*4-1),count)local parentRefs=deinterleaveParentRef(ssub(payload,sp+count*4,sp+count*8-1),count)for i=1,count do
-local child=instMap[childRefs[i]]local parent=instMap[parentRefs[i]]if child then
-child.parent=parent
-if parent then
-local cc=#parent.children+1;parent.children[cc]=child
-else
-rc+=1;roots[rc]=child
-end
-end
-end
-end)end
-end
-if rc==0 and next(instMap)then
-for _,inst in pairs(instMap)do
-if inst.parent==nil then rc+=1;roots[rc]=inst end
-end
-end
-if rc==0 and next(instMap)then
-local isChild={}for _,inst in pairs(instMap)do
-local ch=inst.children
-for i=1,#ch do isChild[ch[i].referent]=true end
-end
-for _,inst in pairs(instMap)do
-if not isChild[inst.referent]then rc+=1;roots[rc]=inst end
-end
-end
-if rc==0 and next(instMap)then
-for _,inst in pairs(instMap)do
-inst.children={};rc+=1;roots[rc]=inst
-end
-end
--- Internal RBXMs (those carrying HASH/SIGU/SIGN chunks) may have their PRNT
--- entries in any order depending on which internal tool produced them.  The
--- DFS traversal in serializeBinary visits children in the order they were
--- appended here, so two semantically identical files with different PRNT
--- orderings would round-trip to different outputs.  Sorting each node's
--- children by their original referent number makes the traversal order
--- deterministic and input-order-independent.
--- Non-internal files are unaffected: scc==0 means we skip this entirely.
-if scc>0 then
-	for _,inst in pairs(instMap)do
-		local ch=inst.children
-		if #ch>1 then
-			tsort(ch,function(a,b)return a.referent<b.referent end)
+nv.df,nv.dfo=nv.clonef(delfile),nv.clonef(delfolder)
+nv.wf=nv.clonef(writefile)
+nv.xml={
+Name="",
+}
+nv.woahc=nv.clonef(pcall)
+nv.HttpGet=nv.index(nv.game,"HttpGet")
+nv.RFS=nv.GetService(nv.game,"ReflectionService")
+nv.GPOC=nv.clonef(nv.index(nv.RFS,"GetPropertiesOfClass"))
+nv.getproperties = function(x)
+	local props={}
+	for _,v in nv.GPOC(nv.RFS,nv.index(x,"ClassName")) do
+		if v.Permits.Read then
+			props[v.Name]=nv.index(x,v.Name)
 		end
 	end
-end
-local sharedBlobs={};local sharedKeys={}for idx,entry in pairs(sharedStrs)do
-sharedBlobs[idx]=entry.blob;sharedKeys[idx]=entry.key
-end
-if sawInternal and not internalRbxm then
-error("BinaryToXML: this .rbxm contains internal-only Roblox data (a Bytecode property and/or SIGN/SIGU/HASH chunks) that never appears in a normal Studio/public-API .rbxm. Pass InternalRbxm=true to BinaryToXML(...) to convert it.",0)
-end
-return roots,sharedBlobs,sharedKeys,sigChunks
-end
-local function tokenize(xml)local tc=0;local tokens={}local pos=1;local n=#xml
-while pos<=n do
-local c=sbyte(xml,pos)if c~=60 then
-local e=sfind(xml,"<",pos,true)local text=ssub(xml,pos,e and e-1 or n)pos=e or n+1
-if sfind(text,"%S")then
-if sfind(text,"&",1,true)then text=xmlUnescape(text)end
-tc+=1;tokens[tc]={type="text",text=text}end
-else
-local c2=sbyte(xml,pos+1)if c2==33 then
-local c3=sbyte(xml,pos+2)if c3==45 and sbyte(xml,pos+3)==45 then
-local e=sfind(xml,"-->",pos+4,true)
-local ctext=ssub(xml,pos+4,e and e-1 or n)
-if sfind(ctext,"RBXSIG:",1,true)then tc+=1;tokens[tc]={type="rbxsig",text=ctext}end
-pos=e and e+3 or n+1
-elseif c3==91 and ssub(xml,pos,pos+8)=="<![CDATA[" then
-local e=sfind(xml,"]]>",pos+9,true)if e then
-tc+=1;tokens[tc]={type="cdata",text=ssub(xml,pos+9,e-1)}pos=e+3
-else pos=n+1 end
-else
-local e=sfind(xml,">",pos+2,true)pos=e and e+1 or n+1
-end
-elseif c2==63 then
-local e=sfind(xml,"?>",pos+2,true)pos=e and e+2 or n+1
-elseif c2==47 then
-local e=sfind(xml,">",pos+2,true)if not e then break end
-local name=ssub(xml,pos+2,e-1):match("^%s*([%w:_%.-]*)%s*")tc+=1;tokens[tc]={type="close",name=name}pos=e+1
-else
-local e=sfind(xml,">",pos+1,true)if not e then break end
-local tag=ssub(xml,pos+1,e-1)pos=e+1
-local selfClose=sbyte(tag,#tag)==47
-if selfClose then tag=ssub(tag,1,-2)end
-local tname=tag:match("^%s*([%w:_%.-]+)")if tname then
-local attrs={}for k,v in tag:gmatch('%s+([%w:_%-]+)%s*=%s*"([^"]*)"')do
-attrs[k]=sfind(v,"&",1,true)and xmlUnescape(v)or v
-end
-for k,v in tag:gmatch("%s+([%w:_%-]+)%s*=%s*'([^']*)'")do
-attrs[k]=sfind(v,"&",1,true)and xmlUnescape(v)or v
-end
-tc+=1;tokens[tc]={type=selfClose and "selfclose" or "open",name=tname,attrs=attrs}end
-end
-end
-end
-return tokens
-end
-local function parseElement(tokens,ti,closeName)local textParts={};local tpc=0;local sub={};local hasCdata=false;local nt=#tokens
-while ti<=nt do
-local tok=tokens[ti]if tok.type=="close" and tok.name==closeName then
-local text=tpc==1 and textParts[1] or tconc(textParts)
--- CDATA blocks must not be whitespace-trimmed: they may contain binary data
--- (e.g. 0x1D bytecode) whose trailing bytes happen to be whitespace characters.
-return hasCdata and text or text:match("^%s*(.-)%s*$"),sub,ti+1
-elseif tok.type=="text" then
-tpc+=1;textParts[tpc]=tok.text;ti+=1
-elseif tok.type=="cdata" then
-hasCdata=true;tpc+=1;textParts[tpc]=tok.text;ti+=1
-elseif tok.type=="open" then
-local childName=tok.name;ti+=1
-local childText,childSub,newTi=parseElement(tokens,ti,childName)ti=newTi
-sub[childName]=next(childSub)and childSub or childText
-elseif tok.type=="selfclose" then
-sub[tok.name]="";ti+=1
-else ti+=1 end
-end
-local text=tpc==1 and textParts[1] or tconc(textParts)return hasCdata and text or text:match("^%s*(.-)%s*$"),sub,ti
-end
-local function parseProperties(tokens,ti)local props={}local nt=#tokens
-while ti<=nt do
-local tok=tokens[ti]if tok.type=="close" and tok.name=="Properties" then
-return props,ti+1
-elseif tok.type=="open" or tok.type=="selfclose" then
-local propTag=tok.name
-local propName=tok.attrs and tok.attrs.name
-if tok.type=="selfclose" then
-if propName then props[propName]={xmlTag=propTag,text="",sub={},attrs=tok.attrs}end
-ti+=1
-else
-ti+=1
-local text,sub,newTi=parseElement(tokens,ti,propTag);ti=newTi
-if propName then props[propName]={xmlTag=propTag,text=text,sub=sub,attrs=tok.attrs}end
-end
-else ti+=1 end
-end
-return props,ti
-end
-local parseXmlItems
-parseXmlItems=function(tokens,ti,refCounter,stopTag)stopTag=stopTag or "roblox"
-local nc=0;local nodes={}local nt=#tokens
-while ti<=nt do
-local tok=tokens[ti]if tok.type=="close" then
-if tok.name==stopTag then return nodes,ti
-else ti+=1 end
-elseif tok.type=="open" and tok.name=="Item" then
-local className=tok.attrs and tok.attrs.class or "Unknown"
-local xmlRef=tok.attrs and tok.attrs.referent or nil
-refCounter[1]+=1
-local node={referent=refCounter[1],className=className,xmlRef=xmlRef,properties={},children={},parent=nil}ti+=1
-local nch=0
-while ti<=nt do
-local inner=tokens[ti]if inner.type=="close" and inner.name=="Item" then
-ti+=1;break
-elseif inner.type=="open" and inner.name=="Properties" then
-ti+=1
-local props,newTi=parseProperties(tokens,ti)ti=newTi;node.properties=props
-elseif inner.type=="open" and inner.name=="Item" then
-local children,newTi=parseXmlItems(tokens,ti,refCounter,"Item")ti=newTi
-for i=1,#children do
-local child=children[i];nch+=1
-child.parent=node;node.children[nch]=child
-end
-else ti+=1 end
-end
-nc+=1;nodes[nc]=node
-else ti+=1 end
-end
-return nodes,ti
-end
-local function parseXml(xml)local tokens=tokenize(xml)local ti=1;local nt=#tokens
-while ti<=nt and not(tokens[ti].type=="open" and tokens[ti].name=="roblox")do
-ti+=1
-end
-if ti>nt then error("RBXConverter: no <roblox> root element found")end
-ti+=1
-local refCounter={0}local xmlSharedStrings={}local xmlSigChunks={}local tmpTi=ti
-while tmpTi<=nt do
-local tok=tokens[tmpTi]if tok.type=="rbxsig" then
-local name,b64=tok.text:match("RBXSIG:(%w+):(%S+)")
-if name and b64 then xmlSigChunks[#xmlSigChunks+1]={name=name,payload=base64Decode(b64)}end
-tmpTi+=1
-elseif tok.type=="open" and tok.name=="SharedStrings" then
-tmpTi+=1
-while tmpTi<=nt do
-local t=tokens[tmpTi]if t.type=="close" and t.name=="SharedStrings" then tmpTi+=1;break end
-if t.type=="open" and t.name=="SharedString" then
-local key=t.attrs and t.attrs.md5 or ""
-tmpTi+=1;local content=""
-while tmpTi<=nt do
-local t2=tokens[tmpTi]if t2.type=="close" and t2.name=="SharedString" then tmpTi+=1;break end
-if t2.type=="text" then content..=t2.text end
-tmpTi+=1
-end
-xmlSharedStrings[key]=base64Decode(content)else tmpTi+=1 end
-end
-break
-elseif tok.type=="open" and tok.name=="Item" then
-break
-else tmpTi+=1 end
-end
-local roots,_=parseXmlItems(tokens,ti,refCounter,"roblox")return roots,xmlSharedStrings,xmlSigChunks
-end
-local PROP_DEFAULTS={
-[0x01]="",[0x02]=false,
-[0x03]=0,[0x04]=0,[0x05]=0,[0x0B]=0,[0x12]=0,[0x13]=-1,[0x1B]=0,[0x21]=0,[0x22]="",
-[0x06]={scale=0,offset=0},
-[0x07]={xScale=0,yScale=0,xOffset=0,yOffset=0},
-[0x08]={ox=0,oy=0,oz=0,dx=0,dy=0,dz=0},
-[0x0C]={r=0,g=0,b=0},[0x1A]={r=0,g=0,b=0},
-[0x0D]={x=0,y=0},
-[0x0E]={x=0,y=0,z=0},[0x14]={x=0,y=0,z=0},
-[0x10]={r=CF_IDENTITY,x=0,y=0,z=0},
-[0x15]={},[0x16]={},
-[0x17]={min=0,max=1},
-[0x18]={minX=0,minY=0,maxX=0,maxY=0},
-[0x19]={custom=false},
-[0x1C]=0,[0x1E]=false,[0x1E2]="",[0x1E4]="",
-[0x1F]=("\0"):rep(16),
-[0x20]={family="",weight=400,style=0,cachedFaceId=""},
-}
-local function serializeBinary(roots,xmlSharedStrings,useZstd,sigChunks,internalRbxm)
-if sigChunks and#sigChunks>0 and not internalRbxm then
-error("XMLToBinary: this XML embeds internal Roblox chunks (RBXSIG comments for SIGN/SIGU/HASH) that only exist in the internal RBXM/RBXL format. Pass InternalRbxm=true to XMLToBinary(...) to include them, or remove the RBXSIG comments to produce an ordinary public .rbxm.",0)
-end
-local allInsts={};local ac=0;local function collect(node)ac+=1;allInsts[ac]=node
-local ch=node.children
-for i=1,#ch do collect(ch[i])end
-end
-for i=1,#roots do collect(roots[i])end
-local na=#allInsts
-local refMap={}for i=1,na do refMap[allInsts[i]]=i-1 end
-local xmlRefNodeMap={}for i=1,na do
-local inst=allInsts[i]if inst.xmlRef then xmlRefNodeMap[inst.xmlRef]=inst end
-end
-local sstrBlobs={};local sstrKeyToIdx={};local sc=0
-if xmlSharedStrings and next(xmlSharedStrings)then
-sc+=1;sstrBlobs[sc]="";sstrKeyToIdx[""]=0
-for key,blob in pairs(xmlSharedStrings)do
-sc+=1;sstrBlobs[sc]=blob;sstrKeyToIdx[key]=sc-1
-end
-end
-local typeOrder={};local typeIndexMap={};local toc=0
-for i=1,na do
-local cn=allInsts[i].className
-if not typeIndexMap[cn]then
-toc+=1;typeIndexMap[cn]=toc;typeOrder[toc]=cn
-end
-end
-local classGroups={}for i=1,na do
-local cn=allInsts[i].className
-local g=classGroups[cn]if not g then g={};classGroups[cn]=g end
-g[#g+1]=allInsts[i]end
-local ic=0;local instChunks=tcreat(toc)for ti=1,toc do
-local className=typeOrder[ti]local group=classGroups[className]local ng=#group
-local refs=tcreat(ng)for i=1,ng do refs[i]=refMap[group[i]]end
-local isService=SERVICE_CLASSES[className]or false
-local payload=spack("<I4",ti-1)..spack("<I4",#className)..className..(isService and "\x01" or "\x00")..spack("<I4",ng)..interleaveRef(refs)
-if isService then
-local rootedParts=tcreat(ng)for i=1,ng do rootedParts[i]="\x01" end
-payload=payload..tconc(rootedParts)
-end
-ic+=1;instChunks[ic]=makeChunk("INST",payload,useZstd)end
-local propNames={}for i=1,na do
-local inst=allInsts[i];local cn=inst.className
-local pm=propNames[cn]if not pm then pm={};propNames[cn]=pm end
-for pname in pairs(inst.properties)do pm[pname]=true end
-end
-local PROTECTED_STRING_PROPS={}local pcc=0;local propChunks={}for ti=1,toc do
-local className=typeOrder[ti]local group=classGroups[className]local ng=#group
-local pnames={};local pnc=0
-for pname in pairs(propNames[className]or{})do pnc+=1;pnames[pnc]=pname end
-tsort(pnames)for pi=1,pnc do
-local pname=pnames[pi]local typeId=nil;local vals=tcreat(ng)for i=1,ng do
-local prop=group[i].properties[pname]if prop and type(prop)=="table" then
-if prop.typeId then
-if not typeId then typeId=prop.typeId end
-vals[i]=prop.value
-elseif prop.xmlTag then
-local rawTid=xmlTagToTypeId[prop.xmlTag]or 0x01
-local tid=rawTid
--- Restore 0x1D bytecode type when the XML attribute marker is present.
--- Without this, Binary→XML→Binary would silently downgrade 0x1D to 0x1E4.
-if rawTid==0x1E4 and prop.attrs and prop.attrs["roblox:type"]=="Bytecode" then
-if not internalRbxm then
-error("XMLToBinary: property '"..pname.."' is marked roblox:type=\"Bytecode\" (internal Roblox bytecode). Pass InternalRbxm=true to XMLToBinary(...) to write it back as 0x1D Bytecode, otherwise it will silently downgrade to a plain 0x01 ProtectedString/Source.",0)
-end
-tid=0x1D
-end
-if not typeId then typeId=tid end
-local _ti=getType(tid)local v=prop._cached~=nil and prop._cached or _ti.readXml(prop.text or "",prop.sub or{})prop._cached=v
-if v~=nil then
-if tid==0x1C then
-local key=prop.text or ""
-local idx=sstrKeyToIdx[key]if idx==nil then
-sc+=1;sstrBlobs[sc]="";sstrKeyToIdx[key]=sc-1;idx=sc-1
-end
-vals[i]=idx
-elseif tid==0x1E3 then
-local key=prop.text or ""local idx=sstrKeyToIdx[key]if idx==nil then
-local blob=base64Decode(key)sc+=1;sstrBlobs[sc]=blob;sstrKeyToIdx[key]=sc-1;idx=sc-1
-end
-vals[i]=idx
-elseif tid==0x13 then
-local pt=prop.text or ""if pt~="" and pt~="null" then
-local refNode=xmlRefNodeMap[pt]vals[i]=refNode and refMap[refNode]or -1
-else vals[i]=-1 end
-else
-vals[i]=v
-end
-end
-end
-end
-end
-if not typeId then continue end
-local typeInfo=getType(typeId)for i=1,ng do
-if vals[i]==nil then
-local _dv=PROP_DEFAULTS[typeId];if _dv~=nil then vals[i]=_dv else vals[i]=0 end
-end
-end
--- FIX: Content (0x22) must be written as String (0x01) in binary.
--- Roblox's binary parser expects type byte 0x01 for these properties;
--- writing 0x22 causes "unexpected format 34, expected 1".
--- The vals are already plain URI strings so PropType[0x01].writeBin handles them directly.
-local binData
-local binTypeId
-if typeId==0x22 then
-binTypeId=0x01
-binData=PropType[0x01].writeBin(vals)
-elseif typeId==0x1E2 then
-binTypeId=0x01
-binData=typeInfo.writeBin(vals)
-elseif typeId==0x1E3 then
-binTypeId=0x1C
-binData=typeInfo.writeBin(vals)
-elseif typeId==0x1E4 and not PROTECTED_STRING_PROPS[pname]then
-binTypeId=0x01
-binData=typeInfo.writeBin(vals)
-else
-binTypeId=typeId
-binData=typeInfo.writeBin(vals)
-end
-if binData and#binData>0 then
-local payload=spack("<I4I4",ti-1,#pname)..pname..chr[binTypeId]..binData
-pcc+=1;propChunks[pcc]=makeChunk("PROP",payload,useZstd)end
-end
-end
-local sstrChunk
-if sc>0 then
-local sp=0;local sparts=tcreat(sc*2+2)sp+=1;sparts[sp]=spack("<I4",0)sp+=1;sparts[sp]=spack("<I4",sc)for i=1,sc do
-local blob=sstrBlobs[i]sp+=1;sparts[sp]=newBlobKey()sp+=1;sparts[sp]=spack("<I4",#blob)..blob
-end
-sstrChunk=makeChunk("SSTR",tconc(sparts),useZstd)end
-local childRefs=tcreat(na);local parentRefs=tcreat(na)for i=1,na do
-local inst=allInsts[i]childRefs[i]=refMap[inst]parentRefs[i]=inst.parent and refMap[inst.parent]or-1
-end
-local prntPayload="\x00"..spack("<I4",na)..interleaveRef(childRefs)..interleaveParentRef(parentRefs)local prntChunk=makeChunk("PRNT",prntPayload,useZstd)local endPayload="</roblox>"
-local endChunk="END\0"..spack("<I4",0)..spack("<I4",#endPayload)..spack("<I4",0)..endPayload
-local header=RBX_MAGIC..spack("<I4",toc)..spack("<I4",na)..spack("<I4",0)..spack("<I4",0)local fp=0;local final=tcreat(4+ic+pcc)fp+=1;final[fp]=header
-if sstrChunk then fp+=1;final[fp]=sstrChunk end
-for i=1,ic do fp+=1;final[fp]=instChunks[i]end
--- HASH sits between INST and PROP in Roblox's internal RBXM format.
--- Compress it normally (it's ~22 KB and benefits from zstd).
-if sigChunks then for _,sc in ipairs(sigChunks)do
-if sc.name=="HASH" then fp+=1;final[fp]=makeChunk(sc.name,sc.payload,useZstd)end
-end end
-for i=1,pcc do fp+=1;final[fp]=propChunks[i]end
-fp+=1;final[fp]=prntChunk
--- SIGU/SIGN go after PRNT and are always stored uncompressed (cLen=0).
--- zstd can shave ~24 bytes off the 324-byte blobs, but Roblox always emits
--- them raw, so compressing them diverges from the original file structure.
-if sigChunks then for _,sc in ipairs(sigChunks)do
-if sc.name~="HASH" then fp+=1;final[fp]=sc.name..spack("<I4",0)..spack("<I4",#sc.payload)..spack("<I4",0)..sc.payload end
-end end
-fp+=1;final[fp]=endChunk
-return tconc(final)end
-local function serializeXml(roots,sharedStrs,sharedKeys,sigChunks)local lc=0;local lines={}lc+=1;lines[lc]='<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime"'..' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'..' xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd"'..' xmlns:roblox="http://www.roblox.com/roblox"'..' version="4">'
-if sigChunks then for _,sc in ipairs(sigChunks)do
--- Human-readable only: does not contain "RBXSIG:" so the tokenizer skips
--- it entirely (see the tokenizer's substring check) -- it carries no
--- round-trip information and is purely for a reader's benefit.
-if sc.entries then
-	local ids=tcreat(#sc.entries)
-	for i,e in ipairs(sc.entries)do ids[i]=tostring(e.publicKeyId)end
-	lc+=1;lines[lc]="<!-- "..sc.name.." publicKeyIds: "..tconc(ids,", ")..
-		(sc.entriesVerified and "" or "  [WARNING: entry layout did not round-trip -- raw bytes preserved, do not trust these IDs]").." -->"
-end
-lc+=1;lines[lc]="<!-- RBXSIG:"..sc.name..":"..base64Encode(sc.payload).." -->"
-end end
-local blobKeyCache={}if sharedKeys and sharedStrs then
-local usedKeys={}for idx,key in pairs(sharedKeys)do
-local blob=sharedStrs[idx]if blob and not blobKeyCache[blob]and not usedKeys[key]then
-blobKeyCache[blob]=key;usedKeys[key]=true
-end
-end
-end
-local function getBlobKey(blob)if not blobKeyCache[blob]then blobKeyCache[blob]=newBlobKey()end
-return blobKeyCache[blob]end
-local sharedBlobByMd5={}local function collectSharedBlobs(node)for pname,prop in pairs(node.properties)do
-if type(prop)=="table" and prop.typeId==0x1C and not CONTENT_PROPS[pname]then
-local idx=prop.value
-if type(idx)=="number" and sharedStrs and sharedStrs[idx]then
-local blob=sharedStrs[idx]sharedBlobByMd5[getBlobKey(blob)]=blob
-end
-end
-end
-local ch=node.children
-for i=1,#ch do collectSharedBlobs(ch[i])end
-end
-if sharedStrs then
-for i=1,#roots do collectSharedBlobs(roots[i])end
-end
-if next(sharedBlobByMd5)then
-lc+=1;lines[lc]="\t<SharedStrings>"
-for key,blob in pairs(sharedBlobByMd5)do
-local keyB64=base64Encode(key)local blobB64=base64Encode(blob)local nb=#blobB64
-local wc=0;local wrapped=tcreat(mceil(nb/76))for i=1,nb,76 do wc+=1;wrapped[wc]="\t\t\t"..ssub(blobB64,i,i+75)end
-lc+=1;lines[lc]='\t\t<SharedString md5="'..keyB64..'">'
-lc+=1;lines[lc]=tconc(wrapped,"\n")lc+=1;lines[lc]="\t\t</SharedString>"
-end
-lc+=1;lines[lc]="\t</SharedStrings>"
-end
-local tabCache=tcreat(8)for d=0,7 do tabCache[d]=srep("\t",d)end
-local function getTab(d)return tabCache[d]or srep("\t",d)end
-local wstack={}local wsp=0
-for _ri=#roots,1,-1 do wsp+=1;wstack[wsp]={n=roots[_ri],d=1}end
-while wsp>0 do
-local _entry=wstack[wsp];wsp-=1
-if _entry.close then lc+=1;lines[lc]=_entry.close
-else
-local node=_entry.n;local indent=_entry.d
-local tab=getTab(indent)local tab1=getTab(indent+1)local tab2=getTab(indent+2)lc+=1;lines[lc]=tab..'<Item class="'..xmlEscape(node.className)..'" referent="'..Converter.ReferentPrefix..node.referent..'">'
-lc+=1;lines[lc]=tab1.."<Properties>"
-local pnames={};local pnc=0
-for pname in pairs(node.properties)do pnc+=1;pnames[pnc]=pname end
-tsort(pnames)for pi=1,pnc do
-local pname=pnames[pi]local prop=node.properties[pname]local typeId,value
-if type(prop)=="table" and prop.typeId then
-typeId=prop.typeId;value=prop.value
-elseif type(prop)=="table" and prop.xmlTag then
-local rawTid=xmlTagToTypeId[prop.xmlTag]or 0x01
-typeId=rawTid
-local _wti=getType(typeId)value=_wti.readXml(prop.text,prop.sub or{})else continue end
-if typeId==0x01 and CONTENT_PROPS[pname] then
-typeId=0x22
-elseif typeId==0x1C or typeId==0x1E3 then
-local idx=type(value)=="number" and value or tonumber(value)or 0
-local blob=sharedStrs and sharedStrs[idx]or ""
-if CONTENT_PROPS[pname]then
-typeId=0x22;value=blob
-elseif typeId==0x1E3 then
-value=blob
-else
-value=base64Encode(getBlobKey(blob))end
-end
-local typeInfo=_wti or getType(typeId)_wti=nil;local tag=typeInfo.xmlTag
-local inner=typeInfo.writeXml(value)if inner~=nil then
-local encoded
-if typeId==0x1E4 or typeId==0x1D then
--- Always CDATA, never switch tag to BinaryString.
--- 0x1E4 = ProtectedString (plain Lua source); 0x1D = internal bytecode.
--- Both use <ProtectedString> in XML; 0x1D gets roblox:type="Bytecode" added below.
-local sv=tostring(inner or "")
-encoded="<![CDATA["..sv.."]]>"
-elseif typeId==0x01 or typeId==0x02 or typeId==0x03 or typeId==0x04
-or typeId==0x05 or typeId==0x0B or typeId==0x12 or typeId==0x15
-or typeId==0x16 or typeId==0x17 or typeId==0x1B or typeId==0x1C
-or typeId==0x21 then
-local sv=tostring(inner or "")if sv:find("[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\xFF]")then
-encoded=base64Encode(sv);tag="BinaryString"
-else encoded=xmlEscape(sv)end
-else
-encoded=inner
-end
-local extraAttr=typeId==0x1D and ' roblox:type="Bytecode"' or ""
-if typeId==0x1D then
--- Bytecode (0x1D) has no XML representation of its own -- it doesn't exist
--- in .rbxmx or public .rbxm at all -- so it's written out as a ProtectedString
--- (0x1E4/0x01), which is binary-layout-identical. This comment is a
--- human-readable note of that fact; the roblox:type="Bytecode" attribute
--- above is what XMLToBinary(..., true) actually reads to restore 0x1D on
--- the way back to binary (comments aren't parsed as data, only as a marker
--- for RBXSIG: see the tokenizer, so they can't carry the round-trip signal
--- themselves).
-lc+=1;lines[lc]=tab2.."<!-- InternalType=Bytecode (0x1D); requires InternalRbxm=true in XMLToBinary to convert back -->"
-end
-lc+=1;lines[lc]=tab2.."<"..tag..' name="'..pname..'"'..extraAttr..">"..encoded.."</"..tag..">"
-end
-end
-lc+=1;lines[lc]=tab1.."</Properties>"
--- push close-tag sentinel FIRST, then children in reverse (so first child is processed first)
-wsp+=1;wstack[wsp]={close=tab.."</Item>"}
-local ch=node.children
-for i=#ch,1,-1 do wsp+=1;wstack[wsp]={n=ch[i],d=indent+1}end
-end -- end of else-branch (entry.close)
-end -- end of while loop
-
-lc+=1;lines[lc]="</roblox>"
-return tconc(lines,"\n")end
--- internalRbxm (3rd arg): must be explicitly set to true to convert XML that
--- carries internal-RBXM-only markers (RBXSIG comments, roblox:type="Bytecode").
--- Without it, such input raises a clear error instead of silently producing
--- an internal-flavored binary the caller didn't ask for.
-function Converter.XMLToBinary(xmlString,useZstd,internalRbxm)assert(type(xmlString)=="string" and#xmlString>0,"XMLToBinary: expected a non-empty XML string")local roots,xmlSharedStrings,sigChunks=parseXml(xmlString)assert(#roots>0,"XMLToBinary: no instances found in XML string")return serializeBinary(roots,xmlSharedStrings,useZstd==true,sigChunks,internalRbxm==true)end
--- internalRbxm (2nd arg): must be explicitly set to true to convert a binary
--- .rbxm that contains internal-only data (a Bytecode property and/or
--- SIGN/SIGU/HASH chunks -- things Studio and the public API never produce or
--- accept). Without it, such input raises a clear error instead of silently
--- dropping/mangling that data.
-function Converter.BinaryToXML(binaryString,internalRbxm)assert(type(binaryString)=="string" and#binaryString>0,"BinaryToXML: expected a non-empty binary string")local roots,sharedStrs,sharedKeys,sigChunks=parseBinary(binaryString,internalRbxm==true)assert(#roots>0,"BinaryToXML: no instances found in binary string")return serializeXml(roots,sharedStrs,sharedKeys,sigChunks)end
--- ParseSignatureChunk / BuildSignatureChunk: direct access to a decompressed
--- SIGN or SIGU chunk's payload, for callers who want the entries without
--- going through the XML round-trip. Read-only container parsing -- this
--- does NOT compute, verify, or forge a signature; it only exposes the
--- publicKeyId/signature bytes that are already present in the file.
---
--- ParseSignatureChunk(payload) -> entries, verified
---   entries:  { {publicKeyId=<number>, signature=<64-byte string>}, ... }
---   verified: true if re-encoding `entries` reproduces `payload` exactly.
---             Always check this -- if false, the layout assumption above
---             didn't hold for this input and `entries` should not be trusted;
---             fall back to treating payload as an opaque blob.
-function Converter.ParseSignatureChunk(payload)
-	assert(type(payload)=="string" and#payload>0,"ParseSignatureChunk: expected a non-empty decompressed SIGN/SIGU payload")
-	local ok,entries=pcall(parseSigEntries,payload)
-	if not ok then return nil,false end
-	local ok2,rebuilt=pcall(buildSigEntries,entries)
-	return entries,ok2 and rebuilt==payload
-end
--- BuildSignatureChunk(entries) -> payload
---   Inverse of ParseSignatureChunk. entries must be
---   { {publicKeyId=<number>, signature=<string>}, ... } with signature
---   bytes taken from elsewhere (e.g. unmodified from a ParseSignatureChunk
---   call) -- this function only re-packs them, it cannot produce a
---   signature value that Roblox's client would trust.
-function Converter.BuildSignatureChunk(entries)
-	assert(type(entries)=="table","BuildSignatureChunk: expected an array of {publicKeyId, signature} entries")
-	for i,e in ipairs(entries)do
-		assert(type(e.publicKeyId)=="number",("BuildSignatureChunk: entries[%d].publicKeyId must be a number"):format(i))
-		assert(type(e.signature)=="string",("BuildSignatureChunk: entries[%d].signature must be a string"):format(i))
+	return props
+end
+nv.XMLEnabled=nv.settings.XMLEnabled
+nv.ind=nv.select(2,pcall(nv.index,nv.HttpService,"RequestInternal"))
+nv.requestinternal=nv.ind and nv.clonef(nv.ind) or error
+if nv.woahc(nv.requestinternal,nv.HttpService,{Url="https://example.com",Method="GET"}) then
+	nv.interfunc=function(x)
+		local id=nv.oldti()
+		if id<3 then
+			nv.oldset(3)
+			nv.def(nv.oldset,id)
+		end
+		return nv.requestinternal(nv.HttpService,{Url=x,Method="GET"})
 	end
-	return buildSigEntries(entries)
+else
+	nv.interfunc=function(x)
+		local id=nv.oldti()
+		if id<3 then
+			nv.oldset(3)
+			nv.def(nv.oldset,id)
+		end
+		return nv.HttpGet(nv.game,x)
+	end
 end
--- FixStudioXml: strips service class identity from any rbxmx/rbxm so it can be
--- safely inserted into a live DataModel without colliding with existing services.
--- For binary: patches only INST chunks (class name + isService flag), all other
--- chunks (PROP, SSTR, PRNT, META, END) are kept byte-for-byte identical.
--- For XML:    scans and rewrites <Item class="ServiceName" tags in markup only,
---             skipping <![CDATA[...]]> blocks so script source is never touched.
-function Converter.FixStudioXml(input)
-	assert(type(input)=="string" and #input>0,"FixStudioXml: expected a non-empty string")
-	local isBinary=ssub(input,1,16)==RBX_MAGIC
-	if isBinary then
-		-- Binary path: walk chunks, patch INST payloads where className is a service
-		local parts={};local pc=0
-		-- header = 16-byte magic + I4 typeCount + I4 instCount + 8 reserved = 32 bytes
-		local headerSize=32
-		pc+=1;parts[pc]=ssub(input,1,headerSize)
-		local pos=headerSize+1
-		local n=#input
-		while pos<=n do
-			if pos+15>n then pc+=1;parts[pc]=ssub(input,pos);break end
-			local chunkName=ssub(input,pos,pos+3)
-			local cLen=sunpack("<I4",input,pos+4)
-			local uLen=sunpack("<I4",input,pos+8)
-			local dataPos=pos+16
-			local dataSize=cLen>0 and cLen or uLen
-			local nextPos=dataPos+dataSize
-			if ssub(chunkName,1,3)=="END" then pc+=1;parts[pc]=ssub(input,pos);break end
-			local patched=false
-			if chunkName=="INST" then
-				-- Internal RBXMs use Zstd per-chunk; detect before falling back to LZ4.
-				-- We also track which algorithm was used so we re-emit with the same one,
-				-- keeping every non-INST chunk byte-identical to the original.
-				local payload
-				local chunkIsZstd=false
-				if cLen>0 then
-					local raw=ssub(input,dataPos,dataPos+cLen-1)
-					if ssub(raw,1,4)==ZSTD_MAGIC then
-						chunkIsZstd=true
-						local ok,r=pcall(zstdDecompress,raw)
-						if ok then payload=r end
-					else
-						local ok,r=pcall(lz4Decompress,raw,uLen)
-						if ok then payload=r end
-					end
-				else payload=ssub(input,dataPos,dataPos+uLen-1)end
-				if payload then
-					local sp=1
-					local typeIdx;typeIdx,sp=sunpack("<I4",payload,sp)
-					local cnLen;cnLen,sp=sunpack("<I4",payload,sp)
-					local className=ssub(payload,sp,sp+cnLen-1);sp+=cnLen
-					-- sp now points at the isService byte; sp+1 starts the referent array
-					if SERVICE_CLASSES[className]or className=="Terrain"then
-						local rest=ssub(payload,sp+1)-- skip old isService byte
-						local newPayload=spack("<I4",typeIdx)..spack("<I4",#"Folder").."Folder".."\x00"..rest
-						pc+=1;parts[pc]=makeChunk("INST",newPayload,chunkIsZstd)
-						patched=true
-					end
+nv.GetAssetSource = function(x)
+return nv.interfunc("https://assetdelivery.roblox.com/v1/asset/?id="..x)
+end
+nv.xmlobject = function(x,y)
+if nv.XMLEnabled then
+local instancexml=[[<roblox version="4">
+		<Item class="]]..x..[[">
+		</Item>
+		</roblox>
+		]]
+local instance=nv.DeserializeInstance(nv.SerializationService,nv.bufferstring(instancexml))[1]
+nv.newindex(instance,"Parent",y)
+		return instance
+else
+	nv.rwarn("XML permissions denied.")
+end
+end
+nv.loadxml = function(x)
+if nv.XMLEnabled then
+return nv.DeserializeInstance(nv.SerializationService,nv.bufferstring(x))
+else
+	nv.rwarn("XML permissions denied.")
+end
+end
+nv.sf,nv.gsub,nv.gmatch=nv.clonef(string.format),nv.clonef(string.gsub),nv.clonef(string.gmatch)
+nv.format=nv.sf
+nv.ti,nv.tc,nv.tun,nv.tsort=nv.clonef(table.insert),nv.clonef(table.concat),nv.clonef(table.unpack),nv.clonef(table.sort)
+nv.ton,nv.tos,nv.typo=nv.clonef(tonumber),nv.clonef(tostring),nv.clonef(typeof)
+nv.mfloor=nv.clonef(math.floor)
+nv.V3,nv.V2,nv.V3i16,nv.V2i16,nv.CF,nv.UD,nv.UD2,nv.Rec,nv.NR,nv.NS,nv.NSK,nv.CS,nv.CSK,nv.C3,nv.PP,nv.Fa,nv.Ax=Vector3.new,Vector2.new,Vector3int16.new,Vector2int16.new,CFrame.new,UDim.new,UDim2.new,Rect.new,NumberRange.new,NumberSequence.new,NumberSequenceKeypoint.new,ColorSequence.new,ColorSequenceKeypoint.new,Color3.new,PhysicalProperties.new,Faces.new,Axes.new
+nv.EnAx,nv.EnNI=Enum.Axis,Enum.NormalId
+nv.clean = function(s)return(nv.gsub(s,"%s+",""))end
+nv.getfaces = function(v)local f={}if v.Right then nv.ti(f,nv.EnNI.Right)end if v.Top then nv.ti(f,nv.EnNI.Top)end if v.Back then nv.ti(f,nv.EnNI.Back)end if v.Left then nv.ti(f,nv.EnNI.Left)end if v.Bottom then nv.ti(f,nv.EnNI.Bottom)end if v.Front then nv.ti(f,nv.EnNI.Front)end return nv.Fa(nv.tun(f))end
+nv.getaxes = function(v)local a={}if v.X then nv.ti(a,nv.EnAx.X)end if v.Y then nv.ti(a,nv.EnAx.Y)end if v.Z then nv.ti(a,nv.EnAx.Z)end return nv.Ax(nv.tun(a))end
+nv.typemap={
+["Vector3"]={enc=function(p)local v=p.Value return nv.sf('<X>%g</X><Y>%g</Y><Z>%g</Z>',v.X,v.Y,v.Z)end,dec=function(s)s=nv.clean(s)return nv.V3(nv.ton(nv.match(s,"<X>(.-)</X>"))or 0,nv.ton(nv.match(s,"<Y>(.-)</Y>"))or 0,nv.ton(nv.match(s,"<Z>(.-)</Z>"))or 0)end},
+["Vector2"]={enc=function(p)local v=p.Value return nv.sf('<X>%g</X><Y>%g</Y>',v.X,v.Y)end,dec=function(s)s=nv.clean(s)return nv.V2(nv.ton(nv.match(s,"<X>(.-)</X>"))or 0,nv.ton(nv.match(s,"<Y>(.-)</Y>"))or 0)end},
+["Vector3int16"]={enc=function(p)local v=p.Value return nv.sf('<X>%d</X><Y>%d</Y><Z>%d</Z>',v.X,v.Y,v.Z)end,dec=function(s)s=nv.clean(s)return nv.V3i16(nv.ton(nv.match(s,"<X>(.-)</X>"))or 0,nv.ton(nv.match(s,"<Y>(.-)</Y>"))or 0,nv.ton(nv.match(s,"<Z>(.-)</Z>"))or 0)end},
+["Vector2int16"]={enc=function(p)local v=p.Value return nv.sf('<X>%d</X><Y>%d</Y>',v.X,v.Y)end,dec=function(s)s=nv.clean(s)return nv.V2i16(nv.ton(nv.match(s,"<X>(.-)</X>"))or 0,nv.ton(nv.match(s,"<Y>(.-)</Y>"))or 0)end},
+["CFrame"]={enc=function(p)local c={p.Value:GetComponents()}return nv.sf('<X>%g</X><Y>%g</Y><Z>%g</Z><R00>%g</R00><R01>%g</R01><R02>%g</R02><R10>%g</R10><R11>%g</R11><R12>%g</R12><R20>%g</R20><R21>%g</R21><R22>%g</R22>',nv.tun(c))end,dec=function(s)s=nv.clean(s)local c={}for v in nv.gmatch(s,">([^<]+)<")do nv.ti(c,nv.ton(v))end if#c<12 then c={nv.ton(nv.match(s,"<X>(.-)</X>")),nv.ton(nv.match(s,"<Y>(.-)</Y>")),nv.ton(nv.match(s,"<Z>(.-)</Z>")),nv.ton(nv.match(s,"<R00>(.-)</R00>")),nv.ton(nv.match(s,"<R01>(.-)</R01>")),nv.ton(nv.match(s,"<R02>(.-)</R02>")),nv.ton(nv.match(s,"<R10>(.-)</R10>")),nv.ton(nv.match(s,"<R11>(.-)</R11>")),nv.ton(nv.match(s,"<R12>(.-)</R12>")),nv.ton(nv.match(s,"<R20>(.-)</R20>")),nv.ton(nv.match(s,"<R21>(.-)</R21>")),nv.ton(nv.match(s,"<R22>(.-)</R22>"))}end return nv.CF(nv.tun(c))end},
+["UDim"]={enc=function(p)local v=p.Value return nv.sf('<S>%g</S><O>%d</O>',v.Scale,v.Offset)end,dec=function(s)s=nv.clean(s)return nv.UD(nv.ton(nv.match(s,"<S>(.-)</S>"))or 0,nv.ton(nv.match(s,"<O>(.-)</O>"))or 0)end},
+["UDim2"]={enc=function(p)local v=p.Value return nv.sf('<XS>%g</XS><XO>%d</XO><YS>%g</YS><YO>%d</YO>',v.X.Scale,v.X.Offset,v.Y.Scale,v.Y.Offset)end,dec=function(s)s=nv.clean(s)return nv.UD2(nv.ton(nv.match(s,"<XS>(.-)</XS>"))or 0,nv.ton(nv.match(s,"<XO>(.-)</XO>"))or 0,nv.ton(nv.match(s,"<YS>(.-)</YS>"))or 0,nv.ton(nv.match(s,"<YO>(.-)</YO>"))or 0)end},
+["Rect2D"]={enc=function(p)local v=p.Value return nv.sf('<min><X>%g</X><Y>%g</Y></min><max><X>%g</X><Y>%g</Y></max>',v.Min.X,v.Min.Y,v.Max.X,v.Max.Y)end,dec=function(s)s=nv.clean(s)return nv.Rec(nv.ton(nv.match(s,"<min>.*<X>(.-)</X>"))or 0,nv.ton(nv.match(s,"<min>.*<Y>(.-)</Y>"))or 0,nv.ton(nv.match(s,"<max>.*<X>(.-)</X>"))or 0,nv.ton(nv.match(s,"<max>.*<Y>(.-)</Y>"))or 0)end},
+["NumberRange"]={enc=function(p)return nv.sf('%g %g',p.Value.Min,p.Value.Max)end,dec=function(s)local m1,m2=nv.match(s,"([^%s]+)%s+([^%s]+)")return nv.NR(nv.ton(m1)or 0,nv.ton(m2)or 0)end},
+["NumberSequence"]={enc=function(p)local r={}for _,k in ipairs(p.Value.Keypoints)do nv.ti(r,nv.sf("%g %g %g",k.Time,k.Value,k.Envelope))end return nv.tc(r," ")end,dec=function(s)local k,v={},{}for x in nv.gmatch(s,"([^%s]+)")do nv.ti(v,nv.ton(x))end for i=1,#v,3 do nv.ti(k,nv.NSK(v[i],v[i+1],v[i+2]))end return nv.NS(k)end},
+["ColorSequence"]={enc=function(p)local r={}for _,k in ipairs(p.Value.Keypoints)do nv.ti(r,nv.sf("%g %g %g %g 0",k.Time,k.Value.R,k.Value.G,k.Value.B))end return nv.tc(r," ")end,dec=function(s)local k,v={},{}for x in nv.gmatch(s,"([^%s]+)")do nv.ti(v,nv.ton(x))end for i=1,#v,5 do nv.ti(k,nv.CSK(v[i],nv.C3(v[i+1],v[i+2],v[i+3])))end return nv.CS(k)end},
+["Color3"]={enc=function(p)local v=p.Value return nv.sf('<R>%g</R><G>%g</G><B>%g</B>',v.R,v.G,v.B)end,dec=function(s)s=nv.clean(s)return nv.C3(nv.ton(nv.match(s,"<R>(.-)</R>"))or 0,nv.ton(nv.match(s,"<G>(.-)</G>"))or 0,nv.ton(nv.match(s,"<B>(.-)</B>"))or 0)end},
+["Color3uint8"]={enc=function(p)local v=p.Value return nv.tos(4278190080+(nv.mfloor(v.R*255)*65536)+(nv.mfloor(v.G*255)*256)+nv.mfloor(v.B*255))end,dec=function(s)local u=nv.ton(s)or 0 return Color3.fromRGB(nv.mfloor(u/65536)%256,nv.mfloor(u/256)%256,u%256)end},
+["PhysicalProperties"]={enc=function(p)local v=p.Value if v==nil then return "null" end if nv.typo(v)=="string" then return v end return nv.sf('<CustomPhysics>true</CustomPhysics><Density>%g</Density><Friction>%g</Friction><Elasticity>%g</Elasticity><FrictionWeight>%g</FrictionWeight><ElasticityWeight>%g</ElasticityWeight>',v.Density,v.Friction,v.Elasticity,v.FrictionWeight,v.ElasticityWeight)end,dec=function(s)return s end},
+["Faces"]={enc=function(p)local v,f=p.Value,0 if v.Right then f+=1 end if v.Top then f+=2 end if v.Back then f+=4 end if v.Left then f+=8 end if v.Bottom then f+=16 end if v.Front then f+=32 end return nv.tos(f)end,dec=function(s)local i=nv.ton(s)or 0 return nv.getfaces({Right=(i%2>=1),Top=(i%4>=2),Back=(i%8>=4),Left=(i%16>=8),Bottom=(i%32>=16),Front=(i%64>=32)})end},
+["Axes"]={enc=function(p)local v,f=p.Value,0 if v.X then f+=1 end if v.Y then f+=2 end if v.Z then f+=4 end return nv.tos(f)end,dec=function(s)local i=nv.ton(s)or 0 return nv.getaxes({X=(i%2>=1),Y=(i%4>=2),Z=(i%8>=4)})end}
+}
+nv.typemap["CoordinateFrame"]=nv.typemap["CFrame"]
+nv.tabletoxml = function(root)
+local out={'<roblox xmlns:xmime="http://www.w3.org/2005/05/xmlmime" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.roblox.com/roblox.xsd" version="4">'}
+local uss={}
+local function scan(t)for k,v in next,t do if type(v)=="table" and v.Tag=="SharedString" then uss[v.Value]=true end if type(k)=="string" and k:find("^Item") then scan(v) end end end
+scan(root)
+if root.SharedStrings then local sb={} for h,c in next,root.SharedStrings do if uss[h] then nv.ti(sb,nv.sf('<SharedString md5="%s">%s</SharedString>',h,c)) end end if #sb>0 then nv.ti(out,"\n<SharedStrings>") nv.ti(out,"\n"..nv.tc(sb,"\n")) nv.ti(out,"\n</SharedStrings>") end end
+local refmap,refcnt={},0
+local function remap_refs(t)
+	local it={} for k,v in next,t do if nv.typo(k)=="string" and k:find("^Item") then nv.ti(it,{k,v}) end end
+	nv.tsort(it,function(a,b) return (nv.ton(nv.match(a[1],"%d+"))or 0)<(nv.ton(nv.match(b[1],"%d+"))or 0) end)
+	for _,pair in ipairs(it) do
+		local d=pair[2]
+		refcnt=refcnt+1
+		local oldRef=d.Referent
+		local newRef=nv.sf("NEX%d",refcnt)
+		if oldRef then refmap[oldRef]=newRef end
+		d.Referent=newRef
+		remap_refs(d)
+	end
+end
+remap_refs(root)
+local function proc(t)
+	local it={} for k,v in next,t do if nv.typo(k)=="string" and k:find("^Item") then nv.ti(it,{k,v}) end end
+	nv.tsort(it,function(a,b) return (nv.ton(nv.match(a[1],"%d+"))or 0)<(nv.ton(nv.match(b[1],"%d+"))or 0) end)
+	for _,pair in ipairs(it) do
+		local d,ref=pair[2],pair[2].Referent
+		nv.ti(out,nv.sf('\n<Item class="%s" referent="%s">',d.ClassName or "Part",ref)) nv.ti(out,"\n<Properties>")
+		for pn,pw in next,d do
+			if pn~="ClassName" and pn~="Referent" and not pn:find("^Item") and nv.typo(pw)=="table" and pw.Tag then
+				local tag,logic=pw.Tag,nv.typemap[pw.Tag]
+				if tag=="Ref" then 
+					local v = pw.Value
+					if v and refmap[v] then v=refmap[v] end
+					nv.ti(out,nv.sf('\n<Ref name="%s">%s</Ref>',pn,(v==nil)and"null"or nv.tos(v)))
+				elseif tag=="BinaryString" or tag=="ProtectedString" or tag=="string" then nv.ti(out,nv.sf('\n<%s name="%s"><![CDATA[%s]]></%s>',tag,pn,pw.Value,tag))
+				elseif logic then local val=logic.enc(pw) nv.ti(out,nv.sf('\n<%s name="%s">%s</%s>',tag,pn,(val=="null")and"null"or val,tag))
+				elseif tag=="UniqueId" or tag=="SharedString" then nv.ti(out,nv.sf('\n<%s name="%s">%s</%s>',tag,pn,pw.Value,tag))
+				elseif tag=="bool" then nv.ti(out,nv.sf('\n<bool name="%s">%s</bool>',pn,nv.tos(pw.Value)))
+				elseif tag=="int" or tag=="int64" then nv.ti(out,nv.sf('\n<%s name="%s">%d</%s>',tag,pn,pw.Value,tag))
+				elseif tag=="float" or tag=="double" then nv.ti(out,nv.sf('\n<%s name="%s">%g</%s>',tag,pn,pw.Value,tag))
+				elseif tag=="token" then nv.ti(out,nv.sf('\n<%s name="%s">%d</%s>',tag,pn,nv.mfloor(pw.Value+0.5),tag))
+				else nv.ti(out,nv.sf('\n<%s name="%s">%s</%s>',tag,pn,nv.tos(pw.Value),tag)) end
+			end end
+		nv.ti(out,"\n</Properties>") proc(d) nv.ti(out,"\n</Item>")
+	end end
+proc(root) nv.ti(out,"\n</roblox>") return nv.tc(out)
+end
+nv.xmltotable = function(xml)
+local ss={} for h,b in nv.gmatch(xml,'<SharedString md5="([^"]+)">([^<]*)</SharedString>') do ss[h]=b end
+local function parse(s)
+	local res,idx,pos={},1,1
+	while true do
+		local b,e,cls,ref=s:find('<Item class="([^"]*)" referent="([^"]*)"[^>]*>',pos)
+		if not b then b,e,cls=s:find('<Item class="([^"]*)"[^>]*>',pos) end if not b then break end
+		local d,ce=1,e+1
+		while d>0 do local no,nc=s:find('<Item%s',ce),s:find('</Item>',ce) if nc and(not no or nc<no) then d-=1 ce=nc+7 elseif no then d+=1 ce=no+6 else break end end
+		local idat={ClassName=cls,Referent=ref} local body=s:sub(b,ce) local ps,pe,pc=body:find("<Properties>"),nil,body:find("</Properties>")
+		if ps and pc then pe=ps+11 local px=body:sub(pe+1,pc-1)
+			for tag,n,c in nv.gmatch(px,"<([^%s>]+) name=\"([^\"]+)\">(.-)</%1>") do
+				local v=c if tag=="BinaryString" or tag=="ProtectedString" or tag=="string" then v=nv.gsub(c,"<!%[CDATA%[(.-)%]%]>","%1")
+				elseif tag=="bool" then v=(c=="true") elseif tag=="int" or tag=="float" or tag=="double" or tag=="token" or tag=="int64" then v=nv.ton(c)
+				elseif tag=="Ref" then v=(c~="null"and c)or nil elseif nv.typemap[tag] then v=nv.typemap[tag].dec(c) elseif tag=="SharedString" then v=c end
+				idat[n]={Tag=tag,Value=v} end end
+		local chi=parse(body:sub((pc or 0)+13,#body-7)) for k,v in next,chi do idat[k]=v end
+		res["Item"..idx]=idat idx+=1 pos=ce
+	end return res end
+local fin=parse(xml) fin.SharedStrings=ss return fin
+end
+nv.req=nv.clonef(request)
+nv.mf=nv.clonef(makefolder)
+nv.isf=nv.clonef(isfile)
+nv.getgit = function(x)
+local url,repo=nv.convertgit(x)
+local tab=nv.JsonDecode(nv.HttpService,nv.req({Url=url,Method="GET"}).Body)
+local newtable={}
+for _,v in tab do
+		newtable[v.name]={
+				path=v.path,
+				url=v.html_url,
+				rawurl=v.download_url,
+				type=v.type,
+				self=v.url
+		}
+end
+return newtable,repo
+end
+nv.reverse=nv.clonef(string.reverse)
+nv.rf=nv.clonef(readfile)
+nv.splitxml = function(xml,y)
+local res={}
+local s=xml
+local h=nv.match(xml,"(<roblox[^>]*>)") or '<roblox version="4">'
+local ss={}
+for hash,data in nv.gmatch(xml,'<SharedString md5="([^"]+)">([^<]*)</SharedString>') do
+	ss[hash]=data
+end
+if nv.find(s,"^<roblox")then s=nv.reverse(nv.gsub(nv.reverse(nv.gsub(s,"^<roblox[^>]*>","")),">xolbor/<","",1))
+end
+if nv.find(s,"^%s*<Item")then
+	s=nv.gsub(s,"^%s*","")
+	local _,p=nv.find(s,"<Properties>.-</Properties>")
+	if not p then _,p=nv.find(s,"^<Item[^>]*>")end
+	s=nv.reverse(nv.gsub(nv.reverse(nv.sub(s,p+1)),">metI/<","",1))
+end
+local cur=1
+while true do
+	local b,e,c=nv.find(s,'<Item class="([^"]+)"[^>]*>',cur)
+	if not b then break end
+	local d,p,f=1,e+1,nil
+	while d>0 do
+		local ns,ne=nv.find(s,'<Item%s',p)
+		local cs,ce=nv.find(s,'</Item>',p)
+		if cs and(not ns or cs<ns)then
+			d=d-1
+			f=ce
+			p=ce+1
+		elseif ns then
+			d=d+1
+			p=ne+1
+		else break end
+	end
+	if f then
+		local x=nv.sub(s,b,f)
+		if y then
+			local needed={}
+			for hash in nv.gmatch(x,'<SharedString name="[^"]*">([^<]+)</SharedString>') do
+				if ss[hash] and not needed[hash] then
+					needed[hash]=true
 				end
 			end
-			if not patched then pc+=1;parts[pc]=ssub(input,pos,nextPos-1)end
-			pos=nextPos
-		end
-		return tconc(parts)
-	else
-		-- XML path: single O(n) gsub replaces <Item class="ServiceName" with Folder.
-		-- <Item class="SvcName"> cannot appear in CDATA/comment content in valid Roblox
-		-- XML, so no special block-skipping is needed.
-		return (input:gsub('<Item class="([^"]*)"',function(className)
-			if SERVICE_CLASSES[className]or className=="Terrain" then
-				return '<Item class="Folder"'
+			local ssblock=""
+			local sb={}
+			for hash in next,needed do
+				nv.ti(sb,nv.sf('<SharedString md5="%s">%s</SharedString>',hash,ss[hash]))
 			end
-		end))
+			if #sb>0 then
+				ssblock="\n<SharedStrings>\n"..nv.tc(sb,"\n").."\n</SharedStrings>"
+			end
+			x=h..ssblock..x..'</roblox>'
+		end
+		nv.ti(res,{Class=c,XML=x})
+		cur=f+1
+	else cur=e+1 end
+end
+return res
+end
+nv.XML={
+Object=nv.cppf(nv.xmlobject),
+Load=nv.cppf(nv.loadxml),
+TableToXML=nv.cppf(nv.tabletoxml),
+XMLToTable=nv.cppf(nv.xmltotable),
+SplitXML=nv.cppf(nv.splitxml)
+}
+nv.robloxtype = function(x)
+	if nv.sub(x,1, 8) == "<roblox!" then
+		return "binary"
+	elseif nv.sub(x,1, 7) == "<roblox" then
+		return "xml"
+	else
+		return "unknown"
 	end
 end
--- FixInternalXml: converts the internal 0x1D Bytecode type marker to plain
--- ProtectedString (binary type 0x01) so that script properties in "internal"
--- Roblox RBXM/RBXL files round-trip correctly through Studio and the public API.
--- Binary layout for 0x1D and 0x01 is identical (length-prefixed strings), so
--- only the single type byte inside each PROP chunk needs to be rewritten.
--- For XML: strips the roblox:type="Bytecode" attribute from ProtectedString tags.
-function Converter.FixInternalXml(input)
-	assert(type(input)=="string" and #input>0,"FixInternalBinary: expected a non-empty string")
-	local isBinary=ssub(input,1,16)==RBX_MAGIC
-	if isBinary then
-		local parts={};local pc=0
-		local headerSize=32
-		pc+=1;parts[pc]=ssub(input,1,headerSize)
-		local pos=headerSize+1
-		local n=#input
-		while pos<=n do
-			if pos+15>n then pc+=1;parts[pc]=ssub(input,pos);break end
-			local chunkName=ssub(input,pos,pos+3)
-			local cLen=sunpack("<I4",input,pos+4)
-			local uLen=sunpack("<I4",input,pos+8)
-			local dataPos=pos+16
-			local dataSize=cLen>0 and cLen or uLen
-			local nextPos=dataPos+dataSize
-			if ssub(chunkName,1,3)=="END" then pc+=1;parts[pc]=ssub(input,pos);break end
-			local patched=false
-			if chunkName=="PROP" then
-				local payload
-				local chunkIsZstd=false
-				if cLen>0 then
-					local raw=ssub(input,dataPos,dataPos+cLen-1)
-					if ssub(raw,1,4)==ZSTD_MAGIC then
-						chunkIsZstd=true
-						local ok,r=pcall(zstdDecompress,raw)
-						if ok then payload=r end
-					else
-						local ok,r=pcall(lz4Decompress,raw,uLen)
-						if ok then payload=r end
-					end
-				else payload=ssub(input,dataPos,dataPos+uLen-1) end
-				if payload then
-					-- PROP layout: I4 typeIdx, I4 nameLen, name bytes, 1-byte typeId, data
-					local sp=1
-					local _typeIdx;_typeIdx,sp=sunpack("<I4",payload,sp)
-					local pnLen;pnLen,sp=sunpack("<I4",payload,sp)
-					sp+=pnLen  -- skip property name; sp now points at typeId byte
-					if sbyte(payload,sp)==0x1D then
-						-- rewrite 0x1D → 0x01; binary payload layout is identical
-						local newPayload=ssub(payload,1,sp-1)..chr[0x01]..ssub(payload,sp+1)
-						pc+=1;parts[pc]=makeChunk("PROP",newPayload,chunkIsZstd)
-						patched=true
-					end
+nv.FixStudioXML=nv.cppf(nv.BinaryFormat.FixStudioXml)
+nv.FixInternalXML=nv.cppf(nv.BinaryFormat.FixInternalXml)
+nv.roblox={XML=nv.tclone(nv.XML),GetAssetSource=nv.cppf(nv.GetAssetSource),BinaryFormat={
+		XMLToBinary=nv.XMLToBinary,
+		BinaryToXML=nv.BinaryToXML,
+		XMLType=nv.cppf(nv.robloxtype),
+		FixStudioXML=nv.FixStudioXML,
+		FixInternalXML=nv.FixInternalXML
+}}
+nv.genv.GetProperties=nv.cppf(nv.getproperties)
+nv.genv.GetLocalObjects=function(x,fixstudio)
+	local id=nv.oldti()
+	if id<3 then
+	nv.oldset(3)
+	nv.def(nv.oldset,id)
+	end
+	local source
+	if fixstudio then
+		source=nv.FixStudioXML(nv.rf(`{nv.behave}{x}`))
+	else
+		source=nv.rf(`{nv.behave}{x}`)
+	end
+		return nv.DeserializeInstance(nv.SerializationService,nv.bufferstring(source))
+end
+nv.genv.GetObjects=function(x,fixstudio)
+	local id=nv.oldti()
+	if id<3 then
+	nv.oldset(3)
+	nv.def(nv.oldset,id)
+	end
+	local assetid=nv.match(x,"%d+")
+	if assetid then
+		local assetsource
+		if fixstudio then
+		assetsource=nv.FixStudioXML(nv.GetAssetSource(assetid))
+		else
+			assetsource=nv.GetAssetSource(assetid)
+		end
+		return nv.DeserializeInstance(nv.SerializationService,nv.bufferstring(assetsource))
+	else
+		nv.err("Invalid asset id.")
+	end
+end
+nv.genv.LoadLocalAsset=function(x)
+if nv.FilesEnabled then
+local id=nv.oldti()
+if id<3 then
+nv.oldset(3)
+nv.def(nv.oldset,id)
+end
+return nv.LLA(nv.InsertService,nv.gca(x))
+end
+nv.rwarn("File permissions denied.")
+end
+nv.genv.InsertAsset=function(x)
+local id=nv.oldti()
+if id<3 then
+nv.oldset(3)
+nv.def(nv.oldset,id)
+end
+return nv.LLA(nv.InsertService,x)
+end
+nv.FileFamily={getfilename=1,readfile=1,writefile=1,isfile=1,isfolder=1,listfiles=1,makefolder=1,delfolder=1,delfile=1,appendfile=1,loadfile=1,getcustomasset=1}
+nv.debugm=nv.settings.DebugMode
+nv.genv.getfilename=function(x,removedot)
+local slash,name=nv.find(x,"/[^/]*$")
+if slash then
+name=nv.sub(x,slash+1)
+else
+name=x
+end
+if removedot then
+local dot=nv.find(name,"%.")
+if dot then
+return nv.sub(name,1,dot-1)
+end
+end
+return name
+end
+nv.CapabilityMax=nv.settings.CapabilityMax
+nv.externalfp={}
+nv.renv.ExternalFileFunctions=nv.externalfp
+nv.renv.Settings=nv.tclone(nv.settings)
+nv.renv.LoadedIcons=nv.tclone(nv.LoadedIcons)
+for i,v in next,nv.genv do
+if not nv.NotAllowed[i] then
+if nv.Identity[i] then
+nv.renv[i]=nv.cppf(function(x)
+if nv.CapabilityMax>=(x or 0) then
+return v(x)
+else
+nv.rwarn("Capability changing permissions denied.")
+end
+end)
+elseif nv.FileFamily[i] then
+if nv.ExternalFilePerms then
+nv.externalfp[i]=nv.clonef(v)
+end
+nv.renv[i]=nv.cppf(function(x,...)
+if nv.FilesEnabled then
+return v(`{nv.behave}{x}`,...)
+end
+nv.rwarn("File permissions denied.")
+end)
+elseif nv.HttpFamily[i] then
+nv.renv[i]=nv.cppf(function(...)
+if nv.HttpEnabled then
+return v(...)
+end
+nv.rwarn("HTTP denied.")
+end)
+else 
+if type(v)=="function" then
+nv.renv[i]=nv.clonef(v)
+else
+nv.renv[i]=nv.tclone(v)
+end
+end
+end
+end
+nv.obsolete = function(x)
+local n=cloneref(x)
+setrawmetatable(n,{})
+return n
+end
+nv.tonum=nv.clonef(tonumber)
+nv.nexenv={
+task=task,
+__index=nv.index,
+__newindex=nv.newindex,
+std={
+NEXFunctions={},
+call={protected=pcall,extended_protected=xpcall},
+coutw=nv.rwarn,
+throw=nv.err,
+dicti=next,
+cout=print,
+tick=os.clock,
+sleep=task.wait,
+task=task,
+os=os,
+math=math,
+functiondebug={
+info=debug.info,
+getenvironment=getfenv,
+},
+luadebug={
+lua_registry=getreg()
+},
+table=table,
+types={
+luatype=type,
+luautype=typeof
+},
+tabledebug={
+__len=rawlen,
+__index=rawget,
+__newindex=rawset,
+__metatable={rawgetmetatable=nv.rawmt,rawsetmetatable=nv.clonef(setrawmetatable)},
+setmetatable=setmetatable,
+__equal=rawequal,
+getmetatable=getmetatable,
+},
+string=string,
+convert={
+tonumber=nv.tonum,
+tostring=tostring,
+},
+globals={
+globalenvironment=_G,
+sharedenvironment=shared,
+},
+random=Random,
+threads=coroutine,
+luaL_dostring=loadstring,
+RobloxObjects={
+Game=nv.obsolete(nv.game),
+Color3=Color3,
+Enum=Enum,
+Path2DControlPoint=Path2DControlPoint,
+PhysicalProperties=PhysicalProperties,
+OverlapParams=OverlapParams,
+Vector3=Vector3,
+Vector2=Vector2,
+RotationCurveKey=RotationCurveKey,
+RaycastParams=RaycastParams,
+TweenInfo=TweenInfo,
+CFrame=CFrame,
+UDim2=UDim2,
+Font=Font,
+UDim=UDim,
+Instance=Instance,
+}
+}
+}
+setmetatable(nv.nexenv,{
+__metatable="The metatable is locked."
+})
+nv.nex = function(x)
+nv.rawmt(x).__index=nv.nexenv
+end
+nv.examplet={}
+nv.getf=nv.clonef(getfenv)
+nv.cc,nv.cr=coroutine.create,coroutine.resume
+nv.precalculatedsize=1024*16
+nv.NEXHttp={}
+nv.apf=nv.clonef(appendfile)
+nv.download = function(url,filename,chunksize)
+if nv.FilesEnabled then
+local ext={installedsize=0,finished=false,WaitForFile=nv.cppf(function(self)
+repeat nv.tw() until self.finished
+return self.installedsize
+end)}
+if nv.canhead then
+ext.size=nv.req{Url=url,Method='HEAD'}['Content-Length']
+	else
+ext.size="0"
+	end
+nv.cr(nv.cc(function()
+chunksize=(chunksize and 1024*chunksize) or nv.precalculatedsize
+local start,Headers,body,bodysize=0,{}
+nv.wf(`{nv.behave}{filename}`,'')
+repeat Headers.Range=`bytes={start}-{start+chunksize-1}`
+body=nv.req{Url=url,Method='GET',Headers=Headers}.Body
+nv.apf(`{nv.behave}{filename}`,body)
+bodysize=#body
+start+=bodysize
+ext.installedsize=start
+until bodysize<chunksize
+ext.finished=true
+end))
+return ext
+else
+		nv.rwarn("File permissions denied.")
+end
+end
+nv.streamget = function(url,chunksize)
+if nv.HttpEnabled then
+local ext={installedsize=0,finished=false,body='',WaitForFile=nv.cppf(function(self)
+repeat nv.tw() until self.finished
+return self.body 
+end)}
+if nv.canhead then
+ext.size=nv.req{Url=url,Method='HEAD'}['Content-Length']
+ else
+ext.size="0"
+ end
+nv.cr(nv.cc(function()
+chunksize=(chunksize and 1024*chunksize) or nv.precalculatedsize
+local start,Headers,body,bodysize=0,{}
+repeat Headers.Range=`bytes={start}-{start+chunksize-1}`
+body=nv.req{Url=url,Method='GET',Headers=Headers}.Body
+ext.body=ext.body..body
+bodysize=#body
+start+=bodysize
+ext.installedsize=start
+until bodysize<chunksize
+ext.finished=true
+end))
+return ext
+else
+		nv.rwarn("HTTP permissions denied.")
+end
+end
+nv.nd=nv.cppf(nv.clonef(nv.download))
+nv.git={
+getgit=nv.cppf(nv.getgit),
+clone=nv.cppf(function(x)
+				if nv.FilesEnabled then
+local tab,repo=nv.getgit(x)
+local rep=`{nv.behave}{repo}/`
+nv.mf(rep)
+						local function check(i,v)
+								if v.type=="file" then
+										nv.nd(v.rawurl,`{repo}/{v.path}`)
+								else
+								nv.mf(`{rep}{v.path}`)
+								local newtab=nv.getgit(`{x}/{v.path}`)
+								for i,v in next,newtab do
+												check(i,v)
+										end
+								end
+						end
+for i,v in next,tab do
+check(i,v)
+end
+				else
+						nv.rwarn("File permissions denied.")
 				end
+		end)
+}
+nv.NEXHttp.download=nv.cppf(nv.download)
+nv.roblox.DownloadAsset=nv.cppf(function(x,y)
+		if nv.FilesEnabled then
+			local id=nv.oldti()
+			if id<3 then
+				nv.oldset(3)
+				nv.def(nv.oldset,id)
 			end
-			if not patched then pc+=1;parts[pc]=ssub(input,pos,nextPos-1) end
-			pos=nextPos
+			nv.wf(`{nv.behave}{y}`,nv.GetAssetSource(x))
 		end
-		return tconc(parts)
-	else
-		-- XML path: strip the roblox:type="Bytecode" attribute added by BinaryToXML.
-		-- The attribute can only appear on <ProtectedString> open tags, never inside
-		-- CDATA content, so a plain gsub is safe and O(n).
-		return (input:gsub(' roblox:type="Bytecode"',""))
+	end)
+nv.renv.roblox=nv.tclone(nv.roblox)
+nv.NEXHttp.streamget=nv.cppf(nv.streamget)
+nv.renv.git=nv.tclone(nv.git)
+nv.isfl=nv.clonef(isfolder)
+nv.lf=nv.clonef(listfiles)
+nv.requests={}
+nv.byte=nv.clonef(string.byte)
+nv.sillystring='\\x%02X'
+nv.utf8 = function(x)
+local res={}
+for i=1,#x do
+res[i]=nv.format(nv.sillystring,nv.byte(x,i))
 	end
+return nv.tc(res)
 end
-return Converter
+nv.seriousstring = '\\x(%x%x)'
+nv.woahnumber=16
+nv.char=nv.clonef(string.char)
+nv.untf8 = function(x)
+local res = {}
+local amount=0 --Instead of #res+1, because this is faster
+for hex in nv.gmatch(x,nv.seriousstring) do
+amount+=1
+res[amount] = nv.char(nv.tonum(hex,nv.woahnumber))
+end
+return nv.tc(res)
+end
+nv.retq = function(x,url)
+return {ok=x.Success,status_code=x.StatusCode,content=nv.utf8(x.Body),text=x.Body,json=nv.cppf(function() return nv.JsonDecode(nv.HttpService,x.Body)end),headers=x.Headers,raise_for_status=nv.cppf(function() if not x.Success then nv.err(x.StatusMessage) end end),url=url,elapsed=x.Headers['x-timer']}
+end
+nv.requests.get=nv.cppf(function(x,options)
+if nv.HttpEnabled then
+options.Url=x
+options.Method="GET"
+return nv.retq(nv.req(options),x)
+else
+	nv.err("HTTP Permissions Denied.")
+end
+end)
+nv.requests.post=nv.cppf(function(x,options)
+if nv.HttpEnabled then
+	options.Url=x
+	options.Method="POST"
+	return nv.retq(nv.req(options),x)
+else
+	nv.err("HTTP Permissions Denied.")
+end
+end)
+nv.requests.options=nv.cppf(function(x,options)
+if nv.HttpEnabled then
+	options.Url=x
+	options.Method="OPTIONS"
+	return nv.retq(nv.req(options),x)
+else
+	nv.err("HTTP Permissions Denied.")
+end
+end)
+nv.requests.patch=nv.cppf(function(x,options)
+if nv.HttpEnabled then
+	options.Url=x
+	options.Method="PATCH"
+	return nv.retq(nv.req(options),x)
+else
+	nv.err("HTTP Permissions Denied.")
+end
+end)
+nv.requests.put=nv.cppf(function(x,options)
+if nv.HttpEnabled then
+	options.Url=x
+	options.Method="PUT"
+	return nv.retq(nv.req(options),x)
+else
+	nv.err("HTTP Permissions Denied.")
+end
+end)
+nv.requests.delete=nv.cppf(function(x,options)
+if nv.HttpEnabled then
+	options.Url=x
+	options.Method="DELETE"
+	return nv.retq(nv.req(options),x)
+else
+	nv.err("HTTP Permissions Denied.")
+end
+end)
+nv.requests.post=nv.cppf(function(x,options)
+if nv.HttpEnabled then
+	options.Url=x
+	options.Method="POST"
+	return nv.retq(nv.req(options),x)
+else
+	nv.err("HTTP Permissions Denied.")
+end
+end)
+nv.encrypt={
+utf8={
+encode=nv.cppf(nv.utf8),
+decode=nv.cppf(nv.untf8)
+},
+base64={
+encode=nv.clonef(crypt.base64.encode),
+decode=nv.clonef(crypt.base64.decode)
+}
+}
+nv.renv.crypt=nv.tclone(nv.encrypt)
+nv.renv.requests=nv.tclone(nv.requests)
+nv.renv.typefile=nv.cppf(function(x)
+if nv.FilesEnabled then
+if nv.isf(`{nv.behave}{x}`) then
+return "file"
+		elseif nv.isfl(`{nv.behave}{x}`) then
+return "folder"
+		else
+			nv.err("File doesnt exist!")
+end
+		else
+				nv.rwarn("File permissions denied.")
+		end
+end)
+nv.split=nv.clonef(nv.exstr.split)
+nv.writeline = function(path,line,content) 
+local lines = {}
+for i,v in nv.split(nv.rf(`{nv.behave}{path}`),'\n') do
+lines[i]=v
+end
+if not lines[line] then
+for i=1,line do
+lines[i]=lines[i] or ''
+end
+end
+lines[line]=content
+nv.wf(`{nv.behave}{path}`,nv.tc(lines, "\n"))
+end
+nv.readline = function(path,line)
+if nv.FilesEnabled then
+local lines = {}
+for i,v in nv.split(nv.rf(`{nv.behave}{path}`),'\n') do
+lines[i]=v
+end
+return lines[line]
+end
+nv.rwarn("File permissions denied.")
+end
+nv.globalread=nv.cppf(function(self)
+return nv.rf(`{nv.behave}{self.Path}`)
+end)
+nv.globalwrite=nv.cppf(function(self,x)
+return nv.wf(`{nv.behave}{self.Path}`,x)
+end)
+nv.wl,nv.rl=nv.clonef(nv.writeline),nv.clonef(nv.readline)
+nv.globalwriteline=nv.cppf(function(self,x,y)
+return nv.wl(self.Path,x,y)
+end)
+nv.globalreadline=nv.cppf(function(self,x)
+return nv.rl(self.Path,x)
+end)
+nv.checksexy = function(x,t)
+for _,v in nv.lf(`{nv.behave}{x}`) do
+t[#t+1]=v
+if typefile(v)=="folder" then
+check(v)
+				end
+end
+end
+nv.globalgd=nv.cppf(function(self)
+local t={}
+nv.checksexy(self.Path,t)
+return t
+end)
+nv.globaldestroy=nv.cppf(function(self)
+if self.Type=="file" then
+				nv.df(`{nv.behave}{self.Path}`)
+else
+				nv.dfo(`{nv.behave}{self.Path}`)
+end
+end)
+nv.globalgc=nv.cppf(function(self) 
+return nv.lf(`{nv.behave}{self.Path}`)
+end)
+nv.OpenFile = function(x)
+if x then
+if not nv.isf(`{nv.behave}{x}`) then
+	nv.wf(`{nv.behave}{x}`,'')
+end
+else
+x="unnamed"
+if not nv.isf(`{nv.behave}{x}`) then --Why would any sane person even do this, just use the path argument!
+nv.wf(`{nv.behave}{x}`,'')
+	else
+local newstr=`{nv.behave}{x} (1)`
+local count=1
+while nv.isf(newstr) do
+count+=1
+newstr=`{nv.behave}{x} ({count})`
+	end
+nv.wf(newstr,'')
+end
+end
+local FileData={
+Path=x,
+Destroy=nv.globaldestroy,
+Name=nv.genv.getfilename(x),
+Type=nv.isf(`{nv.behave}{x}`) and "file" or (nv.isfl(`{nv.behave}{x}`) and "folder" or nil),
+GetChildren=nv.cppf(function(self)
+return {}
+end),
+GetDescendants=nv.cppf(function(self)
+	return {}
+end)
+}
+if FileData.Type=="file" then
+FileData.Read=nv.globalread
+FileData.Write=nv.globalwrite
+FileData.ReplaceLine=nv.globalwriteline
+FileData.ReadLine=nv.globalreadline
+elseif FileData.Type=="folder" then
+FileData.GetChildren=nv.globalgc
+FileData.GetDescendants=nv.globalgd
+end
+local bc=nv.clonef(buffer.create)
+local metatable={
+__namecall=nv.cppf(function(x,...)
+local method=getnamecallmethod()
+local methf=x[method]
+if not methf then
+						nv.err("Attempted to call a non-existent method!")
+				else
+return methf(x,...)
+				end
+		end),
+__type="File",
+__tostring=nv.cppf(function() return FileData.Name end),
+__index=FileData,
+__newindex=nv.cppf(function(l,y,z)
+if y=="Path" then
+nv.wf(`{nv.behave}{z}`,l:Read())
+l:Destroy()
+elseif y=="Name" then
+nv.wf(`{nv.behave}{x:gsub(FileData.Name,'')}{z}`,l:Read())
+l:Destroy()
+		elseif y=="Type" then
+l:Destroy()
+if z=="folder" then
+nv.mf(`{nv.behave}{x}`)
+			elseif z=="file" then
+nv.wf(`{nv.behave}{x}`,'')
+			else
+nv.err(`Cannot change the type of File to {z}`)
+			end
+		else
+nv.err(`Cannot modify the {y} of File.`)
+	end
+end),
+__metatable="The metatable is locked."
+}
+local Holder=bc(0)
+nv.rawsmt(Holder,metatable)
+return Holder
+end
+nv.renv.OpenFile=nv.cppf(nv.OpenFile)
+nv.renv.readline=nv.cppf(nv.readline)
+nv.renv.writeline=nv.cppf(nv.writeline)
+nv.renv.listfiles=nv.cppf(function(x)
+if nv.FilesEnabled then
+if not x or x=='./' then
+x=''
+end
+local fi=nv.lf(`{nv.behave}{x}`)
+local newfi={}
+for i,v in fi do
+newfi[i]=nv.gsub(v,nv.behave,'')
+end
+return newfi
+else
+		nv.rwarn("File permissions denied.")
+end
+end)
+nv.renv.NEXHttp=nv.tclone(nv.NEXHttp)
+nv.renv._NEXVERSION=nv.version
+nv.iro=nv.clonef(isreadonly)
+nv.rant={}
+nv.tclose=nv.clonef(task.cancel)
+nv.tspawn=nv.clonef(task.spawn)
+nv.nexify = function()
+for _,v in nv.reg do
+if not nv.rant[v] and nv.rtype(v)=="thread" then --this is the most
+nv.rant[v]=true
+local threadf=nv.info(v,1,'f')
+local env=nv.getf(threadf)
+local envm=nv.rawmt(env)
+local envmm=nv.rawmt(envm) or nv.examplet
+local envmi=envm.__index
+local indr=nv.rawmt(envmi)
+if nv.iro(envmm) or nv.iro(envm) then
+if nv.debugm then
+nv.rwarn(`Came across an abnormal thread! ({env.script})`)
+			end
+		else
+local newind
+if indr then
+local oindrmt=indr.__metatable
+indr.__metatable=nil
+newind=nv.tclone(envmi)
+envm.__index=newind
+indr.__metatable=oindrmt
+end
+local envte=newind or env
+local envtenex=envte
+if env and env.Protected_Environment then
+if nv.debugm or env.ForceDebuggedEnvironment then
+nv.rwarn(`{env.script} IS PROTECTED`)
+										end
+						else
+if env.NEXLuau then
+nv.nex(env)
+envte=nv.nexenv.std.NEXFunctions
+envtenex=nv.nexenv
+										end
+if env.ExternalThread then
+nv.tclose(v)
+nv.tw()
+nv.tspawn(v)
+if nv.debugm then
+nv.rwarn(`{env.script} is EXTERNAL`)
+end
+end
+for i,x in next,nv.renv do
+envte[i]=x
+end
+envtenex.NEX_Loaded=true
+										if nv.debugm or env.ForceDebuggedEnvironment then
+										nv.rwarn(`NEX LOADED IN {env.script}`)
+										end
+end
+end
+end
+end
+end
+nv.renv.UpdateNEX=nv.cppf(function()nv.nexify()end)
+nv.nexify()
+nv.SendNotification(nv.GuiService,{
+Icon=nv.NEXIcon,
+Title=nv.NEXTitle,
+Text=`NEX Emulation finished in {nv.ot()-nv.t}`
+})
+nv.tw(0.01)
+nv.cdef(function()nv.nexify()nv.tclose(nv.currentthread)end) 
+You're probably wondering how this script still works even with this non-luau line...
