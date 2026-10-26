@@ -44,8 +44,8 @@ nexImportToFolderV(".cache",{
 })
 nv.BinaryFormat=loadstring(readfile'.cache/BinaryFormatConverter.luau')()
 nv.Bytecode=loadstring(readfile'.cache/Decompiler.luau')()
-nv.version="1.0.9"
-nv.lastversion="1.0.8"
+nv.version="1.0.9.5"
+nv.latestversion=nv.NEXVersion("NEXEmulator")
 nv.latestversion=nv.NEXVersion("NEXEmulator")
 nv.NEXIcon=getcustomasset(".icons/NEX.png")
 nv.LoadedIcons={NEX=nv.NEXIcon}
@@ -126,22 +126,24 @@ nv.SettingsExist=isfile(`{nv.SettingsPrefix}Settings.json`)
 nv.s,nv.settingst=pcall(function()
 return nv.JsonDecode(nv.HttpService,readfile(`{nv.SettingsPrefix}Settings.json`))
 end)
-nv.origs={CapabilityMax=2,EmulateOnGameIsLoaded=true,HTTPEnabled=true,FilesEnabled=true,ExternalFilePerms=false,DebugMode=false,RobloxScriptRequire=true,XMLEnabled=true}
+nv.origs={CapabilityMax=2,EmulateOnGameIsLoaded=true,HTTPEnabled=true,FilesEnabled=true,ExternalFilePerms=false,DebugMode=false,RobloxScriptRequire=true,XMLEnabled=true,AdvancedNEXify=true}
 if not isfile("StarterSettings.json") then
 writefile("StarterSettings.json",nv.JsonEncode(nv.HttpService,nv.origs))
 end
 nv.settings=nv.SettingsExist and nv.s and nv.settingst or nv.JsonDecode(nv.HttpService,readfile("StarterSettings.json"))
-if not isfile("._NEXVERSION") or readfile("._NEXVERSION")==nv.lastversion then
-writefile("._NEXVERSION",nv.version)
+local updatedsettings=false
 for i,v in next,nv.origs do
 	if nv.settings[i]==nil then
+		updatedsettings=true
 		nv.settings[i]=v
 	end
 end
 nv.stjson=nv.JsonEncode(nv.HttpService,nv.settings)
+if not isfile"._NEXVERSION" or readfile"._NEXVERSION"==nv.version then
+writefile("._NEXVERSION",nv.version)
+end
+if updatedsettings then
 writefile("StarterSettings.json",nv.stjson)
-else
-nv.stjson=nv.JsonEncode(nv.HttpService,nv.settings)
 end
 if not nv.SettingsExist then
 writefile(`{nv.SettingsPrefix}Settings.json`,nv.stjson)
@@ -1088,7 +1090,26 @@ nv.iro=nv.clonef(isreadonly)
 nv.rant={}
 nv.tclose=nv.clonef(task.cancel)
 nv.tspawn=nv.clonef(task.spawn)
-nv.nexify = function()
+if not nv.settings.AdvancedNEXify then
+nv.nexify=function()
+for _,v in nv.reg do
+      if nv.rtype(envrmi)=="thread" then
+			local threadf=nv.info(v,1,'f')
+			local env=nv.getf(threadf)
+		  local envrm=nv.rawmt(env)
+			local envrmi=envrm.__index
+			if not nv.iro(envrm) and not nv.rawmt(envrm) and envrmi and not nv.iro(envrmi) and nv.rtype(envrmi)=="table" then
+				local nt=nv.tclone(envrmi)
+				for i,v in next,nv.renv do
+				nt[i]=v
+				end
+				envrm.__index=nt
+			end
+      end
+		end
+	end
+else
+nv.nexify=function()
 for _,v in nv.reg do
 if not nv.rant[v] and nv.rtype(v)=="thread" then --this is the most
 nv.rant[v]=true
@@ -1143,6 +1164,7 @@ end
 end
 end
 end
+	end
 nv.renv.UpdateNEX=nv.cppf(function()nv.nexify()end)
 nv.nexify()
 nv.SendNotification(nv.GuiService,{
