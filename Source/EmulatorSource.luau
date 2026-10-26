@@ -15,6 +15,18 @@ writefile(`{x}/{i}`,nv.NEXRequire(v))
 						end
 		end
 end
+nv.NEXVersion=function(x)
+    return request({Url=`https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/Versions/{x}`,Method="GET"}).Body
+end
+
+local function nexImportToFolderV(x,y)
+for i,v in next,y do
+        if not isfile(`{x}/{i}`) or nv.NEXVersion(i)~=readfile(`{x}/Versions/{i}`) then
+            writefile(`{x}/{i}`,nv.NEXRequire(v))
+            writefile(`{x}/Versions/{i}`,nv.NEXVersion(i))
+        end
+    end
+end
 if not isfolder(".icons") then
 makefolder(".icons")
 nv.ImportToFolder(".icons",{
@@ -22,11 +34,21 @@ nv.ImportToFolder(".icons",{
 [".nomedia"]="Icons/.nomedia"
 })
 end
+if not isfolder(".cache") then
+makefolder(".cache")
+makefolder(".cache/versions")
+end
+nexImportToFolderV(".cache",{
+["BinaryFormatConverter.luau"]="BinaryFormatConverter.luau",
+["Decompiler.luau"]="Decompiler.luau"
+})
+nv.BinaryFormat=loadstring(readfile'.cache/BinaryFormatConverter.luau')()
+nv.Bytecode=loadstring(readfile'.cache/Decompiler.luau')()
 nv.version="1.0.9"
 nv.lastversion="1.0.8"
+nv.latestversion=nv.NEXVersion("NEXEmulator")
 nv.NEXIcon=getcustomasset(".icons/NEX.png")
 nv.LoadedIcons={NEX=nv.NEXIcon}
-nv.BinaryFormat=loadstring(request({Url="https://raw.githubusercontent.com/NEXEmulator/Emulator/refs/heads/main/BinaryFormatConverter.luau",Method="GET"}).Body)()
 nv.clonef=clonefunction(clonefunction)
 nv.cppf=nv.clonef(newcclosure)
 nv.XMLToBinary=nv.cppf(nv.BinaryFormat.XMLToBinary)
