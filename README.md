@@ -19,4 +19,4 @@ Check out one of the featured NEX Emulation games here:
 ## Credits
 
 - **Secment (secment)** - Main Developer (Coded the entirety of NEX Emulation)
-- **Realm (v00ccx)** - Site (Created the documentation sit
+- **Realm (v00ccx)** - Site (Created the documentation site)
